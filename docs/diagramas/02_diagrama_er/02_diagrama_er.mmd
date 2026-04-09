@@ -1,66 +1,113 @@
 erDiagram
-    USER ||--o{ RECIPE : "publica"
-    USER ||--o{ FAVORITE : "guarda"
-    USER ||--o{ RATING : "valora"
+    USERS ||--o{ RECIPES : "publica"
+    USERS ||--o{ FAVORITES : "guarda"
+    USERS ||--o{ RATINGS : "valora"
 
-    CATEGORY ||--o{ RECIPE : "clasifica"
-    DIFFICULTY ||--o{ RECIPE : "define_nivel"
-    
-    RECIPE ||--|{ STEP : "contiene"
-    RECIPE ||--o{ RECIPE_MEDIA : "tiene_fotos"
-    
-    RECIPE ||--|{ RECIPE_INGREDIENT : "incluye"
-    INGREDIENT ||--o{ RECIPE_INGREDIENT : "es_usado"
-    UNIT_MEASURE ||--o{ RECIPE_INGREDIENT : "mide"
-    
-    INGREDIENT_CATEGORY ||--o{ INGREDIENT : "agrupa"
+    CATEGORIES ||--o{ RECIPES : "clasifica"
+    DIFFICULTIES ||--o{ RECIPES : "define_nivel"
 
-    RECIPE ||--o{ RECIPE_TAG : "etiquetada_con"
-    TAG ||--o{ RECIPE_TAG : "organiza"
+    RECIPES ||--|{ STEPS : "contiene"
+    RECIPES ||--o{ RECIPE_MEDIA : "tiene_fotos"
 
-    USER {
+    RECIPES ||--|{ RECIPE_INGREDIENTS : "incluye"
+    INGREDIENTS ||--o{ RECIPE_INGREDIENTS : "es_usado"
+    UNIT_MEASURES ||--o{ RECIPE_INGREDIENTS : "mide"
+
+    INGREDIENT_CATEGORIES ||--o{ INGREDIENTS : "agrupa"
+
+    RECIPES ||--o{ RECIPE_TAGS : "etiquetada_con"
+    TAGS ||--o{ RECIPE_TAGS : "organiza"
+
+    USERS {
         int id_user PK
-        string username
-        string email
-        string password_hash
+        string username "varchar(50), UNIQUE"
+        string email "varchar(255), UNIQUE"
+        string password_hash "varchar(255)"
         datetime created_at
     }
 
-    RECIPE {
+    RECIPES {
         int id_recipe PK
         int user_id FK
         int category_id FK
         int difficulty_id FK
-        string title
-        string description
-        int prep_time_min
-        int servings
+        string title "varchar(200)"
+        string description "text"
+        int prep_time_min "CHECK > 0"
+        int servings "CHECK > 0"
+        datetime created_at
     }
 
-    INGREDIENT {
+    INGREDIENTS {
         int id_ingredient PK
-        int category_id FK
-        string name
+        int ing_category_id FK
+        string name "varchar(100), UNIQUE"
     }
 
-    RECIPE_INGREDIENT {
+    RECIPE_INGREDIENTS {
         int recipe_id PK, FK
         int ingredient_id PK, FK
         int unit_id FK
-        decimal quantity
+        decimal quantity "CHECK > 0, (10,2)"
     }
 
-    RATING {
+    RATINGS {
         int id_rating PK
         int user_id FK
         int recipe_id FK
-        int score
+        int score "CHECK 1-5"
         string comment
+        datetime created_at
     }
-    
-    STEP {
+
+    STEPS {
         int id_step PK
         int recipe_id FK
-        int step_order
-        string instruction
+        int step_order "CHECK > 0"
+        string instruction "text"
+    }
+
+    RECIPE_MEDIA {
+        int id_media PK
+        int recipe_id FK
+        string url "varchar(2048)"
+        boolean is_main
+        int sort_order
+    }
+
+    CATEGORIES {
+        int id_category PK
+        string name "varchar(100), UNIQUE"
+    }
+
+    DIFFICULTIES {
+        int id_difficulty PK
+        string level_name "varchar(50), UNIQUE"
+    }
+
+    TAGS {
+        int id_tag PK
+        string name "varchar(50), UNIQUE"
+    }
+
+    RECIPE_TAGS {
+        int recipe_id PK, FK
+        int tag_id PK, FK
+    }
+
+    FAVORITES {
+        int user_id PK, FK
+        int recipe_id PK, FK
+        datetime created_at
+    }
+
+    UNIT_MEASURES {
+        int id_unit PK
+        string name "varchar(50), UNIQUE"
+        string abbreviation "varchar(10), UNIQUE"
+    }
+
+    INGREDIENT_CATEGORIES {
+        int id_ing_category PK
+        string name "varchar(100), UNIQUE"
     }

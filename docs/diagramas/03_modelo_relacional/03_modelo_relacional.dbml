@@ -11,33 +11,32 @@ Project Recetea {
 // --- IDENTIDAD Y ACCESO ---
 Table users {
   id_user integer [primary key, increment]
-  username varchar [unique, not null, note: 'Nombre de usuario para la comunidad']
-  email varchar [unique, not null]
-  password_hash varchar [not null, note: 'Hash de la contraseña (seguridad)']
+  username varchar(50) [unique, not null, note: 'Nombre de usuario para la comunidad']
+  email varchar(255) [unique, not null]
+  password_hash varchar(255) [not null, note: 'Hash de la contraseña (seguridad)']
   created_at timestamp [default: `now()`]
 }
 
 // --- TABLAS MAESTRAS (DICCIONARIOS) ---
-// Estas tablas evitan errores de escritura y alimentan los ComboBox de JavaFX
 Table categories {
   id_category integer [primary key, increment]
-  name varchar [not null, note: 'Ej: Postres, Ensaladas, Pastas']
+  name varchar(100) [not null, unique, note: 'Ej: Postres, Ensaladas, Pastas']
 }
 
 Table difficulties {
   id_difficulty integer [primary key, increment]
-  level_name varchar [not null, note: 'Fácil, Media, Difícil']
+  level_name varchar(50) [not null, unique, note: 'Fácil, Media, Difícil']
 }
 
 Table ingredient_categories {
   id_ing_category integer [primary key, increment]
-  name varchar [not null, note: 'Agrupación: Lácteos, Carnes, Verduras...']
+  name varchar(100) [not null, unique, note: 'Agrupación: Lácteos, Carnes, Verduras...']
 }
 
 Table unit_measures {
   id_unit integer [primary key, increment]
-  name varchar [not null, note: 'Gramos, Litros, Unidades']
-  abbreviation varchar [not null, note: 'g, l, ud']
+  name varchar(50) [not null, unique, note: 'Gramos, Litros, Unidades']
+  abbreviation varchar(10) [not null, unique, note: 'g, l, ud']
 }
 
 // --- NÚCLEO DE LA RECETA ---
@@ -46,38 +45,44 @@ Table recipes {
   user_id integer [not null, note: 'Autor de la receta']
   category_id integer [not null]
   difficulty_id integer [not null]
-  title varchar [not null]
+  title varchar(200) [not null]
   description text
-  prep_time_min integer
-  servings integer [note: 'Clave para escalar cantidades en el código']
+  prep_time_min integer [note: 'Constraint: CHECK > 0']
+  servings integer [note: 'Clave para escalar cantidades en el código. Constraint: CHECK > 0']
+  created_at timestamp [default: `now()`]
 }
 
 Table steps {
   id_step integer [primary key, increment]
   recipe_id integer [not null]
-  step_order integer [not null, note: 'Orden secuencial de las instrucciones']
+  step_order integer [not null, note: 'Orden secuencial. Constraint: CHECK > 0']
   instruction text [not null]
+
+  Indexes {
+      (recipe_id, step_order) [unique, note: 'Evita duplicidad de pasos']
+    }
 }
 
 Table recipe_media {
   id_media integer [primary key, increment]
   recipe_id integer [not null]
-  url varchar [not null, note: 'Path local o URL de la imagen']
-  is_main boolean [default: false, note: 'Imagen principal para el listado']
+  url varchar(2048) [not null, note: 'Path local o URL de la imagen']
+  is_main boolean [default: false, note: 'Solo un TRUE por receta (vía Partial Index en SQL)']
+  sort_order integer [default: 0, note: 'Para ordenar la galería de fotos']
 }
 
 // --- SISTEMA DE INGREDIENTES (RELACIÓN N:M) ---
 Table ingredients {
   id_ingredient integer [primary key, increment]
-  category_id integer [not null]
-  name varchar [not null, unique]
+  ing_category_id integer [not null]
+  name varchar(100) [not null, unique]
 }
 
 Table recipe_ingredients {
   recipe_id integer [not null]
   ingredient_id integer [not null]
   unit_id integer [not null]
-  quantity decimal(10,2) [not null, note: 'Uso de BigDecimal en Java para precisión']
+  quantity decimal(10,2) [not null, note: 'Uso de BigDecimal en Java para precisión. Constraint: CHECK > 0']
 
   Indexes {
     (recipe_id, ingredient_id) [pk]
@@ -87,7 +92,7 @@ Table recipe_ingredients {
 // --- SOCIAL Y BÚSQUEDA ---
 Table tags {
   id_tag integer [primary key, increment]
-  name varchar [not null, unique, note: '#Vegano, #Rápido']
+  name varchar(50) [not null, unique, note: '#Vegano, #Rápido']
 }
 
 Table recipe_tags {
@@ -99,6 +104,7 @@ Table recipe_tags {
 Table favorites {
   user_id integer [not null]
   recipe_id integer [not null]
+  created_at timestamp [default: `now()`]
   Indexes { (user_id, recipe_id) [pk] }
 }
 
@@ -106,37 +112,39 @@ Table ratings {
   id_rating integer [primary key, increment]
   user_id integer [not null]
   recipe_id integer [not null]
-  score integer [not null, note: 'Puntuación 1-5']
+  score integer [not null, note: 'Puntuación 1-5. Constraint: CHECK (score >= 1 AND score <= 5)']
   comment text [note: 'Opinión opcional del usuario']
   created_at timestamp [default: `now()`]
+
+  Indexes {
+      (user_id, recipe_id) [unique, note: 'Un usuario solo valora una vez cada receta']
+    }
 }
 
 // ==========================================================
 // CARDINALIDADES Y RELACIONES
 // ==========================================================
 
-// --- Relaciones 1:N ---
-Ref: users.id_user < recipes.user_id
-Ref: categories.id_category < recipes.category_id
-Ref: difficulties.id_difficulty < recipes.difficulty_id
-Ref: recipes.id_recipe < steps.recipe_id
-Ref: recipes.id_recipe < recipe_media.recipe_id
-Ref: ingredient_categories.id_ing_category < ingredients.category_id
+// --- Relaciones 1:N (Tablas Maestras con Protección) ---
+Ref: users.id_user < recipes.user_id [delete: cascade] // Si el autor se va, su obra también
+Ref: categories.id_category < recipes.category_id [delete: restrict] // No borres una categoría si tiene recetas
+Ref: difficulties.id_difficulty < recipes.difficulty_id [delete: restrict]
+Ref: ingredient_categories.id_ing_category < ingredients.ing_category_id [delete: restrict]
 
-// Gestión de valoraciones (1:N)
-Ref: users.id_user < ratings.user_id
-Ref: recipes.id_recipe < ratings.recipe_id
+// --- Dependencias de Receta (Borrados en Cascada) ---
+// Estas relaciones aseguran que al borrar una receta se limpie toda su información vinculada
+Ref: recipes.id_recipe < steps.recipe_id [delete: cascade]
+Ref: recipes.id_recipe < recipe_media.recipe_id [delete: cascade]
+Ref: recipes.id_recipe < ratings.recipe_id [delete: cascade]
+Ref: recipes.id_recipe < recipe_ingredients.recipe_id [delete: cascade]
+Ref: recipes.id_recipe < recipe_tags.recipe_id [delete: cascade]
+Ref: recipes.id_recipe < favorites.recipe_id [delete: cascade]
 
-// --- Relaciones N:M ---
-// Composición de ingredientes por receta
-Ref: recipes.id_recipe < recipe_ingredients.recipe_id
-Ref: ingredients.id_ingredient < recipe_ingredients.ingredient_id
-Ref: unit_measures.id_unit < recipe_ingredients.unit_id
+// --- Gestión de Actividad de Usuario (Limpieza automática) ---
+Ref: users.id_user < ratings.user_id [delete: cascade]
+Ref: users.id_user < favorites.user_id [delete: cascade]
 
-// Etiquetado
-Ref: recipes.id_recipe < recipe_tags.recipe_id
-Ref: tags.id_tag < recipe_tags.tag_id
-
-// Favoritos
-Ref: users.id_user < favorites.user_id
-Ref: recipes.id_recipe < favorites.recipe_id
+// --- Composición de Ingredientes y Etiquetas ---
+Ref: ingredients.id_ingredient < recipe_ingredients.ingredient_id [delete: restrict]
+Ref: unit_measures.id_unit < recipe_ingredients.unit_id [delete: restrict]
+Ref: tags.id_tag < recipe_tags.tag_id [delete: cascade] // Si borras un tag, se quita de las recetas (seguro)
