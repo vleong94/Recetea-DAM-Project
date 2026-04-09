@@ -1,0 +1,142 @@
+// ==========================================================
+// PROYECTO: RECETEA
+// Configuración para: Java 24 + JavaFX + PostgreSQL
+// ==========================================================
+
+Project Recetea {
+  database_type: 'PostgreSQL'
+  Note: 'Modelo normalizado para gestión de recetas, ingredientes y feedback social.'
+}
+
+// --- IDENTIDAD Y ACCESO ---
+Table users {
+  id_user integer [primary key, increment]
+  username varchar [unique, not null, note: 'Nombre de usuario para la comunidad']
+  email varchar [unique, not null]
+  password_hash varchar [not null, note: 'Hash de la contraseña (seguridad)']
+  created_at timestamp [default: `now()`]
+}
+
+// --- TABLAS MAESTRAS (DICCIONARIOS) ---
+// Estas tablas evitan errores de escritura y alimentan los ComboBox de JavaFX
+Table categories {
+  id_category integer [primary key, increment]
+  name varchar [not null, note: 'Ej: Postres, Ensaladas, Pastas']
+}
+
+Table difficulties {
+  id_difficulty integer [primary key, increment]
+  level_name varchar [not null, note: 'Fácil, Media, Difícil']
+}
+
+Table ingredient_categories {
+  id_ing_category integer [primary key, increment]
+  name varchar [not null, note: 'Agrupación: Lácteos, Carnes, Verduras...']
+}
+
+Table unit_measures {
+  id_unit integer [primary key, increment]
+  name varchar [not null, note: 'Gramos, Litros, Unidades']
+  abbreviation varchar [not null, note: 'g, l, ud']
+}
+
+// --- NÚCLEO DE LA RECETA ---
+Table recipes {
+  id_recipe integer [primary key, increment]
+  user_id integer [not null, note: 'Autor de la receta']
+  category_id integer [not null]
+  difficulty_id integer [not null]
+  title varchar [not null]
+  description text
+  prep_time_min integer
+  servings integer [note: 'Clave para escalar cantidades en el código']
+}
+
+Table steps {
+  id_step integer [primary key, increment]
+  recipe_id integer [not null]
+  step_order integer [not null, note: 'Orden secuencial de las instrucciones']
+  instruction text [not null]
+}
+
+Table recipe_media {
+  id_media integer [primary key, increment]
+  recipe_id integer [not null]
+  url varchar [not null, note: 'Path local o URL de la imagen']
+  is_main boolean [default: false, note: 'Imagen principal para el listado']
+}
+
+// --- SISTEMA DE INGREDIENTES (RELACIÓN N:M) ---
+Table ingredients {
+  id_ingredient integer [primary key, increment]
+  category_id integer [not null]
+  name varchar [not null, unique]
+}
+
+Table recipe_ingredients {
+  recipe_id integer [not null]
+  ingredient_id integer [not null]
+  unit_id integer [not null]
+  quantity decimal(10,2) [not null, note: 'Uso de BigDecimal en Java para precisión']
+
+  Indexes {
+    (recipe_id, ingredient_id) [pk]
+  }
+}
+
+// --- SOCIAL Y BÚSQUEDA ---
+Table tags {
+  id_tag integer [primary key, increment]
+  name varchar [not null, unique, note: '#Vegano, #Rápido']
+}
+
+Table recipe_tags {
+  recipe_id integer [not null]
+  tag_id integer [not null]
+  Indexes { (recipe_id, tag_id) [pk] }
+}
+
+Table favorites {
+  user_id integer [not null]
+  recipe_id integer [not null]
+  Indexes { (user_id, recipe_id) [pk] }
+}
+
+Table ratings {
+  id_rating integer [primary key, increment]
+  user_id integer [not null]
+  recipe_id integer [not null]
+  score integer [not null, note: 'Puntuación 1-5']
+  comment text [note: 'Opinión opcional del usuario']
+  created_at timestamp [default: `now()`]
+}
+
+// ==========================================================
+// CARDINALIDADES Y RELACIONES
+// ==========================================================
+
+// --- Relaciones 1:N ---
+Ref: users.id_user < recipes.user_id
+Ref: categories.id_category < recipes.category_id
+Ref: difficulties.id_difficulty < recipes.difficulty_id
+Ref: recipes.id_recipe < steps.recipe_id
+Ref: recipes.id_recipe < recipe_media.recipe_id
+Ref: ingredient_categories.id_ing_category < ingredients.category_id
+
+// Gestión de valoraciones (1:N)
+Ref: users.id_user < ratings.user_id
+Ref: recipes.id_recipe < ratings.recipe_id
+
+// --- Relaciones N:M ---
+// Composición de ingredientes por receta
+Ref: recipes.id_recipe < recipe_ingredients.recipe_id
+Ref: ingredients.id_ingredient < recipe_ingredients.ingredient_id
+Ref: unit_measures.id_unit < recipe_ingredients.unit_id
+
+// Etiquetado
+Ref: recipes.id_recipe < recipe_tags.recipe_id
+Ref: tags.id_tag < recipe_tags.tag_id
+
+// Favoritos
+Ref: users.id_user < favorites.user_id
+Ref: recipes.id_recipe < favorites.recipe_id

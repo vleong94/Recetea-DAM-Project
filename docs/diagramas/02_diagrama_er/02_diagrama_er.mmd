@@ -1,0 +1,66 @@
+erDiagram
+    USER ||--o{ RECIPE : "publica"
+    USER ||--o{ FAVORITE : "guarda"
+    USER ||--o{ RATING : "valora"
+
+    CATEGORY ||--o{ RECIPE : "clasifica"
+    DIFFICULTY ||--o{ RECIPE : "define_nivel"
+    
+    RECIPE ||--|{ STEP : "contiene"
+    RECIPE ||--o{ RECIPE_MEDIA : "tiene_fotos"
+    
+    RECIPE ||--|{ RECIPE_INGREDIENT : "incluye"
+    INGREDIENT ||--o{ RECIPE_INGREDIENT : "es_usado"
+    UNIT_MEASURE ||--o{ RECIPE_INGREDIENT : "mide"
+    
+    INGREDIENT_CATEGORY ||--o{ INGREDIENT : "agrupa"
+
+    RECIPE ||--o{ RECIPE_TAG : "etiquetada_con"
+    TAG ||--o{ RECIPE_TAG : "organiza"
+
+    USER {
+        int id_user PK
+        string username
+        string email
+        string password_hash
+        datetime created_at
+    }
+
+    RECIPE {
+        int id_recipe PK
+        int user_id FK
+        int category_id FK
+        int difficulty_id FK
+        string title
+        string description
+        int prep_time_min
+        int servings
+    }
+
+    INGREDIENT {
+        int id_ingredient PK
+        int category_id FK
+        string name
+    }
+
+    RECIPE_INGREDIENT {
+        int recipe_id PK, FK
+        int ingredient_id PK, FK
+        int unit_id FK
+        decimal quantity
+    }
+
+    RATING {
+        int id_rating PK
+        int user_id FK
+        int recipe_id FK
+        int score
+        string comment
+    }
+    
+    STEP {
+        int id_step PK
+        int recipe_id FK
+        int step_order
+        string instruction
+    }
