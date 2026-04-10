@@ -112,7 +112,7 @@ Table ratings {
   id_rating integer [primary key, increment]
   user_id integer [not null]
   recipe_id integer [not null]
-  score integer [not null, note: 'Puntuación 1-5. Constraint: CHECK (score >= 1 AND score <= 5)']
+  score integer [not null, note: 'Puntuación 1-5. Restricción: No autovaloración (Trigger en SQL)']
   comment text [note: 'Opinión opcional del usuario']
   created_at timestamp [default: `now()`]
 
