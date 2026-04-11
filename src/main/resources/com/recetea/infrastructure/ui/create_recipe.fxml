@@ -37,6 +37,8 @@
     <TextArea fx:id="descriptionArea" prefRowCount="4" promptText="Describe brevemente la receta..." />
 
     <HBox alignment="CENTER_RIGHT" spacing="10.0">
+        <Button text="Cancelar / Volver" style="-fx-background-color: #9E9E9E; -fx-text-fill: white;" onAction="#onBackButtonClick" />
+
         <Button text="Guardar Receta" style="-fx-background-color: #2196F3; -fx-text-fill: white;" onAction="#onSaveButtonClick" />
     </HBox>
 </VBox>

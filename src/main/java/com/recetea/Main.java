@@ -1,51 +1,60 @@
 package com.recetea;
 
-import com.recetea.core.domain.Recipe;
 import com.recetea.core.ports.IRecipeRepository;
+import com.recetea.core.ports.in.ICreateRecipeUseCase;
 import com.recetea.core.ports.in.IGetAllRecipesUseCase;
+import com.recetea.core.usecases.CreateRecipeUseCase;
 import com.recetea.core.usecases.GetAllRecipesUseCase;
 import com.recetea.infrastructure.persistence.JdbcRecipeRepository;
+import com.recetea.infrastructure.ui.DashboardController;
 
-import java.util.List;
+import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
 
 /**
- * Composition Root (Diagnostic Mode):
- * Ensambla la capa de lectura y escupe el catálogo de PostgreSQL a la consola.
+ * Composition Root: Punto de entrada de la aplicación.
+ * Ensambla todas las capas de la Arquitectura Hexagonal, inyecta dependencias
+ * y levanta la interfaz principal (Dashboard).
  */
-public class Main {
-    public static void main(String[] args) {
-        System.out.println("--- INICIANDO DIAGNÓSTICO DE LECTURA (READ OPERATION) ---");
+public class Main extends Application {
 
-        // 1. WIRING (Inyección manual de dependencias)
+    @Override
+    public void start(Stage primaryStage) throws Exception {
+        // 1. INICIALIZACIÓN DEL NÚCLEO (Backend)
         IRecipeRepository repository = new JdbcRecipeRepository();
+
+        // Instanciamos los Casos de Uso (Puertos de Entrada)
         IGetAllRecipesUseCase getAllRecipesUseCase = new GetAllRecipesUseCase(repository);
+        ICreateRecipeUseCase createRecipeUseCase = new CreateRecipeUseCase(repository);
 
-        try {
-            System.out.println("Ejecutando Query contra PostgreSQL...\n");
+        // 2. CARGA DE LA VISTA (Frontend - Dashboard Principal)
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/recetea/infrastructure/ui/dashboard.fxml"));
+        Parent root = loader.load();
 
-            // 2. FETCH (Delegación al Use Case)
-            List<Recipe> catalog = getAllRecipesUseCase.execute();
+        // 3. INYECCIÓN DE DEPENDENCIAS (Wiring)
+        DashboardController controller = loader.getController();
 
-            // 3. RENDERIZADO EN CONSOLA
-            if (catalog.isEmpty()) {
-                System.out.println("ADVERTENCIA: La base de datos está vacía. No hay recetas que mostrar.");
-            } else {
-                System.out.println("CATÁLOGO EXTRAÍDO CON ÉXITO. Total de registros: " + catalog.size());
-                System.out.println("---------------------------------------------------");
-                for (Recipe recipe : catalog) {
-                    System.out.printf("ID: %-3d | Título: %-30s | Prep: %-3d min | Raciones: %d%n",
-                            recipe.getId(),
-                            recipe.getTitle(),
-                            recipe.getPreparationTimeMinutes(),
-                            recipe.getServings()
-                    );
-                }
-                System.out.println("---------------------------------------------------");
-            }
+        // Inyectamos el caso de uso de lectura para poblar la tabla
+        controller.setGetAllRecipesUseCase(getAllRecipesUseCase);
 
-        } catch (Exception e) {
-            System.err.println("CRASH CRÍTICO DURANTE LA EXTRACCIÓN DE DATOS:");
-            e.printStackTrace();
-        }
+        // Inyectamos el caso de uso de creación para que el botón "Nueva Receta" pueda pasarlo a la siguiente pantalla
+        controller.setCreateRecipeUseCase(createRecipeUseCase);
+
+        // Disparamos la carga de datos inmediatamente después de inyectar las dependencias
+        controller.loadData();
+
+        // 4. RENDERIZADO DE LA VENTANA
+        primaryStage.setTitle("Recetea - Dashboard Principal");
+        primaryStage.setScene(new Scene(root, 700, 500));
+        primaryStage.setResizable(false);
+        primaryStage.show();
+    }
+
+    public static void main(String[] args) {
+        // Delega la ejecución al motor de JavaFX
+        launch(args);
     }
 }
