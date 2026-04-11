@@ -3,6 +3,7 @@ package com.recetea.infrastructure.ui;
 import com.recetea.core.domain.Recipe;
 import com.recetea.core.ports.in.ICreateRecipeUseCase;
 import com.recetea.core.ports.in.IGetAllRecipesUseCase;
+import com.recetea.core.ports.in.IGetRecipeByIdUseCase;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -15,15 +16,12 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.util.List;
 
-/**
- * UI Controller: Gestiona la pantalla principal (Dashboard).
- * Se encarga de mostrar el catálogo de recetas y navegar a la pantalla de creación.
- */
 public class DashboardController {
 
     @FXML private TableView<Recipe> recipeTable;
@@ -35,34 +33,41 @@ public class DashboardController {
     // Puertos de entrada (Casos de uso)
     private IGetAllRecipesUseCase getAllRecipesUseCase;
     private ICreateRecipeUseCase createRecipeUseCase;
+    private IGetRecipeByIdUseCase getRecipeByIdUseCase; // <--- NUEVA DEPENDENCIA
 
     // --- INYECCIÓN DE DEPENDENCIAS ---
 
-    public void setGetAllRecipesUseCase(IGetAllRecipesUseCase useCase) {
-        this.getAllRecipesUseCase = useCase;
+    public void setGetAllRecipesUseCase(IGetAllRecipesUseCase useCase) { this.getAllRecipesUseCase = useCase; }
+    public void setCreateRecipeUseCase(ICreateRecipeUseCase useCase) { this.createRecipeUseCase = useCase; }
+    public void setGetRecipeByIdUseCase(IGetRecipeByIdUseCase useCase) { this.getRecipeByIdUseCase = useCase; } // <--- NUEVO SETTER
+
+    // --- CICLO DE VIDA Y EVENTOS ---
+
+    @FXML
+    public void initialize() {
+        // Event Listener: Captura el doble clic en la tabla
+        recipeTable.setOnMouseClicked(this::handleTableDoubleClick);
     }
 
-    public void setCreateRecipeUseCase(ICreateRecipeUseCase useCase) {
-        this.createRecipeUseCase = useCase;
+    private void handleTableDoubleClick(MouseEvent event) {
+        if (event.getClickCount() == 2) {
+            Recipe selectedRecipe = recipeTable.getSelectionModel().getSelectedItem();
+            if (selectedRecipe != null) {
+                navigateToRecipeDetail(selectedRecipe.getId(), event);
+            }
+        }
     }
 
     // --- LÓGICA DE PRESENTACIÓN ---
 
-    /**
-     * Extrae los datos del núcleo y puebla la tabla visual.
-     */
     public void loadData() {
         if (getAllRecipesUseCase != null) {
-            // 1. Configuramos el Data Binding (Mapeo de propiedades a columnas)
             idColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().getId()));
             titleColumn.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getTitle()));
             prepColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().getPreparationTimeMinutes()));
             servingsColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().getServings()));
 
-            // 2. Extraemos los datos a través del puerto
             List<Recipe> recipes = getAllRecipesUseCase.execute();
-
-            // 3. Inyectamos los datos en el componente reactivo de JavaFX
             ObservableList<Recipe> observableRecipes = FXCollections.observableArrayList(recipes);
             recipeTable.setItems(observableRecipes);
         }
@@ -70,28 +75,46 @@ public class DashboardController {
 
     // --- NAVEGACIÓN (ROUTING) ---
 
-    /**
-     * Intercepta el clic del botón "Nueva Receta" y cambia la escena.
-     */
     @FXML
     public void onNewRecipeClick(ActionEvent event) {
         try {
-            // 1. Cargamos el FXML de la pantalla de destino
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/recetea/infrastructure/ui/create_recipe.fxml"));
             Parent root = loader.load();
 
-            // 2. Transmitimos la dependencia (El caso de uso de creación) al nuevo controlador
             CreateRecipeController controller = loader.getController();
-            // Pasamos AMBOS casos de uso para que el otro controlador pueda devolvérnoslos al regresar
+            // Pasamos ambas dependencias para asegurar el retorno
             controller.setUseCases(this.createRecipeUseCase, this.getAllRecipesUseCase);
 
-            // 3. Reemplazamos la escena actual en la misma ventana (Stage)
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             stage.setScene(new Scene(root, 600, 500));
             stage.setTitle("Recetea - Creación de Recetas");
 
         } catch (IOException e) {
-            System.err.println("Error crítico de UI al cargar create_recipe.fxml: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Enrutamiento al Visor de Detalles inyectando el ID seleccionado.
+     */
+    private void navigateToRecipeDetail(int recipeId, MouseEvent event) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/recetea/infrastructure/ui/recipe_detail.fxml"));
+            Parent root = loader.load();
+
+            RecipeDetailController controller = loader.getController();
+            // 1. Inyectamos las dependencias para que el visor pueda leer y luego volver
+            controller.setUseCases(this.getRecipeByIdUseCase, this.getAllRecipesUseCase, this.createRecipeUseCase);
+
+            // 2. Disparamos la extracción de datos pasándole el ID que hemos cazado del doble clic
+            controller.loadRecipeDetails(recipeId);
+
+            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+            stage.setScene(new Scene(root, 700, 600));
+            stage.setTitle("Recetea - Detalles de la Receta");
+
+        } catch (IOException e) {
+            System.err.println("Fallo al cargar la vista de detalles.");
             e.printStackTrace();
         }
     }

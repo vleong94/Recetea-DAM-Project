@@ -9,5 +9,5 @@ public interface IRecipeRepository {
     void save(Recipe recipe);
     Optional<Recipe> findById(int id); // Cambiado a int
     List<Recipe> findAll();
-    void delete(int id);               // Cambiado a int
+    void delete(int id); // Cambiado a int
 }

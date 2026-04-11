@@ -100,7 +100,59 @@ public class JdbcRecipeRepository implements IRecipeRepository {
     }
 
     @Override
-    public Optional<Recipe> findById(int id) { return Optional.empty(); }
+    public Optional<Recipe> findById(int id) {
+        Recipe recipe = null;
+
+        // Query 1: Extraer la cabecera
+        String recipeQuery = "SELECT id_recipe, user_id, category_id, difficulty_id, title, description, prep_time_min, servings FROM recipes WHERE id_recipe = ?";
+        // Query 2: Extraer la tabla de relaciones
+        String ingredientsQuery = "SELECT ingredient_id, unit_id, quantity FROM recipe_ingredients WHERE recipe_id = ?";
+
+        try (Connection conn = getConnection()) {
+
+            // FASE 1: Instanciar el Aggregate Root
+            try (PreparedStatement pstmt = conn.prepareStatement(recipeQuery)) {
+                pstmt.setInt(1, id);
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next()) {
+                        recipe = new Recipe(
+                                rs.getInt("user_id"),
+                                rs.getInt("category_id"),
+                                rs.getInt("difficulty_id"),
+                                rs.getString("title"),
+                                rs.getString("description"),
+                                rs.getInt("prep_time_min"),
+                                rs.getInt("servings")
+                        );
+                        recipe.setId(rs.getInt("id_recipe"));
+                    }
+                }
+            }
+
+            // FASE 2: Hidratar la entidad con sus Sub-entidades (Si la receta existe)
+            if (recipe != null) {
+                try (PreparedStatement pstmt = conn.prepareStatement(ingredientsQuery)) {
+                    pstmt.setInt(1, id);
+                    try (ResultSet rs = pstmt.executeQuery()) {
+                        while (rs.next()) {
+                            // Inyectamos cada ingrediente en la memoria del objeto Recipe
+                            recipe.addIngredient(new com.recetea.core.domain.RecipeIngredient(
+                                    rs.getInt("ingredient_id"),
+                                    rs.getInt("unit_id"),
+                                    rs.getDouble("quantity")
+                            ));
+                        }
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error crítico de hidratación al extraer la receta ID: " + id, e);
+        }
+
+        return Optional.ofNullable(recipe);
+    }
+
     @Override
     public List<Recipe> findAll() {
         List<Recipe> recipes = new ArrayList<>();
@@ -133,6 +185,7 @@ public class JdbcRecipeRepository implements IRecipeRepository {
 
         return recipes;
     }
+
     @Override
     public void delete(int id) {}
 }
