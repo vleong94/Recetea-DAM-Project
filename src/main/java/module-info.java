@@ -6,7 +6,7 @@ module com.recetea {
     requires org.postgresql.jdbc;
 
     // Abrimos el paquete UI a JavaFX para que pueda inyectar los archivos FXML
-    opens com.recetea.infrastructure.ui to javafx.fxml;
+    //opens com.recetea.infrastructure.ui to javafx.fxml;
 
     // Exportamos el root para el Main y las vistas
     exports com.recetea;
