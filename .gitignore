@@ -1,6 +1,5 @@
 # --- JAVA & COMPILATION ---
 *.class
-*.log
 *.jar
 *.war
 *.ear
@@ -8,45 +7,74 @@
 *.tar.gz
 *.rar
 
-# Directorios de salida de compilación
+# Build output directories
 bin/
 build/
 out/
 target/
 
-# --- INTELLIJ IDEA (Esencial para no subir basura de configuración) ---
+# --- INTELLIJ IDEA ---
 .idea/
 *.iml
 *.iws
 *.ipr
-out/
 cmake-build-*/
 
-# --- SISTEMA OPERATIVO ---
+# --- CROSS-IDE COMPATIBILITY ---
+# VS Code
+.vscode/
+*.code-workspace
+# Eclipse
+.settings/
+.classpath
+.project
+
+# --- OPERATING SYSTEM ---
 .DS_Store
+._*
 Thumbs.db
 desktop.ini
 
 # --- VIRTUAL MACHINE CRASH LOGS ---
 hs_err_pid*
 replay_pid*
+hsperfdata_*
 
-# --- ARCHIVOS TEMPORALES DE EDICIÓN ---
+# --- EDITOR TEMPORARY FILES ---
 *.swp
 *~
 .scratch
 
 # --- SECURITY & SECRETS ---
-# Archivos de variables de entorno (donde irán tus contraseñas de DB)
+# Environment variables
 .env
 .env.local
 
-# Archivos de configuración local de Spring Boot o Java (si usas properties/yaml)
+# Local configuration files
 **/src/main/resources/application-local.properties
 **/src/main/resources/application-local.yml
 config/local.properties
 
 # --- DATABASE STATE & LOGS ---
-# Si usas herramientas de migración como Flyway o Liquibase (archivos temporales)
+# Database migration tools state and general application logs
 .database/
 *.sql.log
+*.log
+logs/
+
+# --- TESTING & COVERAGE ---
+# Test coverage reports and binaries
+*.exec
+coverage/
+jacoco.exec
+
+# --- DATA LEAK PREVENTION ---
+# Prevent accidental upload of heavy database dumps
+*.bak
+*.dump
+*.sqlite
+
+# --- MAVEN ---
+dependency-reduced-pom.xml
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
