@@ -3,6 +3,7 @@ package com.recetea.core.domain;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import java.util.List;
 
 /**
  * Aggregate Root: Recipe
@@ -48,6 +49,16 @@ public class Recipe {
     public void addIngredient(RecipeIngredient ingredient) {
         if (ingredient != null) {
             this.ingredients.add(ingredient);
+        }
+    }
+
+    /**
+     * Permite actualizar la lista completa de ingredientes.
+     * Vital para el proceso de reconciliación en el Update.
+     */
+    public void setIngredients(List<RecipeIngredient> ingredients) {
+        if (ingredients != null) {
+            this.ingredients.get().setAll(ingredients);
         }
     }
 

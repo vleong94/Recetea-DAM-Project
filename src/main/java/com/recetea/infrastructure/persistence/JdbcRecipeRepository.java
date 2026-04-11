@@ -73,25 +73,22 @@ public class JdbcRecipeRepository implements IRecipeRepository {
                 if (!recipe.getIngredients().isEmpty()) {
                     try (PreparedStatement pstmtIng = conn.prepareStatement(insertIngredientQuery)) {
                         for (RecipeIngredient ri : recipe.getIngredients()) {
-                            pstmtIng.setInt(1, recipe.getId()); // El ID que acabamos de generar arriba
+                            pstmtIng.setInt(1, recipe.getId());
                             pstmtIng.setInt(2, ri.getIngredientId());
                             pstmtIng.setInt(3, ri.getUnitId());
                             pstmtIng.setDouble(4, ri.getQuantity());
-                            pstmtIng.addBatch(); // Añadimos al lote en RAM
+                            pstmtIng.addBatch();
                         }
-                        pstmtIng.executeBatch(); // Disparamos todos los inserts de golpe
+                        pstmtIng.executeBatch();
                     }
                 }
 
-                // 4. ÉXITO: Confirmamos los cambios en disco
                 conn.commit();
 
             } catch (SQLException ex) {
-                // 5. FRACASO: Detectamos error, destruimos la operación incompleta
                 conn.rollback();
                 throw new RuntimeException("OPERACIÓN ABORTADA (Rollback ejecutado): " + ex.getMessage(), ex);
             } finally {
-                // 6. LIMPIEZA: Devolvemos la conexión a su estado original
                 conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
@@ -100,17 +97,65 @@ public class JdbcRecipeRepository implements IRecipeRepository {
     }
 
     @Override
+    public void update(Recipe recipe) {
+        String updateRecipeSql = "UPDATE recipes SET title = ?, description = ?, prep_time_min = ?, servings = ? WHERE id_recipe = ?";
+        String deleteIngredientsSql = "DELETE FROM recipe_ingredients WHERE recipe_id = ?";
+        String insertIngredientSql = "INSERT INTO recipe_ingredients (recipe_id, ingredient_id, unit_id, quantity) VALUES (?, ?, ?, ?)";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // Iniciamos Transaction
+            try {
+                // 1. Update Cabecera (Metadata)
+                try (PreparedStatement pstmt = conn.prepareStatement(updateRecipeSql)) {
+                    pstmt.setString(1, recipe.getTitle());
+                    pstmt.setString(2, recipe.getDescription());
+                    pstmt.setInt(3, recipe.getPreparationTimeMinutes());
+                    pstmt.setInt(4, recipe.getServings());
+                    pstmt.setInt(5, recipe.getId());
+                    pstmt.executeUpdate();
+                }
+
+                // 2. Delete Ingredientes Antiguos (Limpieza de estado previo)
+                try (PreparedStatement pstmt = conn.prepareStatement(deleteIngredientsSql)) {
+                    pstmt.setInt(1, recipe.getId());
+                    pstmt.executeUpdate();
+                }
+
+                // 3. Insert Ingredientes Nuevos (Batch Processing para eficiencia)
+                if (!recipe.getIngredients().isEmpty()) {
+                    try (PreparedStatement pstmt = conn.prepareStatement(insertIngredientSql)) {
+                        for (RecipeIngredient ri : recipe.getIngredients()) {
+                            pstmt.setInt(1, recipe.getId());
+                            pstmt.setInt(2, ri.getIngredientId());
+                            pstmt.setInt(3, ri.getUnitId());
+                            pstmt.setDouble(4, ri.getQuantity());
+                            pstmt.addBatch();
+                        }
+                        pstmt.executeBatch();
+                    }
+                }
+
+                conn.commit();
+                System.out.println("ÉXITO: Receta " + recipe.getId() + " actualizada correctamente.");
+
+            } catch (SQLException e) {
+                conn.rollback(); // Rollback total si falla cualquier fase
+                throw new RuntimeException("Error en Update transaccional: " + e.getMessage(), e);
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error crítico de conexión en Update", e);
+        }
+    }
+
+    @Override
     public Optional<Recipe> findById(int id) {
         Recipe recipe = null;
-
-        // Query 1: Extraer la cabecera
         String recipeQuery = "SELECT id_recipe, user_id, category_id, difficulty_id, title, description, prep_time_min, servings FROM recipes WHERE id_recipe = ?";
-        // Query 2: Extraer la tabla de relaciones
         String ingredientsQuery = "SELECT ingredient_id, unit_id, quantity FROM recipe_ingredients WHERE recipe_id = ?";
 
         try (Connection conn = getConnection()) {
-
-            // FASE 1: Instanciar el Aggregate Root
             try (PreparedStatement pstmt = conn.prepareStatement(recipeQuery)) {
                 pstmt.setInt(1, id);
                 try (ResultSet rs = pstmt.executeQuery()) {
@@ -129,13 +174,11 @@ public class JdbcRecipeRepository implements IRecipeRepository {
                 }
             }
 
-            // FASE 2: Hidratar la entidad con sus Sub-entidades (Si la receta existe)
             if (recipe != null) {
                 try (PreparedStatement pstmt = conn.prepareStatement(ingredientsQuery)) {
                     pstmt.setInt(1, id);
                     try (ResultSet rs = pstmt.executeQuery()) {
                         while (rs.next()) {
-                            // Inyectamos cada ingrediente en la memoria del objeto Recipe
                             recipe.addIngredient(new com.recetea.core.domain.RecipeIngredient(
                                     rs.getInt("ingredient_id"),
                                     rs.getInt("unit_id"),
@@ -156,14 +199,12 @@ public class JdbcRecipeRepository implements IRecipeRepository {
     @Override
     public List<Recipe> findAll() {
         List<Recipe> recipes = new ArrayList<>();
-        // Query de extracción. Ordenamos por los más recientes.
         String query = "SELECT id_recipe, user_id, category_id, difficulty_id, title, description, prep_time_min, servings FROM recipes ORDER BY created_at DESC";
 
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query);
              ResultSet rs = pstmt.executeQuery()) {
 
-            // Iteración del ResultSet: Transformamos cada fila SQL en un objeto Java
             while (rs.next()) {
                 Recipe recipe = new Recipe(
                         rs.getInt("user_id"),
@@ -174,18 +215,35 @@ public class JdbcRecipeRepository implements IRecipeRepository {
                         rs.getInt("prep_time_min"),
                         rs.getInt("servings")
                 );
-                // Inyectamos el ID que viene de la base de datos
                 recipe.setId(rs.getInt("id_recipe"));
                 recipes.add(recipe);
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Error crítico al extraer el catálogo de recetas desde PostgreSQL", e);
+            throw new RuntimeException("Error crítico al extraer el catálogo de recetas.", e);
         }
 
         return recipes;
     }
 
     @Override
-    public void delete(int id) {}
+    public void delete(int id) {
+        String sql = "DELETE FROM recipes WHERE id_recipe = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, id);
+            int rowsAffected = pstmt.executeUpdate();
+
+            if (rowsAffected == 0) {
+                System.out.println("ADVERTENCIA: No se encontró la receta " + id);
+            } else {
+                System.out.println("ÉXITO: Receta " + id + " eliminada (Cascade SQL ejecutado).");
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error crítico en Delete", e);
+        }
+    }
 }

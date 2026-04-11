@@ -20,9 +20,10 @@
     <TableView fx:id="recipeTable" VBox.vgrow="ALWAYS">
         <columns>
             <TableColumn fx:id="idColumn" prefWidth="50.0" text="ID" />
-            <TableColumn fx:id="titleColumn" prefWidth="300.0" text="Título de la Receta" />
-            <TableColumn fx:id="prepColumn" prefWidth="100.0" text="Tiempo (min)" />
-            <TableColumn fx:id="servingsColumn" prefWidth="100.0" text="Raciones" />
+            <TableColumn fx:id="titleColumn" prefWidth="250.0" text="Título de la Receta" />
+            <TableColumn fx:id="prepColumn" prefWidth="100.0" text="Prep (min)" />
+            <TableColumn fx:id="servingsColumn" prefWidth="80.0" text="Raciones" />
+            <TableColumn fx:id="actionsColumn" prefWidth="120.0" text="Acciones" />
         </columns>
     </TableView>
 
