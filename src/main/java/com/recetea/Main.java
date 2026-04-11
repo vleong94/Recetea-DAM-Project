@@ -1,6 +1,7 @@
 package com.recetea;
 
 import com.recetea.core.domain.Recipe;
+import com.recetea.core.domain.RecipeIngredient;
 import com.recetea.core.ports.IRecipeRepository;
 import com.recetea.infrastructure.persistence.JdbcRecipeRepository;
 
@@ -9,26 +10,28 @@ public class Main {
         IRecipeRepository repository = new JdbcRecipeRepository();
 
         try {
-            System.out.println("Instanciando receta relacional en memoria...");
-            // IMPORTANTE: Asegúrate de que los IDs 1 (User, Category, Difficulty) existen en tu DB.
+            System.out.println("Instanciando receta transaccional...");
+
             Recipe miReceta = new Recipe(
-                    1, // user_id
-                    1, // category_id
-                    1, // difficulty_id
-                    "Macarrones con Tomate",
-                    "Receta básica de supervivencia",
-                    20, // prep_time_min
-                    2   // servings
+                    1, 1, 1,
+                    "Tarta de Queso Absoluta",
+                    "Prueba de estrés transaccional con ingredientes.",
+                    50, 4
             );
 
-            System.out.println("Enviando a PostgreSQL...");
+            // Inyectamos ingredientes (Asegúrate de que estos IDs existen en tu DB)
+            // 1=Queso Crema, 1=Gramos
+            miReceta.addIngredient(new RecipeIngredient(1, 1, 500.0));
+            // 2=Azúcar Blanco, 1=Gramos
+            miReceta.addIngredient(new RecipeIngredient(2, 1, 150.0));
+
+            System.out.println("Disparando transacción a PostgreSQL...");
             repository.save(miReceta);
 
-            // Si funciona, miReceta.getId() ya no será NULL. PostgreSQL lo habrá inyectado.
-            System.out.println("¡ÉXITO ABSOLUTO! PostgreSQL ha guardado la receta y asignado el ID: " + miReceta.getId());
+            System.out.println("¡SISTEMA ACID VERIFICADO! Receta guardada con ID: " + miReceta.getId() + " y sus ingredientes.");
 
         } catch (Exception e) {
-            System.err.println("FRACASO EN LA INSERCIÓN:");
+            System.err.println("FRACASO:");
             e.printStackTrace();
         }
     }

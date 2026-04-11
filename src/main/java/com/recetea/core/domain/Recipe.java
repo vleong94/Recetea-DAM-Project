@@ -1,10 +1,13 @@
 package com.recetea.core.domain;
 
 import javafx.beans.property.*;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 /**
  * Aggregate Root: Recipe
- * Refactorizado para alinearse con el Modelo Relacional estricto.
+ * Refactorizado para alinearse con el Modelo Relacional estricto e integrar
+ * la composición de ingredientes.
  */
 public class Recipe {
 
@@ -22,6 +25,9 @@ public class Recipe {
     private final IntegerProperty preparationTimeMinutes;
     private final IntegerProperty servings;
 
+    // Composición relacional
+    private final ListProperty<RecipeIngredient> ingredients;
+
     public Recipe(int userId, int categoryId, int difficultyId, String title, String description, int prepTime, int servings) {
         if (title == null || title.trim().isEmpty()) {
             throw new IllegalArgumentException("El título de la receta no puede estar vacío");
@@ -34,6 +40,15 @@ public class Recipe {
         this.description = new SimpleStringProperty(description != null ? description.trim() : "");
         this.preparationTimeMinutes = new SimpleIntegerProperty(prepTime);
         this.servings = new SimpleIntegerProperty(servings);
+        this.ingredients = new SimpleListProperty<>(FXCollections.observableArrayList());
+    }
+
+    // --- COMPORTAMIENTO DE DOMINIO ---
+
+    public void addIngredient(RecipeIngredient ingredient) {
+        if (ingredient != null) {
+            this.ingredients.add(ingredient);
+        }
     }
 
     // --- GETTERS, SETTERS & PROPERTIES ---
@@ -49,4 +64,5 @@ public class Recipe {
     public String getDescription() { return description.get(); }
     public int getPreparationTimeMinutes() { return preparationTimeMinutes.get(); }
     public int getServings() { return servings.get(); }
+    public ObservableList<RecipeIngredient> getIngredients() { return ingredients.get(); }
 }
