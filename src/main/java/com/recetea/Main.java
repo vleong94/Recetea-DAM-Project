@@ -1,38 +1,49 @@
 package com.recetea;
 
-import com.recetea.core.domain.Recipe;
-import com.recetea.core.domain.RecipeIngredient;
 import com.recetea.core.ports.IRecipeRepository;
+import com.recetea.core.ports.in.ICreateRecipeUseCase;
+import com.recetea.core.usecases.CreateRecipeUseCase;
 import com.recetea.infrastructure.persistence.JdbcRecipeRepository;
+import com.recetea.infrastructure.ui.CreateRecipeController;
 
-public class Main {
-    public static void main(String[] args) {
+import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+
+/**
+ * Composition Root: Punto de entrada de la aplicación.
+ * Ensambla todas las capas de la Arquitectura Hexagonal y levanta JavaFX.
+ */
+public class Main extends Application {
+
+    @Override
+    public void start(Stage primaryStage) throws Exception {
+        // 1. INICIALIZACIÓN DEL NÚCLEO (Backend)
+        // Instanciamos el adaptador de infraestructura y el caso de uso
         IRecipeRepository repository = new JdbcRecipeRepository();
+        ICreateRecipeUseCase createRecipeUseCase = new CreateRecipeUseCase(repository);
 
-        try {
-            System.out.println("Instanciando receta transaccional...");
+        // 2. CARGA DE LA VISTA (Frontend)
+        // Usamos la ruta absoluta del Classpath hacia la carpeta resources
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/recetea/infrastructure/ui/create_recipe.fxml"));
+        Parent root = loader.load();
 
-            Recipe miReceta = new Recipe(
-                    1, 1, 1,
-                    "Tarta de Queso Absoluta",
-                    "Prueba de estrés transaccional con ingredientes.",
-                    50, 4
-            );
+        // 3. INYECCIÓN DE DEPENDENCIAS (Wiring)
+        // Le pasamos el orquestador al controlador visual
+        CreateRecipeController controller = loader.getController();
+        controller.setCreateRecipeUseCase(createRecipeUseCase);
 
-            // Inyectamos ingredientes (Asegúrate de que estos IDs existen en tu DB)
-            // 1=Queso Crema, 1=Gramos
-            miReceta.addIngredient(new RecipeIngredient(1, 1, 500.0));
-            // 2=Azúcar Blanco, 1=Gramos
-            miReceta.addIngredient(new RecipeIngredient(2, 1, 150.0));
+        // 4. RENDERIZADO DE LA VENTANA
+        primaryStage.setTitle("Recetea - Creación de Recetas");
+        primaryStage.setScene(new Scene(root, 600, 500));
+        primaryStage.setResizable(false);
+        primaryStage.show();
+    }
 
-            System.out.println("Disparando transacción a PostgreSQL...");
-            repository.save(miReceta);
-
-            System.out.println("¡SISTEMA ACID VERIFICADO! Receta guardada con ID: " + miReceta.getId() + " y sus ingredientes.");
-
-        } catch (Exception e) {
-            System.err.println("FRACASO:");
-            e.printStackTrace();
-        }
+    public static void main(String[] args) {
+        // Delega la ejecución al motor de JavaFX
+        launch(args);
     }
 }
