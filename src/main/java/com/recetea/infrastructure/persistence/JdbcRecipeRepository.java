@@ -102,7 +102,37 @@ public class JdbcRecipeRepository implements IRecipeRepository {
     @Override
     public Optional<Recipe> findById(int id) { return Optional.empty(); }
     @Override
-    public List<Recipe> findAll() { return new ArrayList<>(); }
+    public List<Recipe> findAll() {
+        List<Recipe> recipes = new ArrayList<>();
+        // Query de extracción. Ordenamos por los más recientes.
+        String query = "SELECT id_recipe, user_id, category_id, difficulty_id, title, description, prep_time_min, servings FROM recipes ORDER BY created_at DESC";
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+
+            // Iteración del ResultSet: Transformamos cada fila SQL en un objeto Java
+            while (rs.next()) {
+                Recipe recipe = new Recipe(
+                        rs.getInt("user_id"),
+                        rs.getInt("category_id"),
+                        rs.getInt("difficulty_id"),
+                        rs.getString("title"),
+                        rs.getString("description"),
+                        rs.getInt("prep_time_min"),
+                        rs.getInt("servings")
+                );
+                // Inyectamos el ID que viene de la base de datos
+                recipe.setId(rs.getInt("id_recipe"));
+                recipes.add(recipe);
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error crítico al extraer el catálogo de recetas desde PostgreSQL", e);
+        }
+
+        return recipes;
+    }
     @Override
     public void delete(int id) {}
 }

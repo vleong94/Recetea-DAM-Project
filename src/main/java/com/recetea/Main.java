@@ -1,49 +1,51 @@
 package com.recetea;
 
+import com.recetea.core.domain.Recipe;
 import com.recetea.core.ports.IRecipeRepository;
-import com.recetea.core.ports.in.ICreateRecipeUseCase;
-import com.recetea.core.usecases.CreateRecipeUseCase;
+import com.recetea.core.ports.in.IGetAllRecipesUseCase;
+import com.recetea.core.usecases.GetAllRecipesUseCase;
 import com.recetea.infrastructure.persistence.JdbcRecipeRepository;
-import com.recetea.infrastructure.ui.CreateRecipeController;
 
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+import java.util.List;
 
 /**
- * Composition Root: Punto de entrada de la aplicación.
- * Ensambla todas las capas de la Arquitectura Hexagonal y levanta JavaFX.
+ * Composition Root (Diagnostic Mode):
+ * Ensambla la capa de lectura y escupe el catálogo de PostgreSQL a la consola.
  */
-public class Main extends Application {
-
-    @Override
-    public void start(Stage primaryStage) throws Exception {
-        // 1. INICIALIZACIÓN DEL NÚCLEO (Backend)
-        // Instanciamos el adaptador de infraestructura y el caso de uso
-        IRecipeRepository repository = new JdbcRecipeRepository();
-        ICreateRecipeUseCase createRecipeUseCase = new CreateRecipeUseCase(repository);
-
-        // 2. CARGA DE LA VISTA (Frontend)
-        // Usamos la ruta absoluta del Classpath hacia la carpeta resources
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/recetea/infrastructure/ui/create_recipe.fxml"));
-        Parent root = loader.load();
-
-        // 3. INYECCIÓN DE DEPENDENCIAS (Wiring)
-        // Le pasamos el orquestador al controlador visual
-        CreateRecipeController controller = loader.getController();
-        controller.setCreateRecipeUseCase(createRecipeUseCase);
-
-        // 4. RENDERIZADO DE LA VENTANA
-        primaryStage.setTitle("Recetea - Creación de Recetas");
-        primaryStage.setScene(new Scene(root, 600, 500));
-        primaryStage.setResizable(false);
-        primaryStage.show();
-    }
-
+public class Main {
     public static void main(String[] args) {
-        // Delega la ejecución al motor de JavaFX
-        launch(args);
+        System.out.println("--- INICIANDO DIAGNÓSTICO DE LECTURA (READ OPERATION) ---");
+
+        // 1. WIRING (Inyección manual de dependencias)
+        IRecipeRepository repository = new JdbcRecipeRepository();
+        IGetAllRecipesUseCase getAllRecipesUseCase = new GetAllRecipesUseCase(repository);
+
+        try {
+            System.out.println("Ejecutando Query contra PostgreSQL...\n");
+
+            // 2. FETCH (Delegación al Use Case)
+            List<Recipe> catalog = getAllRecipesUseCase.execute();
+
+            // 3. RENDERIZADO EN CONSOLA
+            if (catalog.isEmpty()) {
+                System.out.println("ADVERTENCIA: La base de datos está vacía. No hay recetas que mostrar.");
+            } else {
+                System.out.println("CATÁLOGO EXTRAÍDO CON ÉXITO. Total de registros: " + catalog.size());
+                System.out.println("---------------------------------------------------");
+                for (Recipe recipe : catalog) {
+                    System.out.printf("ID: %-3d | Título: %-30s | Prep: %-3d min | Raciones: %d%n",
+                            recipe.getId(),
+                            recipe.getTitle(),
+                            recipe.getPreparationTimeMinutes(),
+                            recipe.getServings()
+                    );
+                }
+                System.out.println("---------------------------------------------------");
+            }
+
+        } catch (Exception e) {
+            System.err.println("CRASH CRÍTICO DURANTE LA EXTRACCIÓN DE DATOS:");
+            e.printStackTrace();
+        }
     }
 }
