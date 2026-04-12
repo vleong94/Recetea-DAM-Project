@@ -1,4 +1,4 @@
-package com.recetea.core.ports.in;
+package com.recetea.core.ports.in.recipe;
 
 import com.recetea.core.domain.Recipe;
 import java.util.List;

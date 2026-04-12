@@ -1,7 +1,7 @@
-package com.recetea.core.usecases;
+package com.recetea.core.usecases.recipe;
 
-import com.recetea.core.ports.IRecipeRepository;
-import com.recetea.core.ports.in.IDeleteRecipeUseCase;
+import com.recetea.core.ports.out.IRecipeRepository;
+import com.recetea.core.ports.in.recipe.IDeleteRecipeUseCase;
 
 public class DeleteRecipeUseCase implements IDeleteRecipeUseCase {
 

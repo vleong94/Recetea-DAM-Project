@@ -1,6 +1,7 @@
 package com.recetea.core.usecases;
 
-import com.recetea.core.ports.IRecipeRepository;
+import com.recetea.core.ports.out.IRecipeRepository;
+import com.recetea.core.usecases.recipe.DeleteRecipeUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;

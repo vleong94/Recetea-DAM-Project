@@ -2,11 +2,13 @@ package com.recetea.core.usecases;
 
 import com.recetea.core.domain.Recipe;
 import com.recetea.core.domain.RecipeIngredient;
-import com.recetea.core.ports.IRecipeRepository;
+import com.recetea.core.ports.out.IRecipeRepository;
+import com.recetea.core.usecases.recipe.GetRecipeByIdUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -14,6 +16,7 @@ import static org.mockito.Mockito.*;
 
 /**
  * Unit Test: Valida la extracción de una receta específica y su hidratación.
+ * Sincronizado con el constructor de 5 parámetros de RecipeIngredient.
  */
 class GetRecipeByIdUseCaseTest {
 
@@ -22,35 +25,38 @@ class GetRecipeByIdUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        // 1. Mocking: Simulamos la base de datos
         mockRepository = Mockito.mock(IRecipeRepository.class);
-        // 2. Wiring: Inyectamos el simulador en el Caso de Uso real
         useCase = new GetRecipeByIdUseCase(mockRepository);
     }
 
     @Test
     void execute_ShouldReturnHydratedRecipe_WhenRecipeExists() {
-        // --- GIVEN (Preparación del estado) ---
+        // --- 1. GIVEN ---
         int targetId = 1;
-        // Creamos una receta falsa en memoria RAM
         Recipe fakeRecipe = new Recipe(1, 1, 1, "Receta Completa", "Desc", 45, 4);
         fakeRecipe.setId(targetId);
-        // La hidratamos con un par de ingredientes falsos
-        fakeRecipe.addIngredient(new RecipeIngredient(10, 1, 250.0));
-        fakeRecipe.addIngredient(new RecipeIngredient(20, 2, 1.5));
 
-        // Entrenamos al Mock: "Cuando te pidan el ID 1, devuelve esta entidad profunda"
+        // CORRECCIÓN: Inyectamos los 5 parámetros requeridos (incluye nombres para UX)
+        fakeRecipe.addIngredient(new RecipeIngredient(
+                10, 1, new BigDecimal("250.00"), "Pechuga de Pollo", "g"
+        ));
+        fakeRecipe.addIngredient(new RecipeIngredient(
+                20, 2, new BigDecimal("1.50"), "Aceite de Oliva", "ml"
+        ));
+
         when(mockRepository.findById(targetId)).thenReturn(Optional.of(fakeRecipe));
 
-        // --- WHEN (Ejecución del contrato) ---
+        // --- 2. WHEN ---
         Optional<Recipe> result = useCase.execute(targetId);
 
-        // --- THEN (Validación estricta) ---
+        // --- 3. THEN ---
         assertTrue(result.isPresent(), "El Optional NO debe estar vacío.");
         assertEquals(targetId, result.get().getId(), "El ID extraído debe coincidir.");
-        assertEquals(2, result.get().getIngredients().size(), "El Aggregate Root debe contener exactamente 2 ingredientes.");
 
-        // Verificamos que el puerto de salida fue invocado correctamente
+        // Verificación de los nuevos campos de nombre
+        assertEquals("Pechuga de Pollo", result.get().getIngredients().get(0).getIngredientName());
+        assertEquals("g", result.get().getIngredients().get(0).getUnitName());
+
         verify(mockRepository, times(1)).findById(targetId);
     }
 
@@ -58,7 +64,6 @@ class GetRecipeByIdUseCaseTest {
     void execute_ShouldReturnEmptyOptional_WhenRecipeDoesNotExist() {
         // --- GIVEN ---
         int missingId = 999;
-        // Entrenamos al Mock para simular un fallo de búsqueda en SQL
         when(mockRepository.findById(missingId)).thenReturn(Optional.empty());
 
         // --- WHEN ---

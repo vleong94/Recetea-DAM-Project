@@ -1,13 +1,15 @@
 package com.recetea.core.usecases;
 
 import com.recetea.core.domain.Recipe;
-import com.recetea.core.ports.IRecipeRepository;
-import com.recetea.core.ports.in.CreateRecipeCommand;
+import com.recetea.core.ports.out.IRecipeRepository;
+import com.recetea.core.ports.in.dto.CreateRecipeCommand;
+import com.recetea.core.usecases.recipe.CreateRecipeUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 
@@ -16,8 +18,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit Test: Valida la lógica de negocio de la creación de recetas
- * aislando completamente la base de datos mediante Mockito.
+ * Unit Test: Valida la lógica de negocio de la creación de recetas.
+ * Actualizado para verificar el flujo de nombres descriptivos (UX).
  */
 class CreateRecipeUseCaseTest {
 
@@ -26,67 +28,72 @@ class CreateRecipeUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        // Inicializamos el Mock (un repositorio falso) antes de cada test
         mockRepository = Mockito.mock(IRecipeRepository.class);
-        // Inyectamos el Mock en el caso de uso real
         useCase = new CreateRecipeUseCase(mockRepository);
     }
 
     @Test
     void execute_ShouldCreateRecipeAndReturnId_WhenCommandIsValid() {
-        // --- 1. GIVEN (Preparación del escenario) ---
+        // --- 1. GIVEN ---
+        BigDecimal expectedQuantity = new BigDecimal("200.00");
+
+        // Actualizamos el comando con los 5 parámetros requeridos en IngredientCommand
         CreateRecipeCommand command = new CreateRecipeCommand(
                 1, 2, 3,
                 "Tarta de Prueba",
                 "Descripción test",
                 30, 4,
-                List.of(new CreateRecipeCommand.IngredientCommand(1, 1, 200.0))
+                List.of(new CreateRecipeCommand.IngredientCommand(
+                        1, 1, expectedQuantity, "Harina de Trigo", "g"
+                ))
         );
 
-        // Simulamos qué debe hacer el mock cuando el UseCase le llame al método 'save'.
-        // Le decimos: "Cuando te pasen un objeto Recipe, asígnale el ID 99 mágicamente".
         doAnswer(invocation -> {
             Recipe recipeArgument = invocation.getArgument(0);
             recipeArgument.setId(99);
-            return null; // El método save() es void
+            return null;
         }).when(mockRepository).save(any(Recipe.class));
 
-        // --- 2. WHEN (Ejecución de la acción) ---
+        // --- 2. WHEN ---
         int returnedId = useCase.execute(command);
 
-        // --- 3. THEN (Verificación de resultados) ---
-
-        // Comprobamos que el caso de uso devuelve el ID correcto (99)
+        // --- 3. THEN ---
         assertEquals(99, returnedId, "El caso de uso debe devolver el ID generado por el repositorio.");
 
-        // ArgumentCaptor: Atrapamos el objeto Recipe exacto que el UseCase le pasó al Repositorio
         ArgumentCaptor<Recipe> recipeCaptor = ArgumentCaptor.forClass(Recipe.class);
         verify(mockRepository, times(1)).save(recipeCaptor.capture());
 
         Recipe savedRecipe = recipeCaptor.getValue();
 
-        // Verificamos que el mapeo (Data Binding) del Command a la Entidad fue perfecto
         assertEquals("Tarta de Prueba", savedRecipe.getTitle());
         assertEquals(30, savedRecipe.getPreparationTimeMinutes());
         assertEquals(1, savedRecipe.getIngredients().size(), "Debe haber 1 ingrediente mapeado.");
-        assertEquals(200.0, savedRecipe.getIngredients().get(0).getQuantity());
+
+        // Verificamos que los nuevos campos de nombre se han mapeado correctamente
+        assertEquals("Harina de Trigo", savedRecipe.getIngredients().get(0).getIngredientName());
+        assertEquals("g", savedRecipe.getIngredients().get(0).getUnitName());
+
+        // Verificación de precisión matemática
+        BigDecimal actualQuantity = savedRecipe.getIngredients().get(0).getQuantity();
+        assertTrue(expectedQuantity.compareTo(actualQuantity) == 0,
+                "La cantidad mapeada (" + actualQuantity + ") debe ser " + expectedQuantity);
     }
 
     @Test
     void execute_ShouldThrowException_WhenRepositoryFailsToAssignId() {
         // --- GIVEN ---
+        // Usamos lista vacía, por lo que no hace falta definir ingredientes aquí
         CreateRecipeCommand command = new CreateRecipeCommand(
                 1, 1, 1, "Fallo", "", 10, 2, Collections.emptyList());
 
-        // Simulamos un fallo catastrófico en la base de datos: el repositorio no asigna el ID.
         doNothing().when(mockRepository).save(any(Recipe.class));
 
         // --- WHEN & THEN ---
-        // Comprobamos que el caso de uso se da cuenta del error y lanza la excepción correcta
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
             useCase.execute(command);
         });
 
-        assertTrue(exception.getMessage().contains("Fallo de integridad"));
+        assertTrue(exception.getMessage().contains("identidad válida"),
+                "Debe lanzar excepción si el ID autogenerado no se asigna.");
     }
 }

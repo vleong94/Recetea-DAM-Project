@@ -10,4 +10,5 @@ module com.recetea {
 
     // Exportamos el root para el Main y las vistas
     exports com.recetea;
+    opens com.recetea.infrastructure.ui.controllers to javafx.fxml;
 }

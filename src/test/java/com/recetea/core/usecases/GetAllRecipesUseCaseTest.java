@@ -1,11 +1,14 @@
 package com.recetea.core.usecases;
 
 import com.recetea.core.domain.Recipe;
-import com.recetea.core.ports.IRecipeRepository;
+import com.recetea.core.domain.RecipeIngredient;
+import com.recetea.core.ports.out.IRecipeRepository;
+import com.recetea.core.usecases.recipe.GetAllRecipesUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
@@ -14,6 +17,7 @@ import static org.mockito.Mockito.*;
 
 /**
  * Unit Test: Valida la extracción del catálogo aislando la base de datos.
+ * Actualizado para reflejar la hidratación de ingredientes con nombres (UX).
  */
 class GetAllRecipesUseCaseTest {
 
@@ -22,38 +26,41 @@ class GetAllRecipesUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        // 1. Creamos el simulador de la base de datos
         mockRepository = Mockito.mock(IRecipeRepository.class);
-        // 2. Inyectamos el simulador en nuestro caso de uso real
         useCase = new GetAllRecipesUseCase(mockRepository);
     }
 
     @Test
     void execute_ShouldReturnListOfRecipes_WhenRepositoryHasData() {
-        // --- GIVEN (Preparación) ---
-        // Creamos dos recetas falsas en la memoria RAM
+        // --- 1. GIVEN (Preparación) ---
         Recipe recipe1 = new Recipe(1, 1, 1, "Receta Falsa 1", "Desc", 10, 2);
         recipe1.setId(100);
+
+        // Añadimos un ingrediente con el nuevo contrato de 5 parámetros
+        recipe1.addIngredient(new RecipeIngredient(
+                1, 1, new BigDecimal("500.00"), "Harina", "g"
+        ));
+
         Recipe recipe2 = new Recipe(2, 2, 2, "Receta Falsa 2", "Desc", 20, 4);
         recipe2.setId(101);
 
         List<Recipe> fakeDatabase = Arrays.asList(recipe1, recipe2);
 
-        // Le enseñamos al Mockito cómo debe comportarse:
-        // "Cuando el caso de uso te pida findAll(), devuélvele esta lista falsa"
+        // Definimos el comportamiento del Mock
         when(mockRepository.findAll()).thenReturn(fakeDatabase);
 
-        // --- WHEN (Ejecución) ---
+        // --- 2. WHEN (Ejecución) ---
         List<Recipe> result = useCase.execute();
 
-        // --- THEN (Validación) ---
-        // Comprobamos que el caso de uso se comunicó con el repositorio y devolvió lo correcto
-        assertNotNull(result, "La lista no debe ser nula");
-        assertEquals(2, result.size(), "Debe devolver exactamente 2 recetas");
-        assertEquals("Receta Falsa 1", result.get(0).getTitle());
-        assertEquals("Receta Falsa 2", result.get(1).getTitle());
+        // --- 3. THEN (Validación) ---
+        assertNotNull(result, "La lista no debe ser nula.");
+        assertEquals(2, result.size(), "Debe devolver exactamente 2 recetas.");
 
-        // Verificamos que el repositorio fue llamado exactamente 1 vez
+        // Verificación de integridad de nombres en el primer elemento
+        assertEquals("Receta Falsa 1", result.get(0).getTitle());
+        assertFalse(result.get(0).getIngredients().isEmpty(), "La receta 1 debe tener ingredientes.");
+        assertEquals("Harina", result.get(0).getIngredients().get(0).getIngredientName());
+
         verify(mockRepository, times(1)).findAll();
     }
 }

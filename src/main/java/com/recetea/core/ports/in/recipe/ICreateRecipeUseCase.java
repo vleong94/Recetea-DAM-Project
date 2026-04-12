@@ -1,4 +1,6 @@
-package com.recetea.core.ports.in;
+package com.recetea.core.ports.in.recipe;
+
+import com.recetea.core.ports.in.dto.CreateRecipeCommand;
 
 /**
  * Inbound Port: Define el contrato para el Caso de Uso de creación de recetas.

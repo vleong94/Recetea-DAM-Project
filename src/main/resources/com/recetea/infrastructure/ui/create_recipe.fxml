@@ -6,7 +6,7 @@
 <?import javafx.scene.text.Font?>
 
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.recetea.infrastructure.ui.CreateRecipeController">
+      fx:controller="com.recetea.infrastructure.ui.controllers.CreateRecipeController">
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
     </padding>
@@ -41,16 +41,27 @@
     <TitledPane text="2. Lista de Ingredientes" collapsible="false" VBox.vgrow="ALWAYS">
         <VBox spacing="10.0">
             <HBox spacing="10.0" alignment="CENTER_LEFT">
-                <TextField fx:id="ingredientIdField" promptText="ID Ingrediente" prefWidth="120.0"/>
-                <TextField fx:id="unitIdField" promptText="ID Unidad" prefWidth="120.0"/>
-                <TextField fx:id="quantityField" promptText="Cantidad" prefWidth="120.0"/>
-                <Button text="+ Añadir Ingrediente" style="-fx-background-color: #FF9800; -fx-text-fill: white;" onAction="#onAddIngredientClick"/>
+                <ComboBox fx:id="ingredientComboBox" promptText="Selecciona Ingrediente" prefWidth="200.0"/>
+                <ComboBox fx:id="unitComboBox" promptText="Unidad" prefWidth="120.0"/>
+                <TextField fx:id="quantityField" promptText="Cant." prefWidth="80.0"/>
+
+                <Button text="+"
+                        onAction="#onAddIngredientClick"
+                        style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;"/>
+
+                <Button text="✎ Actualizar"
+                        onAction="#onUpdateIngredientClick"
+                        style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold;"/>
+
+                <Button text="-"
+                        onAction="#onDeleteIngredientClick"
+                        style="-fx-background-color: #f44336; -fx-text-fill: white; -fx-font-weight: bold;"/>
             </HBox>
 
-            <TableView fx:id="ingredientsTable" prefHeight="150.0" VBox.vgrow="ALWAYS">
+            <TableView fx:id="ingredientsTable" onMouseClicked="#onTableMouseClicked" prefHeight="200.0" VBox.vgrow="ALWAYS">
                 <columns>
-                    <TableColumn fx:id="colIngredientId" prefWidth="100.0" text="ID Ingrediente" />
-                    <TableColumn fx:id="colUnitId" prefWidth="100.0" text="ID Unidad" />
+                    <TableColumn fx:id="colIngredientId" prefWidth="150.0" text="Ingrediente" />
+                    <TableColumn fx:id="colUnitId" prefWidth="100.0" text="Unidad" />
                     <TableColumn fx:id="colQuantity" prefWidth="100.0" text="Cantidad" />
                 </columns>
             </TableView>
@@ -58,7 +69,11 @@
     </TitledPane>
 
     <HBox alignment="CENTER_RIGHT" spacing="10.0">
-        <Button text="Cancelar / Volver" style="-fx-background-color: #9E9E9E; -fx-text-fill: white;" onAction="#onBackButtonClick" />
-        <Button text="Sellar y Guardar Receta Completa" style="-fx-background-color: #2196F3; -fx-text-fill: white;" onAction="#onSaveButtonClick" />
+        <Button text="Cancelar / Volver"
+                style="-fx-background-color: #9E9E9E; -fx-text-fill: white;"
+                onAction="#onBackButtonClick" />
+        <Button text="Sellar y Guardar Receta Completa"
+                style="-fx-background-color: #2196F3; -fx-text-fill: white;"
+                onAction="#onSaveButtonClick" />
     </HBox>
 </VBox>
