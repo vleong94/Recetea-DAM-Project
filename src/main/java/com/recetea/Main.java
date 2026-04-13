@@ -1,63 +1,50 @@
 package com.recetea;
 
-import com.recetea.core.ports.out.IRecipeRepository;
-import com.recetea.core.ports.out.IIngredientRepository;
-import com.recetea.core.ports.out.IUnitRepository;
+import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
+import com.recetea.core.recipe.application.ports.out.ingredient.IIngredientRepository;
+import com.recetea.core.recipe.application.ports.out.unit.IUnitRepository;
 
-import com.recetea.core.usecases.recipe.*;
-import com.recetea.core.usecases.ingredient.GetAllIngredientsUseCase;
-import com.recetea.core.usecases.unit.GetAllUnitsUseCase;
+import com.recetea.core.recipe.application.usecases.recipe.*;
+import com.recetea.core.recipe.application.usecases.ingredient.GetAllIngredientsUseCase;
+import com.recetea.core.recipe.application.usecases.unit.GetAllUnitsUseCase;
 
-import com.recetea.infrastructure.persistence.jbdc.JdbcRecipeRepository;
-import com.recetea.infrastructure.persistence.jbdc.JdbcIngredientRepository;
-import com.recetea.infrastructure.persistence.jbdc.JdbcUnitRepository;
+import com.recetea.infrastructure.persistence.recipe.jdbc.config.DatabaseConfig;
+import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.JdbcRecipeRepository;
+import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.JdbcIngredientRepository;
+import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.JdbcUnitRepository;
 
-import com.recetea.infrastructure.ui.services.NavigationService;
-import com.recetea.infrastructure.ui.services.RecipeServiceContext;
+import com.recetea.infrastructure.ui.javafx.shared.NavigationService;
+import com.recetea.infrastructure.ui.javafx.recipe.RecipeContext;
 
 import javafx.application.Application;
 import javafx.stage.Stage;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
+import javax.sql.DataSource;
 
 /**
- * Composition Root: Punto de entrada de la aplicación.
- * Ensambla las capas, inicializa el contexto de servicios y delega la
- * gestión de la interfaz al NavigationService.
+ * Composition Root del sistema.
+ * Orquesta el ensamblaje de todas las capas arquitectónicas centralizando la inicialización.
+ * Ejecuta la Dependency Injection manual, conectando los adaptadores de infraestructura
+ * con los Use Cases del Core, garantizando el desacoplamiento de la aplicación.
  */
 public class Main extends Application {
 
+    /**
+     * Entry point del ciclo de vida de JavaFX.
+     * Coordina la creación del DataSource, los Repositories, el Context Object y el Routing.
+     */
     @Override
     public void start(Stage primaryStage) {
-        Properties props = new Properties();
+        // Inicialización del Singleton de conexión a la base de datos.
+        DataSource dataSource = DatabaseConfig.getDataSource();
 
-        // 1. CARGA DE CONFIGURACIÓN EXTERNA
-        // Cargamos las credenciales desde el archivo para evitar subirlas a GitHub.
-        try (InputStream input = getClass().getResourceAsStream("/application-local.properties")) {
-            if (input == null) {
-                throw new RuntimeException("CRÍTICO: No se pudo encontrar application-local.properties en la carpeta de recursos.");
-            }
-            props.load(input);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return;
-        }
+        // Instanciación de los adaptadores de la Persistence Layer.
+        IRecipeRepository recipeRepository = new JdbcRecipeRepository(dataSource);
+        IIngredientRepository ingredientRepository = new JdbcIngredientRepository(dataSource);
+        IUnitRepository unitRepository = new JdbcUnitRepository(dataSource);
 
-        String dbUrl = props.getProperty("db.url");
-        String dbUser = props.getProperty("db.user");
-        String dbPass = props.getProperty("db.password");
-
-        // 2. CONFIGURACIÓN DE INFRAESTRUCTURA (Repositories)
-        // Inyectamos las credenciales cargadas del archivo properties
-        IRecipeRepository recipeRepository = new JdbcRecipeRepository(dbUrl, dbUser, dbPass);
-        IIngredientRepository ingredientRepository = new JdbcIngredientRepository(dbUrl, dbUser, dbPass);
-        IUnitRepository unitRepository = new JdbcUnitRepository(dbUrl, dbUser, dbPass);
-
-        // 3. ENSAMBLAJE DE CASOS DE USO (Application Layer)
-        // Agrupamos todas las capacidades en el Context Object para la UI
-        RecipeServiceContext context = new RecipeServiceContext(
+        // Ensamblaje de la Application Layer inyectando los puertos de salida.
+        RecipeContext context = new RecipeContext(
                 new CreateRecipeUseCase(recipeRepository),
                 new GetAllRecipesUseCase(recipeRepository),
                 new GetRecipeByIdUseCase(recipeRepository),
@@ -67,11 +54,10 @@ public class Main extends Application {
                 new GetAllUnitsUseCase(unitRepository)
         );
 
-        // 4. INICIALIZACIÓN DEL MOTOR DE NAVEGACIÓN
-        // El Main ya no carga FXMLs; ahora delega esta responsabilidad al servicio especializado
+        // Inicialización del motor de Routing inyectando el State y el Stage principal.
         NavigationService nav = new NavigationService(primaryStage, context);
 
-        // 5. ARRANQUE DE LA APLICACIÓN
+        // Lanzamiento de la vista inicial.
         nav.toDashboard();
     }
 

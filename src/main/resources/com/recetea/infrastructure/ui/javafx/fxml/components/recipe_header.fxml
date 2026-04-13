@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<fx:root type="VBox" spacing="10.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+    <Label text="Información General" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>
+
+    <GridPane hgap="10.0" vgap="10.0">
+        <columnConstraints>
+            <ColumnConstraints minWidth="120.0" />
+            <ColumnConstraints hgrow="ALWAYS" />
+        </columnConstraints>
+
+        <Label text="Título de la Receta:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <TextField fx:id="titleField" promptText="Ej: Risotto de Setas" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+        <Label text="Tiempo Prep (min):" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+        <TextField fx:id="prepTimeField" promptText="45" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+        <Label text="Raciones:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+        <TextField fx:id="servingsField" promptText="4" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+        <Label text="Instrucciones:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+        <TextArea fx:id="descriptionArea" prefHeight="100.0" wrapText="true" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+    </GridPane>
+</fx:root>
