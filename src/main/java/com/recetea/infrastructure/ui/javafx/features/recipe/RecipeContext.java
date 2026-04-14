@@ -1,4 +1,4 @@
-package com.recetea.infrastructure.ui.javafx.recipe;
+package com.recetea.infrastructure.ui.javafx.features.recipe;
 
 import com.recetea.core.recipe.application.ports.in.ingredient.IGetAllIngredientsUseCase;
 import com.recetea.core.recipe.application.ports.in.recipe.*;

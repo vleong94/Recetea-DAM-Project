@@ -1,27 +1,27 @@
 /**
- * Definición del Module System (JPMS) de la aplicación.
- * Gestiona las dependencias de librerías externas y los permisos de Reflection
- * requeridos por el framework de UI y la infraestructura de persistencia.
+ * Definición arquitectónica del Module System (JPMS).
+ * Establece los Boundaries del sistema aislando las dependencias transitivas
+ * y concediendo permisos explícitos de Reflection en tiempo de ejecución.
  */
 module com.recetea {
 
-    // Dependencias del framework UI
+    // Declaración de dependencias del View Framework.
     requires javafx.controls;
     requires javafx.fxml;
 
-    // Dependencias de Infraestructura y Data Access (JDBC & Connection Pool)
+    // Declaración de dependencias de la Persistence Layer.
     requires java.sql;
     requires java.naming;
     requires org.postgresql.jdbc;
     requires com.zaxxer.hikari;
 
-    // Exposición del Root Package para el entorno de ejecución
+    // Expone el Composition Root para permitir el Bootstrapping de la aplicación por parte de la JVM.
     exports com.recetea;
 
-    // Apertura de packages al framework JavaFX.
-    // Habilita al FXMLLoader para acceder dinámicamente mediante Reflection a los
-    // Controllers, Custom Components y variables inyectadas con la anotación @FXML.
-    opens com.recetea.infrastructure.ui.javafx.recipe to javafx.fxml;
-    opens com.recetea.infrastructure.ui.javafx.shared to javafx.fxml;
-    opens com.recetea.infrastructure.ui.javafx.components to javafx.fxml;
+    // Apertura quirúrgica de paquetes para Reflection (Inbound Adapters y UI Components).
+    // Obligatorio para que el FXMLLoader instancie y enlace los nodos FXML en los Fields anotados.
+    // Los packages declarados aquí deben contener obligatoriamente clases compiladas (.class),
+    // de lo contrario el JPMS lanzará un FindException durante el Boot Layer Initialization.
+    opens com.recetea.infrastructure.ui.javafx.features.recipe.controllers to javafx.fxml;
+    opens com.recetea.infrastructure.ui.javafx.features.recipe.components to javafx.fxml;
 }

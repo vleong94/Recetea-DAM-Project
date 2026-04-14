@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeDetailController">
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+    </padding>
+
+    <Label fx:id="titleLabel" text="Cargando Receta..." styleClass="header-label" />
+
+    <GridPane vgap="10.0" hgap="15.0">
+        <columnConstraints>
+            <ColumnConstraints minWidth="100.0" />
+            <ColumnConstraints hgrow="ALWAYS" />
+        </columnConstraints>
+
+        <Label text="Tiempo de Prep:" GridPane.rowIndex="0" GridPane.columnIndex="0" styleClass="field-label" />
+        <Label fx:id="prepTimeLabel" text="-" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+        <Label text="Raciones:" GridPane.rowIndex="1" GridPane.columnIndex="0" styleClass="field-label" />
+        <Label fx:id="servingsLabel" text="-" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+        <Label text="Descripción:" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="field-label" />
+        <Label fx:id="descriptionLabel" text="-" wrapText="true" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+    </GridPane>
+
+    <Separator />
+
+    <Label text="Ingredientes Necesarios" styleClass="section-header" />
+
+    <TableView fx:id="ingredientsTable" prefHeight="200.0" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colIngredientName" prefWidth="150.0" text="Ingrediente" />
+            <TableColumn fx:id="colUnit" prefWidth="100.0" text="Unidad" />
+            <TableColumn fx:id="colQuantity" prefWidth="100.0" text="Cantidad" />
+        </columns>
+    </TableView>
+
+    <HBox alignment="CENTER_RIGHT" spacing="10.0">
+        <Button text="Volver al Catálogo" styleClass="secondary-button" onAction="#onBackButtonClick" />
+    </HBox>
+</VBox>

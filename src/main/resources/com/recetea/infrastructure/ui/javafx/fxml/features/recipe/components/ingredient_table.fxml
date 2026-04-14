@@ -4,6 +4,7 @@
 <?import javafx.scene.layout.*?>
 
 <fx:root type="VBox" spacing="10.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+
     <Label text="Gestión de Ingredientes" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>
 
     <HBox spacing="10.0" alignment="CENTER_LEFT">
@@ -18,8 +19,8 @@
 
     <TableView fx:id="ingredientsTable" onMouseClicked="#onTableClick" VBox.vgrow="ALWAYS" prefHeight="200.0">
         <columns>
-            <TableColumn fx:id="colIngredientId" text="Ingrediente" prefWidth="200.0"/>
-            <TableColumn fx:id="colUnitId" text="Unidad" prefWidth="100.0"/>
+            <TableColumn fx:id="colIngredientName" text="Ingrediente" prefWidth="200.0"/>
+            <TableColumn fx:id="colUnit" text="Unidad" prefWidth="100.0"/>
             <TableColumn fx:id="colQuantity" text="Cantidad" prefWidth="100.0"/>
         </columns>
     </TableView>
