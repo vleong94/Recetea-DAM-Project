@@ -9,44 +9,43 @@ import com.recetea.core.recipe.domain.RecipeIngredient;
 import java.util.List;
 
 /**
- * Implementa la lógica de aplicación para la mutación de estado de recetas existentes.
- * Aplica el patrón Fetch-Mutate-Save para preservar la integridad de los metadatos
- * de infraestructura y garantizar que el Domain valide las transiciones de estado.
+ * Orquestador de aplicación encargado de gestionar la actualización de recetas existentes.
+ * Implementa el flujo de trabajo transaccional para modificar el estado de un agregado,
+ * asegurando que la transición desde el estado persistente al nuevo estado deseado
+ * se realice bajo las validaciones de integridad definidas en el dominio.
  */
 public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
 
     private final IRecipeRepository repository;
 
     /**
-     * Inicializa el Use Case mediante Dependency Injection.
-     * El acoplamiento se realiza exclusivamente contra el Outbound Port,
-     * garantizando el estricto cumplimiento del Dependency Inversion Principle.
-     *
-     * @param repository Contrato de salida para la persistencia del Aggregate Root.
+     * Inicializa el caso de uso mediante inyección de dependencias.
+     * Al depender de la interfaz del repositorio, el componente permanece desacoplado
+     * de los detalles técnicos de la base de datos, cumpliendo con el principio
+     * de inversión de dependencias.
      */
     public UpdateRecipeUseCase(IRecipeRepository repository) {
         this.repository = repository;
     }
 
     /**
-     * Ejecuta la actualización integral del estado de la entidad.
-     * Recupera el estado actual desde la infraestructura, aplica las mutaciones
-     * validadas por el Aggregate Root y delega la reconciliación transaccional.
+     * Ejecuta la lógica de mutación de la receta identificada.
+     * Recupera la entidad desde la infraestructura, transforma los tipos primitivos
+     * del contrato de entrada en objetos con significado de negocio y sincroniza
+     * la colección de ingredientes antes de delegar la persistencia definitiva.
      *
-     * @param recipeId Identificador único del registro a modificar.
-     * @param request Payload inmutable con el nuevo estado validado.
+     * @param recipeId Identificador único de la receta objetivo.
+     * @param request Datos de entrada con la información actualizada.
      */
     @Override
     public void execute(int recipeId, SaveRecipeRequest request) {
-
-        // 1. Fetch: Recuperación del estado actual
-        // Extrae la entidad existente para no sobrescribir metadatos técnicos de infraestructura (ej. created_at).
+        // 1. Localización y carga del Aggregate Root desde la infraestructura
         Recipe recipe = repository.findById(recipeId)
-                .orElseThrow(() -> new IllegalArgumentException("Target Entity no encontrada en el Data Store."));
+                .orElseThrow(() -> new RuntimeException("Fallo de consistencia: No se encontró la entidad solicitada para actualizar."));
 
-        // 2. Mutate: Aplicación de los cambios sobre el Aggregate Root
-        // La entidad Recipe ejecuta sus propios invariantes (Invariants) de negocio en cada mutador.
-        recipe.setUserId(request.userId());
+        // 2. Aplicación de mutaciones sobre los atributos de cabecera
+        // Se realiza la conversión explícita del identificador de autor al Value Object AuthorId
+        recipe.setAuthorId(new Recipe.AuthorId(request.userId()));
         recipe.setCategoryId(request.categoryId());
         recipe.setDifficultyId(request.difficultyId());
         recipe.setTitle(request.title());
@@ -54,7 +53,8 @@ public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
         recipe.setPreparationTimeMinutes(request.preparationTimeMinutes());
         recipe.setServings(request.servings());
 
-        // Reconciliación de la colección de Value Objects (Ingredientes)
+        // 3. Sincronización de la composición de ingredientes
+        // Se reconstruye la lista de Value Objects a partir de la petición de entrada
         if (request.ingredients() != null) {
             List<RecipeIngredient> updatedIngredients = request.ingredients().stream()
                     .map(ir -> new RecipeIngredient(
@@ -66,12 +66,11 @@ public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
                     ))
                     .toList();
 
-            // Sustitución atómica de la colección interna.
+            // Actualización atómica de la colección interna del agregado
             recipe.setIngredients(updatedIngredients);
         }
 
-        // 3. Save: Delegación de persistencia a la infraestructura
-        // El Repository asume el Transaction Scope para reconciliar el estado atómico en el Data Store.
+        // 4. Persistencia de los cambios en el Data Store
         repository.update(recipe);
     }
 }

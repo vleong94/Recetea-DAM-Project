@@ -23,6 +23,7 @@
             <TableColumn fx:id="titleColumn" prefWidth="250.0" text="Título de la Receta" />
             <TableColumn fx:id="prepColumn" prefWidth="100.0" text="Prep (min)" />
             <TableColumn fx:id="servingsColumn" prefWidth="80.0" text="Raciones" />
+
             <TableColumn fx:id="actionsColumn" prefWidth="120.0" text="Acciones" />
         </columns>
     </TableView>

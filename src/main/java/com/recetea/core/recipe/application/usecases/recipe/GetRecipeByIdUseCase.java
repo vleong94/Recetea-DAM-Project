@@ -10,29 +10,28 @@ import com.recetea.core.recipe.domain.RecipeIngredient;
 import java.util.Optional;
 
 /**
- * Orquestador que implementa la lógica de recuperación de la información detallada de una Recipe.
- * Extrae el Aggregate Root desde la capa de Infrastructure y transforma la entidad
- * a un Inbound DTO seguro, garantizando que el Domain Model no se exponga a la UI.
+ * Caso de uso especializado en la obtención y proyección detallada de una receta.
+ * Coordina la recuperación del agregado desde la infraestructura de persistencia
+ * y su posterior transformación a un Data Transfer Object (DTO) inmutable,
+ * garantizando que las entidades del dominio permanezcan aisladas de la vista.
  */
 public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
 
     private final IRecipeRepository repository;
 
     /**
-     * Inicializa el Use Case mediante Dependency Injection.
-     * Se acopla exclusivamente al Outbound Port para mantener el agnosticismo del Database.
-     *
-     * @param repository Contrato de salida para el acceso al Data Store de recetas.
+     * Inicializa el componente mediante la inyección de la interfaz del repositorio.
+     * Este enfoque asegura que el caso de uso sea agnóstico a la implementación
+     * técnica del almacenamiento, facilitando la escalabilidad y el mantenimiento.
      */
     public GetRecipeByIdUseCase(IRecipeRepository repository) {
         this.repository = repository;
     }
 
     /**
-     * Ejecuta el Query por identificador y coordina el Mapping jerárquico de los datos.
-     *
-     * @param recipeId Identificador único del registro.
-     * @return Un Optional que contiene el RecipeDetailResponse si el Entity existe.
+     * Ejecuta la lógica de consulta para localizar una receta por su identificador.
+     * Retorna un contenedor opcional que encapsula la proyección de datos,
+     * permitiendo una gestión segura de la nulidad en las capas de presentación.
      */
     @Override
     public Optional<RecipeDetailResponse> execute(int recipeId) {
@@ -41,13 +40,14 @@ public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
     }
 
     /**
-     * Realiza el Deep Mapping del Aggregate Root y de su colección interna.
-     * Transforma la jerarquía del Domain en un Data Transfer Object inmutable.
+     * Transforma el Aggregate Root y su jerarquía interna en una respuesta plana.
+     * Durante el proceso, extrae el valor escalar del Value Object AuthorId y orquesta
+     * la conversión de la colección de ingredientes para satisfacer el contrato del DTO.
      */
     private RecipeDetailResponse mapToResponse(Recipe recipe) {
         return new RecipeDetailResponse(
                 recipe.getId(),
-                recipe.getUserId(),
+                recipe.getAuthorId().value(),
                 recipe.getCategoryId(),
                 recipe.getDifficultyId(),
                 recipe.getTitle(),
@@ -61,7 +61,7 @@ public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
     }
 
     /**
-     * Transforma un Value Object individual a su representación DTO de solo lectura.
+     * Mapea un componente de la receta a su representación inmutable de salida.
      */
     private RecipeIngredientResponse mapToIngredientResponse(RecipeIngredient ri) {
         return new RecipeIngredientResponse(

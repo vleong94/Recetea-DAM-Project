@@ -10,21 +10,26 @@
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.IngredientTableComponent?>
 
 <VBox spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeEditorController">
+      fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeCreateController">
 
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
     </padding>
 
-    <Label text="Constructor de Receta" styleClass="header-label" />
+    <Label text="Nueva Receta" styleClass="header-label" />
 
     <RecipeHeaderComponent fx:id="headerComponent" />
 
     <IngredientTableComponent fx:id="ingredientTableComponent" VBox.vgrow="ALWAYS" />
 
     <HBox alignment="CENTER_RIGHT" spacing="15.0">
-        <Button text="Cancelar / Volver" styleClass="secondary-button" onAction="#onBackButtonClick" />
+        <Button text="Cancelar / Volver"
+                styleClass="secondary-button"
+                onAction="#onBackButtonClick" />
 
-        <Button text="Guardar Receta" styleClass="primary-button" onAction="#onSaveButtonClick" />
+        <Button text="Guardar Receta"
+                styleClass="primary-button"
+                onAction="#onSaveButtonClick" />
     </HBox>
+
 </VBox>

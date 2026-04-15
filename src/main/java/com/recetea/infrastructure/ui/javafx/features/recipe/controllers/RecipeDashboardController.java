@@ -13,11 +13,11 @@ import javafx.scene.layout.HBox;
 import java.util.List;
 
 /**
- * Controller del Dashboard principal de recetas.
- * Actúa como un Inbound Adapter que proyecta el catálogo global
- * utilizando Data Transfer Objects (DTOs) inmutables.
- * Gestiona la interacción del usuario y orquesta el Routing hacia
- * las funcionalidades de detalle, creación y edición.
+ * Controlador principal (Dashboard) encargado de proyectar el catálogo de recetas.
+ * Opera como un adaptador de entrada (Inbound Adapter) que consume objetos inmutables
+ * (DTOs) para poblar la vista, asegurando que el modelo de dominio permanezca aislado.
+ * Centraliza el enrutamiento hacia las vistas de detalle, creación y edición,
+ * manteniendo el estado de la tabla sincronizado con la persistencia.
  */
 public class RecipeDashboardController {
 
@@ -32,9 +32,8 @@ public class RecipeDashboardController {
     private NavigationService nav;
 
     /**
-     * Inicializa el Controller inyectando el Context de los Use Cases
-     * y el Navigation Service. Configura el Layout de la tabla
-     * y dispara la carga inicial de datos desde la capa de Persistence.
+     * Inicializa el controlador inyectando el contexto de operaciones y el servicio de enrutamiento.
+     * Configura el mapeo de columnas y ejecuta la carga inicial de datos desde la infraestructura.
      */
     public void init(RecipeContext context, NavigationService nav) {
         this.context = context;
@@ -44,9 +43,9 @@ public class RecipeDashboardController {
     }
 
     /**
-     * Define la lógica del View de la tabla mediante Cell Factories.
-     * Vincula las columnas con los Properties de los DTOs
-     * y construye dinámicamente la columna de acciones con Buttons.
+     * Configura la representación visual de los datos en la tabla.
+     * Define envoltorios de solo lectura (ReadOnlyObjectWrapper) para proteger la inmutabilidad
+     * de los DTOs y construye dinámicamente los componentes interactivos de la columna de acciones.
      */
     private void setupTable() {
         idColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().id()));
@@ -81,9 +80,8 @@ public class RecipeDashboardController {
     }
 
     /**
-     * Recupera el State actual del catálogo mediante el Use Case correspondiente.
-     * Actualiza la Observable List de la tabla, reflejando cualquier cambio
-     * realizado en la Database de forma reactiva.
+     * Ejecuta el caso de uso de consulta global y refresca el estado del componente visual.
+     * Garantiza que la lista observable refleje el estado más reciente de la persistencia.
      */
     public void loadData() {
         List<RecipeSummaryResponse> recipes = context.getAllRecipes().execute();
@@ -91,26 +89,31 @@ public class RecipeDashboardController {
     }
 
     /**
-     * Transfiere el Thread de la UI hacia el formulario de creación.
+     * Delega el control de la navegación hacia el formulario especializado en la creación de nuevas entidades.
      */
     @FXML
     public void onCreateButtonClick() {
-        nav.toRecipeEditor();
+        nav.toRecipeCreate();
     }
 
     /**
-     * Inicia el flujo de edición recuperando la Entity completa por su ID.
-     * El Controller delega la transición al Navigation Service,
-     * asegurando que el editor reciba el State hidratado.
+     * Orquesta la transición hacia el entorno de actualización.
+     * Coordina la recuperación profunda de la entidad mediante su identificador
+     * antes de ceder el control al servicio de navegación, asegurando que el editor
+     * reciba el estado inmutable completo para hidratar la vista.
+     *
+     * @param recipe Proyección resumida de la entidad seleccionada.
      */
     private void handleEditAction(RecipeSummaryResponse recipe) {
-        context.getRecipeById().execute(recipe.id()).ifPresent(nav::toRecipeEditor);
+        context.getRecipeById().execute(recipe.id()).ifPresent(nav::toRecipeUpdate);
     }
 
     /**
-     * Gestiona la eliminación de un Record solicitando confirmación previa.
-     * Si se acepta, invoca el Use Case de borrado y
-     * refresca el View para garantizar la consistencia visual.
+     * Gestiona el ciclo de vida de eliminación de un registro.
+     * Implementa un mecanismo de confirmación previo y, tras la ejecución del caso de uso,
+     * sincroniza inmediatamente la vista para reflejar la purga en la base de datos.
+     *
+     * @param recipe Proyección resumida de la entidad a eliminar.
      */
     private void handleDeleteAction(RecipeSummaryResponse recipe) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "¿Estás seguro de que deseas eliminar la receta: " + recipe.title() + "?");
@@ -129,7 +132,8 @@ public class RecipeDashboardController {
     }
 
     /**
-     * Event Handler para capturar el Double Click y visualizar el detalle.
+     * Captura interacciones primarias sobre las filas para disparar la vista de detalle
+     * de forma ágil sin requerir interacción con la columna de acciones.
      */
     private void handleTableDoubleClick(MouseEvent event) {
         if (event.getClickCount() == 2) {
@@ -141,7 +145,8 @@ public class RecipeDashboardController {
     }
 
     /**
-     * Presenta Popups de error informativos ante fallos en la Application Layer.
+     * Renderiza notificaciones modales ante excepciones no controladas durante la ejecución
+     * de los casos de uso, evitando cierres abruptos de la aplicación.
      */
     private void showError(String header, String content) {
         Alert alert = new Alert(Alert.AlertType.ERROR);

@@ -1,6 +1,7 @@
 package com.recetea.infrastructure.ui.javafx.features.recipe.controllers;
 
 import com.recetea.core.recipe.application.ports.in.dto.RecipeIngredientResponse;
+import com.recetea.core.recipe.application.ports.in.dto.RecipeDetailResponse;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeContext;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -10,10 +11,11 @@ import javafx.scene.control.*;
 import java.math.BigDecimal;
 
 /**
- * Controller de la vista de lectura detallada de recetas.
- * Actúa como un Inbound Adapter de solo lectura que consume Data Transfer Objects (DTOs)
- * para hidratar la Interfaz de Usuario. Garantiza el aislamiento de las Entities
- * del Core al proyectar únicamente proyecciones inmutables de los datos.
+ * Controlador de la interfaz de usuario encargado de la visualización detallada de recetas.
+ * Actúa como un adaptador de entrada (Inbound Adapter) de solo lectura que consume proyecciones
+ * inmutables de datos (DTOs) para hidratar la vista. Su diseño garantiza que el modelo de
+ * dominio permanezca aislado de la capa de presentación, siguiendo los principios de la
+ * arquitectura hexagonal y fomentando un mantenimiento sencillo y desacoplado.
  */
 public class RecipeDetailController {
 
@@ -31,46 +33,53 @@ public class RecipeDetailController {
     private NavigationService nav;
 
     /**
-     * Inicializa el Controller inyectando las dependencias estructurales.
-     * Configura el mapeo de las columnas de la tabla de forma previa
-     * a la recepción de los datos del catálogo.
+     * Inicializa el controlador inyectando el contexto de la aplicación y el servicio de navegación.
+     * Define el enlace de datos (Data Binding) para las columnas de la tabla de ingredientes,
+     * asegurando que la representación visual se sincronice correctamente con los atributos
+     * del objeto de transferencia de datos inmutable.
      */
     public void init(RecipeContext context, NavigationService nav) {
         this.context = context;
         this.nav = nav;
-        setupTable();
+
+        colIngredientName.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().ingredientName()));
+        colUnit.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().unitName()));
+        colQuantity.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().quantity()));
     }
 
     /**
-     * Define el Data Binding de la tabla mediante Cell Factories.
-     * Vincula cada columna a las propiedades específicas del DTO de respuesta,
-     * utilizando envoltorios de solo lectura para mantener la inmutabilidad.
-     */
-    private void setupTable() {
-        colIngredientName.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().ingredientName()));
-        colUnit.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().unitName()));
-        colQuantity.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().quantity()));
-    }
-
-    /**
-     * Dispara el flujo de recuperación profunda (Deep Load) de la receta.
-     * Utiliza el identificador para ejecutar el Use Case correspondiente,
-     * procesando la respuesta mediante programación funcional para hidratar
-     * los nodos visuales o manejar la ausencia del registro de forma segura.
+     * Orquesta la recuperación y presentación de los detalles de una receta.
+     * Delega la búsqueda al núcleo de la aplicación mediante el identificador proporcionado y
+     * gestiona la respuesta de forma reactiva: si la receta existe, se procede a la hidratación
+     * de los elementos visuales; en caso contrario, se notifica el fallo al usuario mediante
+     * un diálogo de error.
+     *
+     * @param recipeId Identificador único de la receta a cargar.
      */
     public void loadRecipeDetails(int recipeId) {
-        context.getRecipeById().execute(recipeId).ifPresentOrElse(recipe -> {
-            titleLabel.setText(recipe.title());
-            prepTimeLabel.setText(recipe.prepTimeMinutes() + " min");
-            servingsLabel.setText(String.valueOf(recipe.servings()));
-            descriptionLabel.setText(recipe.description());
-
-            ingredientsTable.setItems(FXCollections.observableArrayList(recipe.ingredients()));
-        }, () -> showError("Receta no encontrada", "El registro solicitado no existe en la base de datos."));
+        context.getRecipeById().execute(recipeId).ifPresentOrElse(
+                this::populateView,
+                () -> showError("Error de Consulta", "El sistema no pudo localizar la receta solicitada.")
+        );
     }
 
     /**
-     * Delega el Routing de retorno hacia el panel principal mediante el Navigation Service.
+     * Transfiere el estado de la respuesta inmutable a los componentes de la interfaz de usuario.
+     * Centraliza la lógica de asignación de textos y la actualización de la lista observable
+     * de ingredientes para mantener la consistencia visual del detalle, aplicando formatos
+     * específicos para tiempos y raciones.
+     */
+    private void populateView(RecipeDetailResponse recipe) {
+        titleLabel.setText(recipe.title());
+        prepTimeLabel.setText(String.format("%d min", recipe.prepTimeMinutes()));
+        servingsLabel.setText(String.valueOf(recipe.servings()));
+        descriptionLabel.setText(recipe.description());
+
+        ingredientsTable.setItems(FXCollections.observableArrayList(recipe.ingredients()));
+    }
+
+    /**
+     * Ejecuta la navegación de retorno hacia el panel de control principal (Dashboard).
      */
     @FXML
     public void onBackButtonClick() {
@@ -78,8 +87,8 @@ public class RecipeDetailController {
     }
 
     /**
-     * Centraliza la presentación de excepciones o inconsistencias de datos
-     * mediante la instanciación de diálogos modales nativos.
+     * Despliega ventanas emergentes modales para informar sobre errores o inconsistencias
+     * detectadas durante la comunicación con la capa de aplicación.
      */
     private void showError(String header, String content) {
         Alert alert = new Alert(Alert.AlertType.ERROR);

@@ -9,8 +9,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Suite de pruebas unitarias para el Aggregate Root Recipe.
- * Se enfoca en validar la integridad de los invariantes de negocio,
- * el manejo estricto de excepciones de dominio, la inmutabilidad de la identidad
+ * Valida la integridad de los invariantes de negocio, el manejo estricto de
+ * excepciones de dominio, la validación del Value Object de identidad de autor,
  * y el encapsulamiento seguro de las colecciones internas.
  */
 class RecipeTest {
@@ -19,7 +19,7 @@ class RecipeTest {
     @DisplayName("Debe instanciar una receta válida correctamente")
     void shouldCreateValidRecipe() {
         // Arrange & Act
-        Recipe recipe = new Recipe(1, 10, 2, "Tortilla de Patatas", "Pasos detallados", 30, 4);
+        Recipe recipe = new Recipe(new Recipe.AuthorId(1), 10, 2, "Tortilla de Patatas", "Pasos detallados", 30, 4);
 
         // Assert
         assertAll(
@@ -31,15 +31,26 @@ class RecipeTest {
     }
 
     @Test
+    @DisplayName("Debe lanzar IllegalArgumentException si la identidad del autor es inválida")
+    void shouldThrowExceptionWhenAuthorIdentityIsInvalid() {
+        // Act & Assert
+        // Verifica que el Value Object de identidad proteja sus propias reglas matemáticas.
+        assertAll(
+                () -> assertThrows(IllegalArgumentException.class, () -> new Recipe.AuthorId(0)),
+                () -> assertThrows(IllegalArgumentException.class, () -> new Recipe.AuthorId(-5))
+        );
+    }
+
+    @Test
     @DisplayName("Debe lanzar RecipeValidationException si el título es inválido")
     void shouldThrowExceptionWhenTitleIsInvalid() {
         // Act & Assert
         // Verifica que el Aggregate Root rechace instanciaciones con identificadores nominales nulos o vacíos.
         assertAll(
                 () -> assertThrows(Recipe.RecipeValidationException.class,
-                        () -> new Recipe(1, 1, 1, null, "Desc", 10, 1)),
+                        () -> new Recipe(new Recipe.AuthorId(1), 1, 1, null, "Desc", 10, 1)),
                 () -> assertThrows(Recipe.RecipeValidationException.class,
-                        () -> new Recipe(1, 1, 1, "   ", "Desc", 10, 1))
+                        () -> new Recipe(new Recipe.AuthorId(1), 1, 1, "   ", "Desc", 10, 1))
         );
     }
 
@@ -51,37 +62,25 @@ class RecipeTest {
         assertAll(
                 // Fronteras del tiempo de preparación (<= 0)
                 () -> assertThrows(Recipe.InvalidRecipeMetricException.class,
-                        () -> new Recipe(1, 1, 1, "Sopa", "Desc", 0, 4)),
+                        () -> new Recipe(new Recipe.AuthorId(1), 1, 1, "Sopa", "Desc", 0, 4)),
                 () -> assertThrows(Recipe.InvalidRecipeMetricException.class,
-                        () -> new Recipe(1, 1, 1, "Sopa", "Desc", -15, 4)),
+                        () -> new Recipe(new Recipe.AuthorId(1), 1, 1, "Sopa", "Desc", -15, 4)),
                 // Fronteras del rendimiento en raciones (<= 0)
                 () -> assertThrows(Recipe.InvalidRecipeMetricException.class,
-                        () -> new Recipe(1, 1, 1, "Sopa", "Desc", 20, 0)),
+                        () -> new Recipe(new Recipe.AuthorId(1), 1, 1, "Sopa", "Desc", 20, 0)),
                 // Mutación post-instanciación
                 () -> assertThrows(Recipe.InvalidRecipeMetricException.class,
-                        () -> new Recipe(1, 1, 1, "Sopa", "Desc", 20, 4).setPreparationTimeMinutes(-5)),
+                        () -> new Recipe(new Recipe.AuthorId(1), 1, 1, "Sopa", "Desc", 20, 4).setPreparationTimeMinutes(-5)),
                 () -> assertThrows(Recipe.InvalidRecipeMetricException.class,
-                        () -> new Recipe(1, 1, 1, "Sopa", "Desc", 20, 4).setServings(0))
+                        () -> new Recipe(new Recipe.AuthorId(1), 1, 1, "Sopa", "Desc", 20, 4).setServings(0))
         );
-    }
-
-    @Test
-    @DisplayName("Debe lanzar IllegalStateException si se intenta sobrescribir la identidad")
-    void shouldThrowExceptionWhenOverwritingIdentity() {
-        // Arrange
-        Recipe recipe = new Recipe(1, 1, 1, "Sopa", "Desc", 20, 4);
-        recipe.setId(100);
-
-        // Act & Assert
-        // Confirma que el Primary Key mapeado a la entidad es estrictamente de solo escritura única.
-        assertThrows(IllegalStateException.class, () -> recipe.setId(200));
     }
 
     @Test
     @DisplayName("Debe gestionar la adición de ingredientes correctamente")
     void shouldManageIngredientsCorrectly() {
         // Arrange
-        Recipe recipe = new Recipe(1, 1, 1, "Pasta", "Desc", 15, 2);
+        Recipe recipe = new Recipe(new Recipe.AuthorId(1), 1, 1, "Pasta", "Desc", 15, 2);
         RecipeIngredient ingredient = new RecipeIngredient(1, 1, new BigDecimal("200"), "Macarrones", "Gramos");
 
         // Act
@@ -96,7 +95,7 @@ class RecipeTest {
     @DisplayName("Debe garantizar que la lista de ingredientes expuesta sea inmutable")
     void shouldMaintainImmutabilityOfIngredientsList() {
         // Arrange
-        Recipe recipe = new Recipe(1, 1, 1, "Ensalada", "Desc", 5, 1);
+        Recipe recipe = new Recipe(new Recipe.AuthorId(1), 1, 1, "Ensalada", "Desc", 5, 1);
         List<RecipeIngredient> exposedIngredients = recipe.getIngredients();
 
         // Act & Assert
@@ -110,7 +109,7 @@ class RecipeTest {
     @DisplayName("Debe permitir el reemplazo atómico de la colección de ingredientes")
     void shouldAllowSettingIngredientsList() {
         // Arrange
-        Recipe recipe = new Recipe(1, 1, 1, "Sopa", "Desc", 20, 4);
+        Recipe recipe = new Recipe(new Recipe.AuthorId(1), 1, 1, "Sopa", "Desc", 20, 4);
         List<RecipeIngredient> newIngredients = List.of(
                 new RecipeIngredient(1, 1, BigDecimal.ONE, "Agua", "Litro"),
                 new RecipeIngredient(2, 2, BigDecimal.valueOf(2), "Sal", "Pizca")
