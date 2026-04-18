@@ -3,7 +3,7 @@ package com.recetea.core.recipe.domain;
 import com.recetea.core.recipe.domain.vo.PreparationTime;
 import com.recetea.core.recipe.domain.vo.RecipeId;
 import com.recetea.core.recipe.domain.vo.Servings;
-import com.recetea.core.recipe.domain.vo.UserId;
+import com.recetea.core.user.domain.UserId;
 
 import java.util.ArrayList;
 import java.util.Collections;

@@ -5,6 +5,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test;
 
+import com.recetea.core.user.domain.UserId;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("Value Objects — Validación Fail-Fast")

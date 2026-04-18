@@ -33,6 +33,12 @@
 
         <Label text="Descripción:" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="field-label" />
         <Label fx:id="descriptionLabel" text="-" wrapText="true" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+        <Label text="Categoría:" GridPane.rowIndex="3" GridPane.columnIndex="0" styleClass="field-label" />
+        <Label fx:id="categoryLabel" text="-" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+        <Label text="Dificultad:" GridPane.rowIndex="4" GridPane.columnIndex="0" styleClass="field-label" />
+        <Label fx:id="difficultyLabel" text="-" GridPane.rowIndex="4" GridPane.columnIndex="1" />
     </GridPane>
 
     <Separator />
@@ -44,6 +50,17 @@
             <TableColumn fx:id="colIngredientName" prefWidth="150.0" text="Ingrediente" />
             <TableColumn fx:id="colUnit" prefWidth="100.0" text="Unidad" />
             <TableColumn fx:id="colQuantity" prefWidth="100.0" text="Cantidad" />
+        </columns>
+    </TableView>
+
+    <Separator />
+
+    <Label text="Pasos de Preparación" styleClass="section-header" />
+
+    <TableView fx:id="stepsTable" prefHeight="200.0" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colStepOrder" prefWidth="60.0" text="Paso" />
+            <TableColumn fx:id="colInstruction" prefWidth="390.0" text="Instrucción" />
         </columns>
     </TableView>
 

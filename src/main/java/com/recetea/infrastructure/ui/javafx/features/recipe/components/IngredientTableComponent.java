@@ -88,42 +88,43 @@ public class IngredientTableComponent extends VBox {
         });
     }
 
-    /**
-     * Procesa la intención de añadir un nuevo registro.
-     */
     @FXML
     public void onAddClick() {
-        processInput();
-    }
-
-    /**
-     * Procesa la intención de actualizar un registro existente.
-     */
-    @FXML
-    public void onUpdateClick() {
-        processInput();
-    }
-
-    /**
-     * Orquesta la validación y transformación de la entrada del usuario.
-     * Implementa una lógica de reemplazo para garantizar la unicidad de ingredientes.
-     */
-    private void processInput() {
         IngredientResponse ing = ingredientComboBox.getValue();
         UnitResponse unit = unitComboBox.getValue();
         String qtyText = quantityField.getText().trim();
-
         if (ing == null || unit == null || qtyText.isEmpty()) {
             showError("Validación fallida", "Es necesario completar todos los campos del ingrediente.");
             return;
         }
-
         try {
             BigDecimal qty = new BigDecimal(qtyText);
             if (qty.compareTo(BigDecimal.ZERO) <= 0) throw new NumberFormatException();
-
-            ingredientList.removeIf(i -> i.ingredientId() == ing.id());
             ingredientList.add(new IngredientRequest(ing.id(), unit.id(), qty, ing.name(), unit.name()));
+            clearInputs();
+        } catch (NumberFormatException e) {
+            showError("Formato inválido", "La cantidad debe ser un valor numérico superior a cero.");
+        }
+    }
+
+    @FXML
+    public void onUpdateClick() {
+        int index = ingredientsTable.getSelectionModel().getSelectedIndex();
+        if (index < 0) {
+            showError("Sin selección", "Seleccione un ingrediente de la tabla para actualizar.");
+            return;
+        }
+        IngredientResponse ing = ingredientComboBox.getValue();
+        UnitResponse unit = unitComboBox.getValue();
+        String qtyText = quantityField.getText().trim();
+        if (ing == null || unit == null || qtyText.isEmpty()) {
+            showError("Validación fallida", "Es necesario completar todos los campos del ingrediente.");
+            return;
+        }
+        try {
+            BigDecimal qty = new BigDecimal(qtyText);
+            if (qty.compareTo(BigDecimal.ZERO) <= 0) throw new NumberFormatException();
+            ingredientList.set(index, new IngredientRequest(ing.id(), unit.id(), qty, ing.name(), unit.name()));
             clearInputs();
         } catch (NumberFormatException e) {
             showError("Formato inválido", "La cantidad debe ser un valor numérico superior a cero.");

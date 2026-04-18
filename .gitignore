@@ -78,3 +78,7 @@ jacoco.exec
 dependency-reduced-pom.xml
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
+
+CLAUDE.md
+.claudeignore
+.claude/

@@ -1,4 +1,4 @@
-package com.recetea.core.recipe.domain.vo;
+package com.recetea.core.user.domain;
 
 public record UserId(int value) {
     public UserId {

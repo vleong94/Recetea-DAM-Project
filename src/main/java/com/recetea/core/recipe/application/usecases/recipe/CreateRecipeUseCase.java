@@ -14,7 +14,7 @@ import com.recetea.core.recipe.domain.vo.IngredientId;
 import com.recetea.core.recipe.domain.vo.PreparationTime;
 import com.recetea.core.recipe.domain.vo.Servings;
 import com.recetea.core.recipe.domain.vo.UnitId;
-import com.recetea.core.recipe.domain.vo.UserId;
+import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
 
 public class CreateRecipeUseCase implements ICreateRecipeUseCase {
@@ -23,15 +23,18 @@ public class CreateRecipeUseCase implements ICreateRecipeUseCase {
     private final ICategoryRepository categoryRepository;
     private final IDifficultyRepository difficultyRepository;
     private final ITransactionManager transactionManager;
+    private final IUserSessionService sessionService;
 
     public CreateRecipeUseCase(IRecipeRepository recipeRepository,
                                ICategoryRepository categoryRepository,
                                IDifficultyRepository difficultyRepository,
-                               ITransactionManager transactionManager) {
+                               ITransactionManager transactionManager,
+                               IUserSessionService sessionService) {
         this.recipeRepository = recipeRepository;
         this.categoryRepository = categoryRepository;
         this.difficultyRepository = difficultyRepository;
         this.transactionManager = transactionManager;
+        this.sessionService = sessionService;
     }
 
     @Override
@@ -43,7 +46,7 @@ public class CreateRecipeUseCase implements ICreateRecipeUseCase {
                     .orElseThrow(() -> new IllegalArgumentException("Dificultad inválida."));
 
             Recipe recipe = new Recipe(
-                    new UserId(request.userId()),
+                    sessionService.getCurrentUserId(),
                     category,
                     difficulty,
                     request.title(),

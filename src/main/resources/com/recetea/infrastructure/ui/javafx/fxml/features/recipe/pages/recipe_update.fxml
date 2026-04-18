@@ -8,6 +8,7 @@
 
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.RecipeHeaderComponent?>
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.IngredientTableComponent?>
+<?import com.recetea.infrastructure.ui.javafx.features.recipe.components.StepTableComponent?>
 
 <VBox spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeUpdateController">
@@ -21,6 +22,8 @@
     <RecipeHeaderComponent fx:id="headerComponent" />
 
     <IngredientTableComponent fx:id="ingredientTableComponent" VBox.vgrow="ALWAYS" />
+
+    <StepTableComponent fx:id="stepTableComponent" VBox.vgrow="ALWAYS" />
 
     <HBox alignment="CENTER_RIGHT" spacing="15.0">
         <Button text="Descartar Cambios"

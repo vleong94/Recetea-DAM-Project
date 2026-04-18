@@ -3,24 +3,7 @@ package com.recetea.core.recipe.application.ports.in.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
-/**
- * Representa el payload estructurado para la creación o mutación de una receta.
- * Actúa como un Inbound DTO (Data Transfer Object) inmutable que encapsula
- * todo el estado necesario para que el Use Case orqueste la transacción,
- * aislando el Domain de los frameworks de la capa de presentación.
- *
- * @param userId Identificador del usuario autor del registro.
- * @param categoryId Identificador de la clasificación taxonómica.
- * @param difficultyId Identificador del nivel de complejidad.
- * @param title Cadena de texto con el nombre principal de la receta.
- * @param description Cadena de texto con la descripción o resumen de la receta.
- * @param preparationTimeMinutes Entero que define la duración en minutos.
- * @param servings Entero que define el rendimiento en porciones.
- * @param ingredients Colección anidada con la composición de la receta.
- * @param steps Colección anidada con el flujo secuencial de instrucciones.
- */
 public record SaveRecipeRequest(
-        int userId,
         int categoryId,
         int difficultyId,
         String title,

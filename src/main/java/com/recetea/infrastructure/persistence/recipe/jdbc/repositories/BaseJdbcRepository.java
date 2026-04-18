@@ -14,21 +14,43 @@ public abstract class BaseJdbcRepository {
 
     protected <T> List<T> queryForList(String sql, RowMapper<T> mapper, Object... params) {
         List<T> results = new ArrayList<>();
-        try (Connection conn = transactionManager.getConnection();
-             PreparedStatement ps = prepareStatement(conn, sql, params);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) { results.add(mapper.map(rs)); }
-        } catch (SQLException e) { throw new RuntimeException("Error SQL: " + sql, e); }
+        Connection conn = null;
+        try {
+            conn = transactionManager.getConnection();
+            try (PreparedStatement ps = prepareStatement(conn, sql, params);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) { results.add(mapper.map(rs)); }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error SQL: " + sql, e);
+        } finally {
+            closeIfNonTransactional(conn);
+        }
         return results;
     }
 
     protected <T> Optional<T> queryForObject(String sql, RowMapper<T> mapper, Object... params) {
-        try (Connection conn = transactionManager.getConnection();
-             PreparedStatement ps = prepareStatement(conn, sql, params);
-             ResultSet rs = ps.executeQuery()) {
-            if (rs.next()) { return Optional.of(mapper.map(rs)); }
-        } catch (SQLException e) { throw new RuntimeException("Error SQL: " + sql, e); }
+        Connection conn = null;
+        try {
+            conn = transactionManager.getConnection();
+            try (PreparedStatement ps = prepareStatement(conn, sql, params);
+                 ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) { return Optional.of(mapper.map(rs)); }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error SQL: " + sql, e);
+        } finally {
+            closeIfNonTransactional(conn);
+        }
         return Optional.empty();
+    }
+
+    protected void closeIfNonTransactional(Connection conn) {
+        if (conn != null && !transactionManager.isTransactional()) {
+            try { conn.close(); } catch (SQLException ignored) {}
+        }
     }
 
     private PreparedStatement prepareStatement(Connection conn, String sql, Object... params) throws SQLException {

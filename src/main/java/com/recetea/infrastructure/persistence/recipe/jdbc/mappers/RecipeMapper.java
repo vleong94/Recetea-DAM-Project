@@ -8,7 +8,7 @@ import com.recetea.core.recipe.domain.vo.PreparationTime;
 import com.recetea.core.recipe.domain.vo.RecipeId;
 import com.recetea.core.recipe.domain.vo.Servings;
 import com.recetea.core.recipe.domain.vo.UnitId;
-import com.recetea.core.recipe.domain.vo.UserId;
+import com.recetea.core.user.domain.UserId;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

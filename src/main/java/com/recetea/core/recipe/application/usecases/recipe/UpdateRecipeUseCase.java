@@ -13,8 +13,11 @@ import com.recetea.core.recipe.domain.RecipeStep;
 import com.recetea.core.recipe.domain.vo.IngredientId;
 import com.recetea.core.recipe.domain.vo.PreparationTime;
 import com.recetea.core.recipe.domain.vo.Servings;
+import com.recetea.core.recipe.domain.UnauthorizedRecipeAccessException;
 import com.recetea.core.recipe.domain.vo.UnitId;
+import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
+import com.recetea.core.user.domain.UserId;
 
 public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
 
@@ -22,15 +25,18 @@ public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
     private final ICategoryRepository categoryRepository;
     private final IDifficultyRepository difficultyRepository;
     private final ITransactionManager transactionManager;
+    private final IUserSessionService sessionService;
 
     public UpdateRecipeUseCase(IRecipeRepository recipeRepository,
                                ICategoryRepository categoryRepository,
                                IDifficultyRepository difficultyRepository,
-                               ITransactionManager transactionManager) {
+                               ITransactionManager transactionManager,
+                               IUserSessionService sessionService) {
         this.recipeRepository = recipeRepository;
         this.categoryRepository = categoryRepository;
         this.difficultyRepository = difficultyRepository;
         this.transactionManager = transactionManager;
+        this.sessionService = sessionService;
     }
 
     @Override
@@ -38,6 +44,12 @@ public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
         transactionManager.execute(() -> {
             Recipe recipe = recipeRepository.findById(recipeId)
                     .orElseThrow(() -> new IllegalArgumentException("Receta no encontrada con ID: " + recipeId));
+
+            UserId currentUser = sessionService.getCurrentUserId();
+            if (!recipe.getAuthorId().equals(currentUser)) {
+                throw new UnauthorizedRecipeAccessException(
+                        "El usuario " + currentUser.value() + " no tiene permiso para modificar esta receta.");
+            }
 
             Category category = categoryRepository.findById(request.categoryId())
                     .orElseThrow(() -> new IllegalArgumentException("Categoría inválida."));

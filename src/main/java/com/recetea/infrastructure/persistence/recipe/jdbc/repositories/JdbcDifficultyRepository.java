@@ -14,8 +14,8 @@ import java.util.Optional;
  */
 public class JdbcDifficultyRepository extends BaseJdbcRepository implements IDifficultyRepository {
 
-    private static final String SELECT_ALL = "SELECT id_difficulty, name FROM difficulties ORDER BY id_difficulty ASC";
-    private static final String SELECT_BY_ID = "SELECT id_difficulty, name FROM difficulties WHERE id_difficulty = ?";
+    private static final String SELECT_ALL = "SELECT id_difficulty, level_name FROM difficulties ORDER BY id_difficulty ASC";
+    private static final String SELECT_BY_ID = "SELECT id_difficulty, level_name FROM difficulties WHERE id_difficulty = ?";
     private final DifficultyMapper mapper = new DifficultyMapper();
 
     public JdbcDifficultyRepository(JdbcTransactionManager transactionManager) {

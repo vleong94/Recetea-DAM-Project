@@ -15,7 +15,9 @@ import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager
 import com.recetea.infrastructure.persistence.recipe.jdbc.config.DatabaseConfig;
 import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.*;
 import com.recetea.infrastructure.security.MockUserSessionService;
+import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandWrapper;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeContext;
+import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryWrapper;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.application.Application;
 import javafx.stage.Stage;
@@ -46,12 +48,12 @@ public class Main extends Application {
 
         // Ensamblaje del RecipeContext inyectando los casos de uso y servicios compartidos
         RecipeContext context = new RecipeContext(
-                new CreateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager),
+                new CreateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager, sessionService),
                 new GetAllRecipesUseCase(recipeRepository),
                 new GetRecipeByIdUseCase(recipeRepository),
                 new SearchRecipesUseCase(recipeRepository),
-                new UpdateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager),
-                new DeleteRecipeUseCase(recipeRepository, transactionManager),
+                new UpdateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager, sessionService),
+                new DeleteRecipeUseCase(recipeRepository, transactionManager, sessionService),
                 new GetAllIngredientsUseCase(ingredientRepository),
                 new GetAllUnitsUseCase(unitRepository),
                 new GetAllCategoriesUseCase(categoryRepository),
@@ -59,8 +61,12 @@ public class Main extends Application {
                 sessionService
         );
 
+        // ISP wrappers prevent controllers from downcasting to the full RecipeContext
+        RecipeQueryWrapper queryWrapper = new RecipeQueryWrapper(context);
+        RecipeCommandWrapper commandWrapper = new RecipeCommandWrapper(context);
+
         // Inicialización del motor de enrutamiento y despliegue del entorno visual
-        NavigationService nav = new NavigationService(primaryStage, context, context);
+        NavigationService nav = new NavigationService(primaryStage, queryWrapper, commandWrapper);
         nav.toDashboard();
     }
 

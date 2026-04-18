@@ -18,6 +18,11 @@ module com.recetea {
     // Expone el Composition Root para permitir el Bootstrapping de la aplicación por parte de la JVM.
     exports com.recetea;
 
+    // Expone el dominio y puertos del módulo de usuario.
+    exports com.recetea.core.user.domain;
+    exports com.recetea.core.user.application.ports.out;
+    exports com.recetea.infrastructure.persistence.user.jdbc.repositories;
+
     // Apertura quirúrgica de paquetes para Reflection (Inbound Adapters y UI Components).
     // Obligatorio para que el FXMLLoader instancie y enlace los nodos FXML en los Fields anotados.
     // Los packages declarados aquí deben contener obligatoriamente clases compiladas (.class),

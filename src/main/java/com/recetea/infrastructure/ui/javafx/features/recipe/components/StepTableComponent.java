@@ -1,7 +1,9 @@
 package com.recetea.infrastructure.ui.javafx.features.recipe.components;
 
 import com.recetea.core.recipe.application.ports.in.dto.RecipeDetailResponse;
-import com.recetea.core.recipe.domain.RecipeStep; // Importación corregida
+import com.recetea.core.recipe.domain.RecipeStep;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -9,7 +11,6 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.VBox;
 
 import java.io.IOException;
@@ -38,8 +39,12 @@ public class StepTableComponent extends VBox {
     }
 
     private void setupTable() {
-        colOrder.setCellValueFactory(new PropertyValueFactory<>("stepOrder"));
-        colInstruction.setCellValueFactory(new PropertyValueFactory<>("instruction"));
+        colOrder.setCellValueFactory(cellData ->
+                new ReadOnlyObjectWrapper<>(cellData.getValue().stepOrder()));
+
+        colInstruction.setCellValueFactory(cellData ->
+                new ReadOnlyStringWrapper(cellData.getValue().instruction()));
+
         stepsTable.setItems(stepsData);
     }
 

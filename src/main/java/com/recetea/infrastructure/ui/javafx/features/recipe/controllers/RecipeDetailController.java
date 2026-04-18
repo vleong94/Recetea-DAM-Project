@@ -23,11 +23,17 @@ public class RecipeDetailController {
     @FXML private Label prepTimeLabel;
     @FXML private Label servingsLabel;
     @FXML private Label descriptionLabel;
+    @FXML private Label categoryLabel;
+    @FXML private Label difficultyLabel;
 
     @FXML private TableView<RecipeIngredientResponse> ingredientsTable;
     @FXML private TableColumn<RecipeIngredientResponse, String> colIngredientName;
     @FXML private TableColumn<RecipeIngredientResponse, String> colUnit;
     @FXML private TableColumn<RecipeIngredientResponse, BigDecimal> colQuantity;
+
+    @FXML private TableView<RecipeDetailResponse.RecipeStepResponse> stepsTable;
+    @FXML private TableColumn<RecipeDetailResponse.RecipeStepResponse, Integer> colStepOrder;
+    @FXML private TableColumn<RecipeDetailResponse.RecipeStepResponse, String> colInstruction;
 
     private RecipeQueryProvider queryProvider;
     private NavigationService nav;
@@ -39,6 +45,8 @@ public class RecipeDetailController {
         colIngredientName.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().ingredientName()));
         colUnit.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().unitName()));
         colQuantity.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().quantity()));
+        colStepOrder.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().stepOrder()));
+        colInstruction.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().instruction()));
     }
 
     /**
@@ -68,8 +76,11 @@ public class RecipeDetailController {
         prepTimeLabel.setText(String.format("%d min", recipe.prepTimeMinutes()));
         servingsLabel.setText(String.valueOf(recipe.servings()));
         descriptionLabel.setText(recipe.description());
+        categoryLabel.setText(recipe.categoryName());
+        difficultyLabel.setText(recipe.difficultyName());
 
         ingredientsTable.setItems(FXCollections.observableArrayList(recipe.ingredients()));
+        stepsTable.setItems(FXCollections.observableArrayList(recipe.steps()));
     }
 
     /**

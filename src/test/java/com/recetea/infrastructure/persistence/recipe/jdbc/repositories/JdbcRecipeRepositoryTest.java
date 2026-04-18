@@ -6,6 +6,7 @@ import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
 import com.recetea.core.recipe.domain.RecipeStep;
 import com.recetea.core.recipe.domain.vo.*;
+import com.recetea.core.user.domain.UserId;
 import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

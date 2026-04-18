@@ -59,7 +59,6 @@ public abstract class BaseRecipeFormController {
 
         try {
             SaveRecipeRequest request = new SaveRecipeRequest(
-                    getAuthenticatedUserId(),
                     headerComponent.getSelectedCategoryId(),
                     headerComponent.getSelectedDifficultyId(),
                     headerComponent.getTitle(),
@@ -78,10 +77,6 @@ public abstract class BaseRecipeFormController {
     }
 
     protected abstract void handleSave(SaveRecipeRequest request);
-
-    protected int getAuthenticatedUserId() {
-        return context.sessionService().getCurrentUserId();
-    }
 
     @FXML
     public void onBackButtonClick() {

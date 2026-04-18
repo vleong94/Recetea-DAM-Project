@@ -1,6 +1,7 @@
 package com.recetea.core.recipe.domain;
 
 import com.recetea.core.recipe.domain.vo.*;
+import com.recetea.core.user.domain.UserId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

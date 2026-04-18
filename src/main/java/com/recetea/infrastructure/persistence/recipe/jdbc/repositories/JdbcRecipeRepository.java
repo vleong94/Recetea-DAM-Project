@@ -8,16 +8,16 @@ import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
 import com.recetea.core.recipe.domain.RecipeStep;
 import com.recetea.core.recipe.domain.vo.*;
+import com.recetea.core.user.domain.UserId;
 import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import com.recetea.infrastructure.persistence.recipe.jdbc.mappers.RecipeMapper;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.*;
 import java.util.*;
 
-public class JdbcRecipeRepository implements IRecipeRepository {
-
-    private final JdbcTransactionManager transactionManager;
+public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeRepository {
 
     private static final String INSERT_RECIPE =
             "INSERT INTO recipes (user_id, category_id, difficulty_id, title, description, prep_time_min, servings) VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -37,6 +37,14 @@ public class JdbcRecipeRepository implements IRecipeRepository {
 
     private static final String SELECT_STEPS =
             "SELECT step_order, instruction FROM steps WHERE recipe_id = ?";
+    private static final String SELECT_STEPS_ORDERED =
+            "SELECT step_order, instruction FROM steps WHERE recipe_id = ? ORDER BY step_order ASC";
+    private static final String SELECT_INGREDIENTS_DEEP =
+            "SELECT ri.ingredient_id, ri.unit_id, ri.quantity, i.name AS ing_name, u.abbreviation AS unit_abbr " +
+            "FROM recipe_ingredients ri " +
+            "INNER JOIN ingredients i ON ri.ingredient_id = i.id_ingredient " +
+            "INNER JOIN unit_measures u ON ri.unit_id = u.id_unit " +
+            "WHERE ri.recipe_id = ?";
     private static final String INSERT_STEP =
             "INSERT INTO steps (recipe_id, step_order, instruction) VALUES (?, ?, ?)";
     private static final String UPDATE_STEP =
@@ -44,15 +52,19 @@ public class JdbcRecipeRepository implements IRecipeRepository {
     private static final String DELETE_STEP =
             "DELETE FROM steps WHERE recipe_id = ? AND step_order = ?";
 
-    private static final String SEARCH_BASE =
+    private static final String SELECT_BASE =
             "SELECT r.id_recipe, r.user_id, r.category_id, c.name AS category_name, " +
             "r.difficulty_id, d.level_name AS difficulty_name, r.title, r.description, r.prep_time_min, r.servings " +
             "FROM recipes r " +
-            "JOIN categories c ON r.category_id = c.id_category " +
-            "JOIN difficulties d ON r.difficulty_id = d.id_difficulty";
+            "INNER JOIN categories c ON r.category_id = c.id_category " +
+            "INNER JOIN difficulties d ON r.difficulty_id = d.id_difficulty";
+
+    private static final String SELECT_ALL = SELECT_BASE;
+    private static final String SELECT_BY_ID = SELECT_BASE + " WHERE r.id_recipe = ?";
+    private static final String SEARCH_BASE = SELECT_BASE;
 
     public JdbcRecipeRepository(JdbcTransactionManager transactionManager) {
-        this.transactionManager = transactionManager;
+        super(transactionManager);
     }
 
     @Override
@@ -156,7 +168,7 @@ public class JdbcRecipeRepository implements IRecipeRepository {
                     ps.setInt(1, recipeId);
                     ps.setInt(2, ri.getIngredientId().value());
                     ps.setInt(3, ri.getUnitId().value());
-                    ps.setBigDecimal(4, ri.getQuantity());
+                    ps.setBigDecimal(4, ri.getQuantity().setScale(2, RoundingMode.HALF_UP));
                     ps.addBatch();
                 }
             }
@@ -169,7 +181,7 @@ public class JdbcRecipeRepository implements IRecipeRepository {
                 DbIngredientRow row = existing.get(ri.getIngredientId().value());
                 if (row != null && row.isDifferentFrom(ri)) {
                     ps.setInt(1, ri.getUnitId().value());
-                    ps.setBigDecimal(2, ri.getQuantity());
+                    ps.setBigDecimal(2, ri.getQuantity().setScale(2, RoundingMode.HALF_UP));
                     ps.setInt(3, recipeId);
                     ps.setInt(4, ri.getIngredientId().value());
                     ps.addBatch();
@@ -248,7 +260,7 @@ public class JdbcRecipeRepository implements IRecipeRepository {
                 ps.setInt(1, recipe.getId().value());
                 ps.setInt(2, ing.getIngredientId().value());
                 ps.setInt(3, ing.getUnitId().value());
-                ps.setBigDecimal(4, ing.getQuantity());
+                ps.setBigDecimal(4, ing.getQuantity().setScale(2, RoundingMode.HALF_UP));
                 ps.addBatch();
             }
             ps.executeBatch();
@@ -273,12 +285,63 @@ public class JdbcRecipeRepository implements IRecipeRepository {
 
     @Override
     public Optional<Recipe> findById(int id) {
-        return Optional.empty();
+        Connection conn = null;
+        try {
+            conn = transactionManager.getConnection();
+
+            Recipe recipe = null;
+            try (PreparedStatement ps = conn.prepareStatement(SELECT_BY_ID)) {
+                ps.setInt(1, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) recipe = mapRow(rs);
+                }
+            }
+            if (recipe == null) return Optional.empty();
+
+            try (PreparedStatement ps = conn.prepareStatement(SELECT_INGREDIENTS_DEEP)) {
+                ps.setInt(1, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    List<RecipeIngredient> ingredients = new ArrayList<>();
+                    while (rs.next()) ingredients.add(RecipeMapper.mapIngredientRow(rs));
+                    recipe.syncIngredients(ingredients);
+                }
+            }
+
+            try (PreparedStatement ps = conn.prepareStatement(SELECT_STEPS_ORDERED)) {
+                ps.setInt(1, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    List<RecipeStep> steps = new ArrayList<>();
+                    while (rs.next()) steps.add(RecipeMapper.mapStepRow(rs));
+                    recipe.syncSteps(steps);
+                }
+            }
+
+            return Optional.of(recipe);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error al obtener la receta con ID: " + id, e);
+        } finally {
+            closeIfNonTransactional(conn);
+        }
     }
 
     @Override
     public List<Recipe> findAll() {
-        return new ArrayList<>();
+        Connection conn = null;
+        try {
+            conn = transactionManager.getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(SELECT_ALL);
+                 ResultSet rs = ps.executeQuery()) {
+                List<Recipe> results = new ArrayList<>();
+                while (rs.next()) results.add(mapRow(rs));
+                return results;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error al obtener todas las recetas.", e);
+        } finally {
+            closeIfNonTransactional(conn);
+        }
     }
 
     @Override
@@ -304,41 +367,46 @@ public class JdbcRecipeRepository implements IRecipeRepository {
             sql.append(" WHERE ").append(String.join(" AND ", conditions));
         }
 
+        Connection conn = null;
         try {
-            Connection conn = transactionManager.getConnection();
+            conn = transactionManager.getConnection();
             try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
                 for (int i = 0; i < params.size(); i++) {
                     ps.setObject(i + 1, params.get(i));
                 }
                 try (ResultSet rs = ps.executeQuery()) {
                     List<Recipe> results = new ArrayList<>();
-                    while (rs.next()) {
-                        Category category = new Category(
-                                new CategoryId(rs.getInt("category_id")), rs.getString("category_name"));
-                        Difficulty difficulty = new Difficulty(
-                                new DifficultyId(rs.getInt("difficulty_id")), rs.getString("difficulty_name"));
-                        Recipe recipe = new Recipe(
-                                new UserId(rs.getInt("user_id")),
-                                category,
-                                difficulty,
-                                rs.getString("title"),
-                                rs.getString("description"),
-                                new PreparationTime(rs.getInt("prep_time_min")),
-                                new Servings(rs.getInt("servings")));
-                        recipe.setId(new RecipeId(rs.getInt("id_recipe")));
-                        results.add(recipe);
-                    }
+                    while (rs.next()) results.add(mapRow(rs));
                     return results;
                 }
             }
         } catch (SQLException e) {
+            e.printStackTrace();
             throw new RuntimeException("Error al buscar recetas con los criterios proporcionados.", e);
+        } finally {
+            closeIfNonTransactional(conn);
         }
     }
 
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    private Recipe mapRow(ResultSet rs) throws SQLException {
+        Category category = new Category(
+                new CategoryId(rs.getInt("category_id")), rs.getString("category_name"));
+        Difficulty difficulty = new Difficulty(
+                new DifficultyId(rs.getInt("difficulty_id")), rs.getString("difficulty_name"));
+        Recipe recipe = new Recipe(
+                new UserId(rs.getInt("user_id")),
+                category, difficulty,
+                rs.getString("title"),
+                rs.getString("description"),
+                new PreparationTime(rs.getInt("prep_time_min")),
+                new Servings(rs.getInt("servings")));
+        recipe.setId(new RecipeId(rs.getInt("id_recipe")));
+        return recipe;
+    }
 
     private record DbIngredientRow(int ingredientId, int unitId, BigDecimal quantity) {
         boolean isDifferentFrom(RecipeIngredient ri) {

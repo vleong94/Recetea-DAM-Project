@@ -22,7 +22,13 @@
         <Label text="Raciones:" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="field-label" />
         <TextField fx:id="servingsField" promptText="4" GridPane.rowIndex="2" GridPane.columnIndex="1" />
 
-        <Label text="Instrucciones:" GridPane.rowIndex="3" GridPane.columnIndex="0" styleClass="field-label" />
-        <TextArea fx:id="descriptionArea" prefHeight="100.0" wrapText="true" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+        <Label text="Categoría:" GridPane.rowIndex="3" GridPane.columnIndex="0" styleClass="field-label" />
+        <ComboBox fx:id="categoryComboBox" maxWidth="Infinity" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+        <Label text="Dificultad:" GridPane.rowIndex="4" GridPane.columnIndex="0" styleClass="field-label" />
+        <ComboBox fx:id="difficultyComboBox" maxWidth="Infinity" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+
+        <Label text="Instrucciones:" GridPane.rowIndex="5" GridPane.columnIndex="0" styleClass="field-label" />
+        <TextArea fx:id="descriptionArea" prefHeight="100.0" wrapText="true" GridPane.rowIndex="5" GridPane.columnIndex="1" />
     </GridPane>
 </fx:root>
