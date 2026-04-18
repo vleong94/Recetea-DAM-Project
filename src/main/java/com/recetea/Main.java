@@ -1,65 +1,71 @@
 package com.recetea;
 
-import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
+import com.recetea.core.recipe.application.ports.out.category.ICategoryRepository;
+import com.recetea.core.recipe.application.ports.out.difficulty.IDifficultyRepository;
 import com.recetea.core.recipe.application.ports.out.ingredient.IIngredientRepository;
+import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
 import com.recetea.core.recipe.application.ports.out.unit.IUnitRepository;
-import com.recetea.core.recipe.application.usecases.recipe.*;
+import com.recetea.core.recipe.application.usecases.category.GetAllCategoriesUseCase;
+import com.recetea.core.recipe.application.usecases.difficulty.GetAllDifficultiesUseCase;
 import com.recetea.core.recipe.application.usecases.ingredient.GetAllIngredientsUseCase;
+import com.recetea.core.recipe.application.usecases.recipe.*;
 import com.recetea.core.recipe.application.usecases.unit.GetAllUnitsUseCase;
+import com.recetea.core.shared.application.ports.in.IUserSessionService;
+import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import com.recetea.infrastructure.persistence.recipe.jdbc.config.DatabaseConfig;
-import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.JdbcRecipeRepository;
-import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.JdbcIngredientRepository;
-import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.JdbcUnitRepository;
-import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
+import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.*;
+import com.recetea.infrastructure.security.MockUserSessionService;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeContext;
-
+import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.application.Application;
 import javafx.stage.Stage;
-import javax.sql.DataSource;
 
 /**
- * Punto de entrada de la aplicación y Composition Root del sistema.
- * Asume la responsabilidad exclusiva de instanciar y ensamblar el grafo de dependencias,
- * conectando los adaptadores de infraestructura con los casos de uso del Core,
- * garantizando la inyección de dependencias manual y el aislamiento arquitectónico.
+ * Punto de entrada principal de la aplicación que actúa como Composition Root.
+ * Se encarga de la orquestación del grafo de dependencias, inicializando los
+ * componentes de infraestructura, servicios transversales y la lógica de aplicación
+ * siguiendo los principios de Dependency Injection manual.
  */
 public class Main extends Application {
 
-    /**
-     * Orquesta el ciclo de inicialización del sistema.
-     * Configura las conexiones de base de datos, instancia los adaptadores de salida (Repositorios),
-     * los inyecta en la capa de aplicación y delega el control del hilo principal al motor de navegación.
-     */
     @Override
     public void start(Stage primaryStage) {
+        // Inicialización del motor de persistencia y gestión de recursos JDBC
+        // El Transaction Manager actúa como el Unit of Work central para la persistencia
+        JdbcTransactionManager transactionManager = new JdbcTransactionManager(DatabaseConfig.getDataSource());
 
-        // Fase 1: Resolución de infraestructura de base de datos
-        DataSource dataSource = DatabaseConfig.getDataSource();
+        // Los Outbound Adapters (Repositories) se vinculan al Transaction Manager para compartir conexiones
+        IRecipeRepository recipeRepository = new JdbcRecipeRepository(transactionManager);
+        IIngredientRepository ingredientRepository = new JdbcIngredientRepository(transactionManager);
+        IUnitRepository unitRepository = new JdbcUnitRepository(transactionManager);
+        ICategoryRepository categoryRepository = new JdbcCategoryRepository(transactionManager);
+        IDifficultyRepository difficultyRepository = new JdbcDifficultyRepository(transactionManager);
 
-        // Fase 2: Instanciación de Outbound Adapters (Persistencia)
-        IRecipeRepository recipeRepository = new JdbcRecipeRepository(dataSource);
-        IIngredientRepository ingredientRepository = new JdbcIngredientRepository(dataSource);
-        IUnitRepository unitRepository = new JdbcUnitRepository(dataSource);
+        // Inicialización del motor de seguridad y gestión de identidad (Mock placeholder)
+        IUserSessionService sessionService = new MockUserSessionService();
 
-        // Fase 3: Ensamblaje del Application Core y encapsulación en el Contexto
+        // Ensamblaje del RecipeContext inyectando los casos de uso y servicios compartidos
         RecipeContext context = new RecipeContext(
-                new CreateRecipeUseCase(recipeRepository),
+                new CreateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager),
                 new GetAllRecipesUseCase(recipeRepository),
                 new GetRecipeByIdUseCase(recipeRepository),
-                new UpdateRecipeUseCase(recipeRepository),
-                new DeleteRecipeUseCase(recipeRepository),
+                new SearchRecipesUseCase(recipeRepository),
+                new UpdateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager),
+                new DeleteRecipeUseCase(recipeRepository, transactionManager),
                 new GetAllIngredientsUseCase(ingredientRepository),
-                new GetAllUnitsUseCase(unitRepository)
+                new GetAllUnitsUseCase(unitRepository),
+                new GetAllCategoriesUseCase(categoryRepository),
+                new GetAllDifficultiesUseCase(difficultyRepository),
+                sessionService
         );
 
-        // Fase 4: Inicialización del motor de enrutamiento (UI Boundary)
-        NavigationService nav = new NavigationService(primaryStage, context);
+        // Inicialización del motor de enrutamiento y despliegue del entorno visual
+        NavigationService nav = new NavigationService(primaryStage, context, context);
         nav.toDashboard();
     }
 
     /**
-     * Método de arranque nativo.
-     * Transfiere el control de ejecución al framework JavaFX.
+     * Lanzamiento del runtime de JavaFX para iniciar el ciclo de vida del proceso.
      */
     public static void main(String[] args) {
         launch(args);

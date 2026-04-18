@@ -1,215 +1,89 @@
 package com.recetea.core.recipe.domain;
 
+import com.recetea.core.recipe.domain.vo.PreparationTime;
+import com.recetea.core.recipe.domain.vo.RecipeId;
+import com.recetea.core.recipe.domain.vo.Servings;
+import com.recetea.core.recipe.domain.vo.UserId;
+
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
-/**
- * Entidad de dominio que actúa como raíz del agregado (Aggregate Root) para las recetas.
- * Representa el estado y comportamiento central del negocio, garantizando la consistencia
- * transaccional de la receta y sus componentes de forma aislada a la infraestructura.
- * Implementa una abstracción de la identidad del autor mediante un objeto de valor (Value Object)
- * para asegurar el desacoplamiento con el módulo de gestión de usuarios.
- */
 public class Recipe {
 
-    private Integer id;
-    private AuthorId authorId;
-    private int categoryId;
-    private int difficultyId;
+    private RecipeId id;
+    private final UserId authorId;
+    private Category category;
+    private Difficulty difficulty;
     private String title;
     private String description;
-    private int preparationTimeMinutes;
-    private int servings;
+    private PreparationTime preparationTimeMinutes;
+    private Servings servings;
 
-    /**
-     * Colección interna de ingredientes que componen la receta.
-     * Su gestión se encapsula dentro de esta entidad para proteger los invariantes del agregado.
-     */
-    private List<RecipeIngredient> ingredients;
+    private final List<RecipeIngredient> ingredients = new ArrayList<>();
+    private final List<RecipeStep> steps = new ArrayList<>();
 
-    /**
-     * Value Object inmutable que representa el identificador único del autor.
-     * Encapsula la identidad para permitir que el dominio de recetas sea agnóstico
-     * a la implementación detallada de los perfiles de usuario.
-     */
-    public record AuthorId(int value) {
-        public AuthorId {
-            if (value <= 0) {
-                throw new IllegalArgumentException("El identificador del autor debe ser un valor positivo.");
-            }
-        }
-    }
-
-    /**
-     * Constructor principal que inicializa el estado del Aggregate Root.
-     * Ejecuta validaciones de negocio esenciales (Invariants) para asegurar la integridad
-     * de los datos desde el momento exacto de su instanciación, garantizando simetría
-     * con las restricciones persistentes del sistema.
-     *
-     * @throws RecipeValidationException Si se vulneran las reglas de integridad general.
-     * @throws InvalidRecipeMetricException Si las métricas de capacidad o tiempo son inconsistentes.
-     */
-    public Recipe(AuthorId authorId, int categoryId, int difficultyId, String title,
-                  String description, int preparationTimeMinutes, int servings) {
-        validateInvariants(title, preparationTimeMinutes, servings);
-
+    public Recipe(UserId authorId, Category category, Difficulty difficulty,
+                  String title, String description, PreparationTime preparationTimeMinutes, Servings servings) {
         this.authorId = authorId;
-        this.categoryId = categoryId;
-        this.difficultyId = difficultyId;
-        this.title = title.trim();
-        this.description = description != null ? description.trim() : "";
+        this.category = category;
+        this.difficulty = difficulty;
+        this.title = title;
+        this.description = description;
         this.preparationTimeMinutes = preparationTimeMinutes;
         this.servings = servings;
-        this.ingredients = new ArrayList<>();
     }
 
-    /**
-     * Verifica la validez de los atributos críticos de la receta antes de la asignación.
-     */
-    private void validateInvariants(String title, int time, int servings) {
-        if (title == null || title.trim().isEmpty()) {
-            throw new RecipeValidationException("El título de la receta es un campo obligatorio.");
+    public void setTitle(String title) { this.title = title; }
+    public void setDescription(String description) { this.description = description; }
+    public void setPreparationTimeMinutes(PreparationTime minutes) { this.preparationTimeMinutes = minutes; }
+    public void setServings(Servings servings) { this.servings = servings; }
+    public void setCategory(Category category) { this.category = category; }
+    public void setDifficulty(Difficulty difficulty) { this.difficulty = difficulty; }
+    public void setId(RecipeId id) { this.id = id; }
+
+    public void syncIngredients(List<RecipeIngredient> newIngredients) {
+        this.ingredients.clear();
+        if (newIngredients != null) {
+            newIngredients.stream().filter(i -> i != null).forEach(this.ingredients::add);
         }
-        if (time <= 0) {
-            throw new InvalidRecipeMetricException("El tiempo de preparación debe ser mayor que cero.");
+    }
+
+    public void syncSteps(List<RecipeStep> newSteps) {
+        this.steps.clear();
+        if (newSteps == null) return;
+        for (RecipeStep step : newSteps) {
+            if (step == null) continue;
+            boolean duplicateOrder = steps.stream().anyMatch(s -> s.stepOrder() == step.stepOrder());
+            if (duplicateOrder) throw new RecipeValidationException("Orden de paso duplicado.");
+            this.steps.add(step);
         }
-        if (servings <= 0) {
-            throw new InvalidRecipeMetricException("El rendimiento en raciones debe ser mayor que cero.");
-        }
+        this.steps.sort(Comparator.comparingInt(RecipeStep::stepOrder));
     }
 
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public AuthorId getAuthorId() {
-        return authorId;
-    }
-
-    public void setAuthorId(AuthorId authorId) {
-        this.authorId = authorId;
-    }
-
-    public int getCategoryId() {
-        return categoryId;
-    }
-
-    public void setCategoryId(int categoryId) {
-        this.categoryId = categoryId;
-    }
-
-    public int getDifficultyId() {
-        return difficultyId;
-    }
-
-    public void setDifficultyId(int difficultyId) {
-        this.difficultyId = difficultyId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    /**
-     * Modifica el título aplicando validaciones de integridad y limpieza de espacios.
-     */
-    public void setTitle(String title) {
-        if (title == null || title.trim().isEmpty()) {
-            throw new RecipeValidationException("El título no puede ser nulo o vacío.");
-        }
-        this.title = title.trim();
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description != null ? description.trim() : "";
-    }
-
-    public int getPreparationTimeMinutes() {
-        return preparationTimeMinutes;
-    }
-
-    /**
-     * Actualiza el tiempo de preparación garantizando una métrica positiva.
-     */
-    public void setPreparationTimeMinutes(int preparationTimeMinutes) {
-        if (preparationTimeMinutes <= 0) {
-            throw new InvalidRecipeMetricException("El tiempo de preparación debe ser mayor que cero.");
-        }
-        this.preparationTimeMinutes = preparationTimeMinutes;
-    }
-
-    public int getServings() {
-        return servings;
-    }
-
-    /**
-     * Modifica el rendimiento de la receta bajo reglas estrictas de métrica.
-     */
-    public void setServings(int servings) {
-        if (servings <= 0) {
-            throw new InvalidRecipeMetricException("El rendimiento en raciones debe ser mayor que cero.");
-        }
-        this.servings = servings;
-    }
-
-    /**
-     * Expone la composición de la receta de forma segura.
-     * Retorna una vista inmutable de la colección para prevenir modificaciones externas
-     * que eludan las reglas de validación del Aggregate Root.
-     */
     public List<RecipeIngredient> getIngredients() {
         return Collections.unmodifiableList(ingredients);
     }
 
-    /**
-     * Añade un nuevo componente a la receta de forma atómica.
-     */
-    public void addIngredient(RecipeIngredient ingredient) {
-        if (ingredient != null) {
-            this.ingredients.add(ingredient);
-        }
+    public List<RecipeStep> getSteps() {
+        return Collections.unmodifiableList(steps);
     }
 
-    /**
-     * Actualiza la colección completa de ingredientes, asegurando la consistencia interna.
-     */
-    public void setIngredients(List<RecipeIngredient> ingredients) {
-        this.ingredients = new ArrayList<>(ingredients != null ? ingredients : Collections.emptyList());
-    }
+    public RecipeId getId() { return id; }
+    public UserId getAuthorId() { return authorId; }
+    public String getTitle() { return title; }
+    public Category getCategory() { return category; }
+    public Difficulty getDifficulty() { return difficulty; }
+    public String getDescription() { return description; }
+    public PreparationTime getPreparationTimeMinutes() { return preparationTimeMinutes; }
+    public Servings getServings() { return servings; }
 
-    /**
-     * Elimina todos los elementos de la composición de la receta.
-     */
-    public void clearIngredients() {
-        this.ingredients.clear();
-    }
-
-    // --- EXCEPCIONES DE DOMINIO ---
-
-    /**
-     * Excepción base para encapsular violaciones de reglas de negocio en la receta.
-     */
     public static class RecipeValidationException extends RuntimeException {
-        public RecipeValidationException(String message) {
-            super(message);
-        }
+        public RecipeValidationException(String message) { super(message); }
     }
 
-    /**
-     * Excepción especializada para errores en métricas temporales o de capacidad.
-     */
     public static class InvalidRecipeMetricException extends RecipeValidationException {
-        public InvalidRecipeMetricException(String message) {
-            super(message);
-        }
+        public InvalidRecipeMetricException(String message) { super(message); }
     }
 }

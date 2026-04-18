@@ -32,7 +32,7 @@ public class GetAllIngredientsUseCase implements IGetAllIngredientsUseCase {
     public List<IngredientResponse> execute() {
         return repository.findAll().stream()
                 .map(ingredient -> new IngredientResponse(
-                        ingredient.getId(),
+                        ingredient.getId().value(),
                         ingredient.getName()
                 ))
                 .toList();

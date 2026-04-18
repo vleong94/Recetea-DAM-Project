@@ -3,19 +3,20 @@ package com.recetea.infrastructure.ui.javafx.features.recipe.controllers;
 import com.recetea.core.recipe.application.ports.in.dto.SaveRecipeRequest;
 
 /**
- * Especialización del controlador de formulario encargada de la creación de nuevas recetas.
- * Hereda la infraestructura visual y de validación de la clase base, implementando
- * exclusivamente la lógica de persistencia para el registro de nuevas entidades en el sistema.
- * Este componente garantiza un estado inicial limpio y volátil para la captura de datos.
+ * Especialización del controlador de formulario para la creación de recetas.
+ * Extiende la infraestructura de la clase base para capturar el estado visual
+ * (cabecera, ingredientes y pasos) y delega la persistencia del nuevo
+ * Aggregate Root al caso de uso correspondiente de la capa de aplicación.
  */
 public class RecipeCreateController extends BaseRecipeFormController {
 
     /**
-     * Implementa la lógica de guardado específica para el flujo de creación.
-     * Invoca el caso de uso correspondiente dentro del núcleo de la aplicación,
-     * transformando el contrato de datos en una nueva entrada persistente.
+     * Ejecuta la transacción de alta en el sistema.
+     * Recibe el payload estructurado desde la clase base, asumiendo que
+     * la validación de integridad (campos obligatorios, secuencia de pasos y
+     * métricas) ya ha sido superada.
      *
-     * @param request Estructura de datos inmutable con la información de la nueva receta.
+     * @param request Contenedor inmutable (DTO) con los datos consolidados de la receta.
      */
     @Override
     protected void handleSave(SaveRecipeRequest request) {

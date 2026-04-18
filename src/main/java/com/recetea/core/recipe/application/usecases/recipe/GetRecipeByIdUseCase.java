@@ -6,70 +6,57 @@ import com.recetea.core.recipe.application.ports.in.recipe.IGetRecipeByIdUseCase
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
+import com.recetea.core.recipe.domain.RecipeStep;
 
 import java.util.Optional;
 
-/**
- * Caso de uso especializado en la obtención y proyección detallada de una receta.
- * Coordina la recuperación del agregado desde la infraestructura de persistencia
- * y su posterior transformación a un Data Transfer Object (DTO) inmutable,
- * garantizando que las entidades del dominio permanezcan aisladas de la vista.
- */
 public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
 
     private final IRecipeRepository repository;
 
-    /**
-     * Inicializa el componente mediante la inyección de la interfaz del repositorio.
-     * Este enfoque asegura que el caso de uso sea agnóstico a la implementación
-     * técnica del almacenamiento, facilitando la escalabilidad y el mantenimiento.
-     */
     public GetRecipeByIdUseCase(IRecipeRepository repository) {
         this.repository = repository;
     }
 
-    /**
-     * Ejecuta la lógica de consulta para localizar una receta por su identificador.
-     * Retorna un contenedor opcional que encapsula la proyección de datos,
-     * permitiendo una gestión segura de la nulidad en las capas de presentación.
-     */
     @Override
     public Optional<RecipeDetailResponse> execute(int recipeId) {
         return repository.findById(recipeId)
                 .map(this::mapToResponse);
     }
 
-    /**
-     * Transforma el Aggregate Root y su jerarquía interna en una respuesta plana.
-     * Durante el proceso, extrae el valor escalar del Value Object AuthorId y orquesta
-     * la conversión de la colección de ingredientes para satisfacer el contrato del DTO.
-     */
     private RecipeDetailResponse mapToResponse(Recipe recipe) {
         return new RecipeDetailResponse(
-                recipe.getId(),
+                recipe.getId().value(),
                 recipe.getAuthorId().value(),
-                recipe.getCategoryId(),
-                recipe.getDifficultyId(),
+                recipe.getCategory().getId().value(),
+                recipe.getDifficulty().getId().value(),
                 recipe.getTitle(),
                 recipe.getDescription(),
-                recipe.getPreparationTimeMinutes(),
-                recipe.getServings(),
+                recipe.getPreparationTimeMinutes().value(),
+                recipe.getServings().value(),
                 recipe.getIngredients().stream()
                         .map(this::mapToIngredientResponse)
+                        .toList(),
+                recipe.getSteps().stream()
+                        .map(this::mapToStepResponse)
                         .toList()
         );
     }
 
-    /**
-     * Mapea un componente de la receta a su representación inmutable de salida.
-     */
     private RecipeIngredientResponse mapToIngredientResponse(RecipeIngredient ri) {
         return new RecipeIngredientResponse(
-                ri.getIngredientId(),
-                ri.getUnitId(),
+                ri.getIngredientId().value(),
+                ri.getUnitId().value(),
                 ri.getQuantity(),
                 ri.getIngredientName(),
                 ri.getUnitAbbreviation()
+        );
+    }
+
+    private RecipeDetailResponse.RecipeStepResponse mapToStepResponse(RecipeStep rs) {
+        return new RecipeDetailResponse.RecipeStepResponse(
+                rs.stepOrder(),
+                rs.instruction()
         );
     }
 }

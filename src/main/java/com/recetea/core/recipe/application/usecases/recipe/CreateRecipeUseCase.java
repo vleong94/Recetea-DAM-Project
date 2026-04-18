@@ -2,72 +2,71 @@ package com.recetea.core.recipe.application.usecases.recipe;
 
 import com.recetea.core.recipe.application.ports.in.dto.SaveRecipeRequest;
 import com.recetea.core.recipe.application.ports.in.recipe.ICreateRecipeUseCase;
+import com.recetea.core.recipe.application.ports.out.category.ICategoryRepository;
+import com.recetea.core.recipe.application.ports.out.difficulty.IDifficultyRepository;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
+import com.recetea.core.recipe.domain.Category;
+import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
+import com.recetea.core.recipe.domain.RecipeStep;
+import com.recetea.core.recipe.domain.vo.IngredientId;
+import com.recetea.core.recipe.domain.vo.PreparationTime;
+import com.recetea.core.recipe.domain.vo.Servings;
+import com.recetea.core.recipe.domain.vo.UnitId;
+import com.recetea.core.recipe.domain.vo.UserId;
+import com.recetea.core.shared.application.ports.out.ITransactionManager;
 
-/**
- * Implementación del Use Case responsable de la orquestación para la creación de recetas.
- * Transforma los datos de entrada inmutables (Inbound DTOs) en entidades de dominio,
- * garantizando que el Aggregate Root se construya respetando todas las reglas de
- * integridad antes de su almacenamiento definitivo en la capa de Infrastructure.
- */
 public class CreateRecipeUseCase implements ICreateRecipeUseCase {
 
-    private final IRecipeRepository repository;
+    private final IRecipeRepository recipeRepository;
+    private final ICategoryRepository categoryRepository;
+    private final IDifficultyRepository difficultyRepository;
+    private final ITransactionManager transactionManager;
 
-    /**
-     * Inicializa el componente mediante Dependency Injection.
-     * La dependencia exclusiva de la interfaz del repositorio permite mantener
-     * el aislamiento del núcleo del sistema frente a cambios en la persistencia.
-     */
-    public CreateRecipeUseCase(IRecipeRepository repository) {
-        this.repository = repository;
+    public CreateRecipeUseCase(IRecipeRepository recipeRepository,
+                               ICategoryRepository categoryRepository,
+                               IDifficultyRepository difficultyRepository,
+                               ITransactionManager transactionManager) {
+        this.recipeRepository = recipeRepository;
+        this.categoryRepository = categoryRepository;
+        this.difficultyRepository = difficultyRepository;
+        this.transactionManager = transactionManager;
     }
 
-    /**
-     * Ejecuta el proceso de negocio para registrar una receta.
-     * Realiza la conversión de tipos primitivos a Value Objects de dominio,
-     * ensambla los componentes internos del agregado y delega la responsabilidad
-     * de persistencia al adaptador de salida.
-     *
-     * @param request Estructura de datos con la información de la receta.
-     * @return Primary Key asignado por el motor de base de datos tras la transacción.
-     */
     @Override
     public int execute(SaveRecipeRequest request) {
-        // 1. Construcción del objeto de dominio con identidad de autor encapsulada
-        Recipe recipe = new Recipe(
-                new Recipe.AuthorId(request.userId()),
-                request.categoryId(),
-                request.difficultyId(),
-                request.title(),
-                request.description(),
-                request.preparationTimeMinutes(),
-                request.servings()
-        );
+        return transactionManager.execute(() -> {
+            Category category = categoryRepository.findById(request.categoryId())
+                    .orElseThrow(() -> new IllegalArgumentException("Categoría inválida."));
+            Difficulty difficulty = difficultyRepository.findById(request.difficultyId())
+                    .orElseThrow(() -> new IllegalArgumentException("Dificultad inválida."));
 
-        // 2. Mapeo y agregación de la colección de ingredientes
-        if (request.ingredients() != null) {
-            for (SaveRecipeRequest.IngredientRequest ir : request.ingredients()) {
-                recipe.addIngredient(new RecipeIngredient(
-                        ir.ingredientId(),
-                        ir.unitId(),
-                        ir.quantity(),
-                        ir.ingredientName(),
-                        ir.unitName()
-                ));
-            }
-        }
+            Recipe recipe = new Recipe(
+                    new UserId(request.userId()),
+                    category,
+                    difficulty,
+                    request.title(),
+                    request.description(),
+                    new PreparationTime(request.preparationTimeMinutes()),
+                    new Servings(request.servings())
+            );
 
-        // 3. Persistencia atómica de la entidad a través del repositorio
-        repository.save(recipe);
+            recipe.syncIngredients(request.ingredients().stream()
+                    .map(ir -> new RecipeIngredient(
+                            new IngredientId(ir.ingredientId()),
+                            new UnitId(ir.unitId()),
+                            ir.quantity(),
+                            ir.ingredientName(),
+                            ir.unitName()))
+                    .toList());
 
-        // 4. Verificación de integridad post-operación
-        if (recipe.getId() == null || recipe.getId() <= 0) {
-            throw new IllegalStateException("Fallo de consistencia: El Data Store no asignó una identidad válida.");
-        }
+            recipe.syncSteps(request.steps().stream()
+                    .map(sr -> new RecipeStep(sr.stepOrder(), sr.instruction()))
+                    .toList());
 
-        return recipe.getId();
+            recipeRepository.save(recipe);
+            return recipe.getId().value();
+        });
     }
 }

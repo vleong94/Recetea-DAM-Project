@@ -13,10 +13,11 @@ import java.util.List;
  * @param categoryId Identificador de la clasificación taxonómica.
  * @param difficultyId Identificador del nivel de complejidad.
  * @param title Cadena de texto con el nombre principal de la receta.
- * @param description Cadena de texto con las instrucciones de preparación.
+ * @param description Cadena de texto con la descripción o resumen de la receta.
  * @param preparationTimeMinutes Entero que define la duración en minutos.
  * @param servings Entero que define el rendimiento en porciones.
  * @param ingredients Colección anidada con la composición de la receta.
+ * @param steps Colección anidada con el flujo secuencial de instrucciones.
  */
 public record SaveRecipeRequest(
         int userId,
@@ -26,7 +27,8 @@ public record SaveRecipeRequest(
         String description,
         int preparationTimeMinutes,
         int servings,
-        List<IngredientRequest> ingredients
+        List<IngredientRequest> ingredients,
+        List<StepRequest> steps
 ) {
     /**
      * Define el subcontrato de datos para cada elemento de la composición.
@@ -46,5 +48,17 @@ public record SaveRecipeRequest(
             BigDecimal quantity,
             String ingredientName,
             String unitName
+    ) {}
+
+    /**
+     * Define el subcontrato de datos para cada bloque operativo de preparación.
+     * Asegura la transmisión íntegra del orden lógico y el contenido de la acción.
+     *
+     * @param stepOrder Entero que define la posición inmutable de la instrucción en el flujo.
+     * @param instruction Cadena de texto con el detalle descriptivo de la acción a ejecutar.
+     */
+    public record StepRequest(
+            int stepOrder,
+            String instruction
     ) {}
 }

@@ -1,232 +1,349 @@
 package com.recetea.infrastructure.persistence.recipe.jdbc.repositories;
 
+import com.recetea.core.recipe.application.ports.in.dto.SearchCriteria;
+import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
+import com.recetea.core.recipe.domain.Category;
+import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
-import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
+import com.recetea.core.recipe.domain.RecipeStep;
+import com.recetea.core.recipe.domain.vo.*;
+import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import com.recetea.infrastructure.persistence.recipe.jdbc.mappers.RecipeMapper;
 
-import javax.sql.DataSource;
+import java.math.BigDecimal;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
-/**
- * Adaptador de salida basado en JDBC para la gestión de persistencia de recetas.
- * Implementa el contrato del repositorio mediante el uso de transacciones manuales
- * y el patrón Data Mapper, asegurando el aislamiento del modelo de dominio.
- * Utiliza sentencias SQL preparadas y centralizadas para mitigar riesgos de
- * inyección y facilitar el mantenimiento evolutivo del esquema.
- */
 public class JdbcRecipeRepository implements IRecipeRepository {
 
-    private final DataSource dataSource;
+    private final JdbcTransactionManager transactionManager;
 
-    // --- Definición de Sentencias SQL Estáticas ---
     private static final String INSERT_RECIPE =
             "INSERT INTO recipes (user_id, category_id, difficulty_id, title, description, prep_time_min, servings) VALUES (?, ?, ?, ?, ?, ?, ?)";
-
-    private static final String INSERT_INGREDIENT =
-            "INSERT INTO recipe_ingredients (recipe_id, ingredient_id, unit_id, quantity) VALUES (?, ?, ?, ?)";
-
     private static final String UPDATE_RECIPE =
-            "UPDATE recipes SET category_id = ?, difficulty_id = ?, title = ?, description = ?, prep_time_min = ?, servings = ?, user_id = ? WHERE id_recipe = ?";
-
-    private static final String DELETE_INGREDIENTS =
-            "DELETE FROM recipe_ingredients WHERE recipe_id = ?";
-
+            "UPDATE recipes SET category_id = ?, difficulty_id = ?, title = ?, description = ?, prep_time_min = ?, servings = ? WHERE id_recipe = ?";
     private static final String DELETE_RECIPE =
             "DELETE FROM recipes WHERE id_recipe = ?";
 
-    private static final String SELECT_BY_ID =
-            "SELECT id_recipe, user_id, category_id, difficulty_id, title, description, prep_time_min, servings FROM recipes WHERE id_recipe = ?";
-
-    /**
-     * Consulta optimizada para la carga profunda de ingredientes.
-     * Recupera la abreviatura de la unidad (um.abbreviation) en lugar del nombre completo
-     * para satisfacer los requisitos de integridad del Value Object del dominio.
-     */
     private static final String SELECT_INGREDIENTS =
-            "SELECT ri.ingredient_id, ri.unit_id, ri.quantity, i.name as ing_name, um.abbreviation as unit_abbr " +
-                    "FROM recipe_ingredients ri " +
-                    "JOIN ingredients i ON ri.ingredient_id = i.id_ingredient " +
-                    "JOIN unit_measures um ON ri.unit_id = um.id_unit " +
-                    "WHERE ri.recipe_id = ?";
+            "SELECT ingredient_id, unit_id, quantity FROM recipe_ingredients WHERE recipe_id = ?";
+    private static final String INSERT_INGREDIENT =
+            "INSERT INTO recipe_ingredients (recipe_id, ingredient_id, unit_id, quantity) VALUES (?, ?, ?, ?)";
+    private static final String UPDATE_INGREDIENT =
+            "UPDATE recipe_ingredients SET unit_id = ?, quantity = ? WHERE recipe_id = ? AND ingredient_id = ?";
+    private static final String DELETE_INGREDIENT =
+            "DELETE FROM recipe_ingredients WHERE recipe_id = ? AND ingredient_id = ?";
 
-    private static final String SELECT_ALL =
-            "SELECT id_recipe, user_id, category_id, difficulty_id, title, description, prep_time_min, servings FROM recipes ORDER BY created_at DESC";
+    private static final String SELECT_STEPS =
+            "SELECT step_order, instruction FROM steps WHERE recipe_id = ?";
+    private static final String INSERT_STEP =
+            "INSERT INTO steps (recipe_id, step_order, instruction) VALUES (?, ?, ?)";
+    private static final String UPDATE_STEP =
+            "UPDATE steps SET instruction = ? WHERE recipe_id = ? AND step_order = ?";
+    private static final String DELETE_STEP =
+            "DELETE FROM steps WHERE recipe_id = ? AND step_order = ?";
 
-    public JdbcRecipeRepository(DataSource dataSource) {
-        this.dataSource = dataSource;
+    private static final String SEARCH_BASE =
+            "SELECT r.id_recipe, r.user_id, r.category_id, c.name AS category_name, " +
+            "r.difficulty_id, d.level_name AS difficulty_name, r.title, r.description, r.prep_time_min, r.servings " +
+            "FROM recipes r " +
+            "JOIN categories c ON r.category_id = c.id_category " +
+            "JOIN difficulties d ON r.difficulty_id = d.id_difficulty";
+
+    public JdbcRecipeRepository(JdbcTransactionManager transactionManager) {
+        this.transactionManager = transactionManager;
     }
 
-    /**
-     * Registra una nueva receta ejecutando una transacción atómica.
-     * Gestiona la creación del registro principal y la inserción por lotes de la
-     * composición de ingredientes, recuperando la identidad generada por la base de datos.
-     */
     @Override
     public void save(Recipe recipe) {
-        try (Connection conn = dataSource.getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                try (PreparedStatement ps = conn.prepareStatement(INSERT_RECIPE, Statement.RETURN_GENERATED_KEYS)) {
-                    ps.setInt(1, recipe.getAuthorId().value());
-                    ps.setInt(2, recipe.getCategoryId());
-                    ps.setInt(3, recipe.getDifficultyId());
-                    ps.setString(4, recipe.getTitle());
-                    ps.setString(5, recipe.getDescription());
-                    ps.setInt(6, recipe.getPreparationTimeMinutes());
-                    ps.setInt(7, recipe.getServings());
-                    ps.executeUpdate();
-
-                    try (ResultSet rs = ps.getGeneratedKeys()) {
-                        if (rs.next()) {
-                            recipe.setId(rs.getInt(1));
-                        }
-                    }
+        try {
+            Connection conn = transactionManager.getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(INSERT_RECIPE, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setInt(1, recipe.getAuthorId().value());
+                ps.setInt(2, recipe.getCategory().getId().value());
+                ps.setInt(3, recipe.getDifficulty().getId().value());
+                ps.setString(4, recipe.getTitle());
+                ps.setString(5, recipe.getDescription());
+                ps.setInt(6, recipe.getPreparationTimeMinutes().value());
+                ps.setInt(7, recipe.getServings().value());
+                ps.executeUpdate();
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) recipe.setId(new RecipeId(rs.getInt(1)));
                 }
-
-                saveIngredients(conn, recipe);
-                conn.commit();
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
             }
+            insertIngredients(conn, recipe);
+            insertSteps(conn, recipe);
         } catch (SQLException e) {
-            throw new RuntimeException("Error de infraestructura al persistir la receta.", e);
+            throw new RuntimeException("Error al persistir la nueva receta.", e);
         }
     }
 
-    /**
-     * Actualiza el estado de una receta existente mediante el patrón Wipe & Replace.
-     * Sincroniza la cabecera de la receta y regenera íntegramente la lista de
-     * ingredientes dentro de un bloque transaccional para garantizar la consistencia.
-     */
     @Override
     public void update(Recipe recipe) {
-        try (Connection conn = dataSource.getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                try (PreparedStatement ps = conn.prepareStatement(UPDATE_RECIPE)) {
-                    ps.setInt(1, recipe.getCategoryId());
-                    ps.setInt(2, recipe.getDifficultyId());
-                    ps.setString(3, recipe.getTitle());
-                    ps.setString(4, recipe.getDescription());
-                    ps.setInt(5, recipe.getPreparationTimeMinutes());
-                    ps.setInt(6, recipe.getServings());
-                    ps.setInt(7, recipe.getAuthorId().value());
-                    ps.setInt(8, recipe.getId());
-                    ps.executeUpdate();
-                }
-
-                try (PreparedStatement ps = conn.prepareStatement(DELETE_INGREDIENTS)) {
-                    ps.setInt(1, recipe.getId());
-                    ps.executeUpdate();
-                }
-
-                saveIngredients(conn, recipe);
-                conn.commit();
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
+        try {
+            Connection conn = transactionManager.getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(UPDATE_RECIPE)) {
+                ps.setInt(1, recipe.getCategory().getId().value());
+                ps.setInt(2, recipe.getDifficulty().getId().value());
+                ps.setString(3, recipe.getTitle());
+                ps.setString(4, recipe.getDescription());
+                ps.setInt(5, recipe.getPreparationTimeMinutes().value());
+                ps.setInt(6, recipe.getServings().value());
+                ps.setInt(7, recipe.getId().value());
+                ps.executeUpdate();
             }
+            syncIngredients(conn, recipe);
+            syncSteps(conn, recipe);
         } catch (SQLException e) {
-            throw new RuntimeException("Error de infraestructura al actualizar la receta.", e);
+            throw new RuntimeException("Error al actualizar la receta con ID: " + recipe.getId().value(), e);
         }
     }
 
-    /**
-     * Reconstruye la entidad Recipe completa a partir de su identificador.
-     * Realiza una carga en dos pasos: primero hidrata los atributos base y
-     * posteriormente carga la colección de ingredientes mediante una consulta join.
-     */
     @Override
-    public Optional<Recipe> findById(int id) {
-        try (Connection conn = dataSource.getConnection()) {
-            Recipe recipe = null;
-            try (PreparedStatement ps = conn.prepareStatement(SELECT_BY_ID)) {
-                ps.setInt(1, id);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        recipe = RecipeMapper.mapRow(rs);
-                    }
-                }
+    public void delete(int recipeId) {
+        try {
+            Connection conn = transactionManager.getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(DELETE_RECIPE)) {
+                ps.setInt(1, recipeId);
+                ps.executeUpdate();
             }
-
-            if (recipe != null) {
-                try (PreparedStatement ps = conn.prepareStatement(SELECT_INGREDIENTS)) {
-                    ps.setInt(1, id);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        while (rs.next()) {
-                            recipe.addIngredient(RecipeMapper.mapIngredientRow(rs));
-                        }
-                    }
-                }
-            }
-            return Optional.ofNullable(recipe);
         } catch (SQLException e) {
-            throw new RuntimeException("Error de infraestructura al consultar la receta.", e);
+            throw new RuntimeException("Error al eliminar la receta.", e);
         }
     }
 
-    /**
-     * Obtiene el catálogo de todas las recetas ordenadas por fecha de creación.
-     */
-    @Override
-    public List<Recipe> findAll() {
-        List<Recipe> recipes = new ArrayList<>();
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(SELECT_ALL);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                recipes.add(RecipeMapper.mapRow(rs));
+    // -------------------------------------------------------------------------
+    // Smart diffing for update
+    // -------------------------------------------------------------------------
+
+    private void syncIngredients(Connection conn, Recipe recipe) throws SQLException {
+        int recipeId = recipe.getId().value();
+
+        // Fetch current DB state keyed by ingredient_id
+        Map<Integer, DbIngredientRow> existing = new LinkedHashMap<>();
+        try (PreparedStatement ps = conn.prepareStatement(SELECT_INGREDIENTS)) {
+            ps.setInt(1, recipeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int ingId = rs.getInt("ingredient_id");
+                    existing.put(ingId, new DbIngredientRow(ingId, rs.getInt("unit_id"), rs.getBigDecimal("quantity")));
+                }
             }
-        } catch (SQLException e) {
-            throw new RuntimeException("Error de infraestructura al recuperar el catálogo.", e);
         }
-        return recipes;
+
+        Map<Integer, RecipeIngredient> incoming = new LinkedHashMap<>();
+        for (RecipeIngredient ri : recipe.getIngredients()) {
+            incoming.put(ri.getIngredientId().value(), ri);
+        }
+
+        // DELETE removed
+        try (PreparedStatement ps = conn.prepareStatement(DELETE_INGREDIENT)) {
+            for (int ingId : existing.keySet()) {
+                if (!incoming.containsKey(ingId)) {
+                    ps.setInt(1, recipeId);
+                    ps.setInt(2, ingId);
+                    ps.addBatch();
+                }
+            }
+            ps.executeBatch();
+        }
+
+        // INSERT new
+        try (PreparedStatement ps = conn.prepareStatement(INSERT_INGREDIENT)) {
+            for (RecipeIngredient ri : recipe.getIngredients()) {
+                if (!existing.containsKey(ri.getIngredientId().value())) {
+                    ps.setInt(1, recipeId);
+                    ps.setInt(2, ri.getIngredientId().value());
+                    ps.setInt(3, ri.getUnitId().value());
+                    ps.setBigDecimal(4, ri.getQuantity());
+                    ps.addBatch();
+                }
+            }
+            ps.executeBatch();
+        }
+
+        // UPDATE changed
+        try (PreparedStatement ps = conn.prepareStatement(UPDATE_INGREDIENT)) {
+            for (RecipeIngredient ri : recipe.getIngredients()) {
+                DbIngredientRow row = existing.get(ri.getIngredientId().value());
+                if (row != null && row.isDifferentFrom(ri)) {
+                    ps.setInt(1, ri.getUnitId().value());
+                    ps.setBigDecimal(2, ri.getQuantity());
+                    ps.setInt(3, recipeId);
+                    ps.setInt(4, ri.getIngredientId().value());
+                    ps.addBatch();
+                }
+            }
+            ps.executeBatch();
+        }
     }
 
-    /**
-     * Ejecuta la eliminación física de la receta y sus componentes asociados.
-     */
-    @Override
-    public void delete(int id) {
-        try (Connection conn = dataSource.getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                try (PreparedStatement ps = conn.prepareStatement(DELETE_INGREDIENTS)) {
-                    ps.setInt(1, id);
-                    ps.executeUpdate();
+    private void syncSteps(Connection conn, Recipe recipe) throws SQLException {
+        int recipeId = recipe.getId().value();
+
+        // Fetch current DB state keyed by step_order
+        Map<Integer, String> existing = new LinkedHashMap<>();
+        try (PreparedStatement ps = conn.prepareStatement(SELECT_STEPS)) {
+            ps.setInt(1, recipeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    existing.put(rs.getInt("step_order"), rs.getString("instruction"));
                 }
-                try (PreparedStatement ps = conn.prepareStatement(DELETE_RECIPE)) {
-                    ps.setInt(1, id);
-                    ps.executeUpdate();
-                }
-                conn.commit();
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
             }
-        } catch (SQLException e) {
-            throw new RuntimeException("Error de infraestructura al eliminar la receta.", e);
+        }
+
+        Map<Integer, RecipeStep> incoming = new LinkedHashMap<>();
+        for (RecipeStep s : recipe.getSteps()) {
+            incoming.put(s.stepOrder(), s);
+        }
+
+        // DELETE removed
+        try (PreparedStatement ps = conn.prepareStatement(DELETE_STEP)) {
+            for (int order : existing.keySet()) {
+                if (!incoming.containsKey(order)) {
+                    ps.setInt(1, recipeId);
+                    ps.setInt(2, order);
+                    ps.addBatch();
+                }
+            }
+            ps.executeBatch();
+        }
+
+        // INSERT new
+        try (PreparedStatement ps = conn.prepareStatement(INSERT_STEP)) {
+            for (RecipeStep s : recipe.getSteps()) {
+                if (!existing.containsKey(s.stepOrder())) {
+                    ps.setInt(1, recipeId);
+                    ps.setInt(2, s.stepOrder());
+                    ps.setString(3, s.instruction());
+                    ps.addBatch();
+                }
+            }
+            ps.executeBatch();
+        }
+
+        // UPDATE changed
+        try (PreparedStatement ps = conn.prepareStatement(UPDATE_STEP)) {
+            for (RecipeStep s : recipe.getSteps()) {
+                String existingInstruction = existing.get(s.stepOrder());
+                if (existingInstruction != null && !existingInstruction.equals(s.instruction())) {
+                    ps.setString(1, s.instruction());
+                    ps.setInt(2, recipeId);
+                    ps.setInt(3, s.stepOrder());
+                    ps.addBatch();
+                }
+            }
+            ps.executeBatch();
         }
     }
 
-    /**
-     * Gestiona la inserción masiva de ingredientes para una receta.
-     */
-    private void saveIngredients(Connection conn, Recipe recipe) throws SQLException {
+    // -------------------------------------------------------------------------
+    // Bulk insert helpers for save()
+    // -------------------------------------------------------------------------
+
+    private void insertIngredients(Connection conn, Recipe recipe) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(INSERT_INGREDIENT)) {
             for (RecipeIngredient ing : recipe.getIngredients()) {
-                ps.setInt(1, recipe.getId());
-                ps.setInt(2, ing.getIngredientId());
-                ps.setInt(3, ing.getUnitId());
+                ps.setInt(1, recipe.getId().value());
+                ps.setInt(2, ing.getIngredientId().value());
+                ps.setInt(3, ing.getUnitId().value());
                 ps.setBigDecimal(4, ing.getQuantity());
                 ps.addBatch();
             }
             ps.executeBatch();
+        }
+    }
+
+    private void insertSteps(Connection conn, Recipe recipe) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(INSERT_STEP)) {
+            for (RecipeStep step : recipe.getSteps()) {
+                ps.setInt(1, recipe.getId().value());
+                ps.setInt(2, step.stepOrder());
+                ps.setString(3, step.instruction());
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Query methods
+    // -------------------------------------------------------------------------
+
+    @Override
+    public Optional<Recipe> findById(int id) {
+        return Optional.empty();
+    }
+
+    @Override
+    public List<Recipe> findAll() {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public List<Recipe> search(SearchCriteria criteria) {
+        StringBuilder sql = new StringBuilder(SEARCH_BASE);
+        List<Object> params = new ArrayList<>();
+        List<String> conditions = new ArrayList<>();
+
+        if (criteria.title() != null && !criteria.title().isBlank()) {
+            conditions.add("LOWER(r.title) LIKE LOWER(?)");
+            params.add("%" + criteria.title().trim() + "%");
+        }
+        if (criteria.maxPreparationTime() != null) {
+            conditions.add("r.prep_time_min <= ?");
+            params.add(criteria.maxPreparationTime());
+        }
+        if (criteria.minServings() != null) {
+            conditions.add("r.servings >= ?");
+            params.add(criteria.minServings());
+        }
+
+        if (!conditions.isEmpty()) {
+            sql.append(" WHERE ").append(String.join(" AND ", conditions));
+        }
+
+        try {
+            Connection conn = transactionManager.getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+                for (int i = 0; i < params.size(); i++) {
+                    ps.setObject(i + 1, params.get(i));
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    List<Recipe> results = new ArrayList<>();
+                    while (rs.next()) {
+                        Category category = new Category(
+                                new CategoryId(rs.getInt("category_id")), rs.getString("category_name"));
+                        Difficulty difficulty = new Difficulty(
+                                new DifficultyId(rs.getInt("difficulty_id")), rs.getString("difficulty_name"));
+                        Recipe recipe = new Recipe(
+                                new UserId(rs.getInt("user_id")),
+                                category,
+                                difficulty,
+                                rs.getString("title"),
+                                rs.getString("description"),
+                                new PreparationTime(rs.getInt("prep_time_min")),
+                                new Servings(rs.getInt("servings")));
+                        recipe.setId(new RecipeId(rs.getInt("id_recipe")));
+                        results.add(recipe);
+                    }
+                    return results;
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al buscar recetas con los criterios proporcionados.", e);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private record DbIngredientRow(int ingredientId, int unitId, BigDecimal quantity) {
+        boolean isDifferentFrom(RecipeIngredient ri) {
+            return unitId != ri.getUnitId().value()
+                    || quantity.compareTo(ri.getQuantity()) != 0;
         }
     }
 }

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<fx:root type="VBox" spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+
+    <Label text="Pasos de Preparación" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>
+
+    <VBox spacing="10.0">
+        <TextArea fx:id="instructionArea"
+                  promptText="Escriba aquí el detalle de la instrucción..."
+                  prefHeight="80.0"
+                  wrapText="true"/>
+
+        <HBox spacing="10.0" alignment="CENTER_LEFT">
+            <Button text="Añadir Paso"
+                    onAction="#onAddStepClick"
+                    style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-cursor: hand;"/>
+
+            <Button text="Actualizar"
+                    onAction="#onUpdateStepClick"
+                    style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-cursor: hand;"/>
+
+            <Button text="Eliminar"
+                    onAction="#onDeleteStepClick"
+                    style="-fx-background-color: #f44336; -fx-text-fill: white; -fx-cursor: hand;"/>
+        </HBox>
+    </VBox>
+
+    <TableView fx:id="stepsTable"
+               onMouseClicked="#onTableClick"
+               VBox.vgrow="ALWAYS"
+               prefHeight="250.0">
+        <columns>
+            <TableColumn fx:id="colOrder" text="Nº" prefWidth="50.0" resizable="false" />
+
+            <TableColumn fx:id="colInstruction" text="Instrucción" prefWidth="450.0" />
+        </columns>
+
+        <placeholder>
+            <Label text="No se han definido pasos para esta receta." />
+        </placeholder>
+    </TableView>
+
+</fx:root>

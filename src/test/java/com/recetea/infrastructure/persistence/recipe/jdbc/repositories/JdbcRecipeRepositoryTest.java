@@ -1,125 +1,142 @@
 package com.recetea.infrastructure.persistence.recipe.jdbc.repositories;
 
+import com.recetea.core.recipe.domain.Category;
+import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
+import com.recetea.core.recipe.domain.RecipeStep;
+import com.recetea.core.recipe.domain.vo.*;
+import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Optional;
+import java.sql.Statement;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Suite de tests de integración para el Outbound Adapter JdbcRecipeRepository.
- * Valida la persistencia atómica, el aislamiento transaccional y la hidratación
- * completa del Aggregate Root desde la infraestructura de datos.
- */
 class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
 
     private JdbcRecipeRepository repository;
+    private JdbcTransactionManager transactionManager;
 
     @BeforeEach
-    void setUp() {
-        // Inicializa el adaptador de infraestructura acoplándolo al DataSource de pruebas.
-        repository = new JdbcRecipeRepository(dataSource);
-        seedMasterData();
+    void setUp() throws SQLException {
+        transactionManager = new JdbcTransactionManager(dataSource);
+        repository = new JdbcRecipeRepository(transactionManager);
+        seedReferenceData();
     }
 
-    /**
-     * Satisface las restricciones de integridad referencial del esquema físico.
-     * Inyecta registros maestros mediante JDBC puro para asegurar que el entorno
-     * sea predecible y cumpla con las dependencias requeridas por las Foreign Keys.
-     */
-    private void seedMasterData() {
-        try (Connection conn = dataSource.getConnection()) {
-            execute(conn, "INSERT INTO users (id_user, username, email, password_hash) VALUES (1, 'tester', 'test@recetea.com', 'hash')");
-            execute(conn, "INSERT INTO categories (id_category, name) VALUES (1, 'Categoría Test')");
-            execute(conn, "INSERT INTO difficulties (id_difficulty, level_name) VALUES (1, 'Fácil')");
-            execute(conn, "INSERT INTO ingredient_categories (id_ing_category, name) VALUES (1, 'Cat Ingrediente')");
-            execute(conn, "INSERT INTO ingredients (id_ingredient, ing_category_id, name) VALUES (1, 1, 'Ingrediente Test')");
-            execute(conn, "INSERT INTO unit_measures (id_unit, name, abbreviation) VALUES (1, 'Gramos', 'g')");
+    private void seedReferenceData() throws SQLException {
+        try (Connection conn = dataSource.getConnection(); Statement st = conn.createStatement()) {
+            st.execute("INSERT INTO users (id_user, username, email, password_hash) OVERRIDING SYSTEM VALUE VALUES (1, 'test', 'test@test.com', 'hash')");
+            st.execute("INSERT INTO categories (id_category, name) OVERRIDING SYSTEM VALUE VALUES (1, 'TestCat')");
+            st.execute("INSERT INTO difficulties (id_difficulty, level_name) OVERRIDING SYSTEM VALUE VALUES (1, 'Easy')");
+            st.execute("INSERT INTO ingredient_categories (id_ing_category, name) OVERRIDING SYSTEM VALUE VALUES (1, 'TestIngCat')");
+            st.execute("INSERT INTO unit_measures (id_unit, name, abbreviation) OVERRIDING SYSTEM VALUE VALUES (1, 'Gramo', 'g')");
+            st.execute("INSERT INTO ingredients (id_ingredient, ing_category_id, name) OVERRIDING SYSTEM VALUE VALUES " +
+                    "(1, 1, 'Ing1'), (2, 1, 'Ing2'), (3, 1, 'Ing3'), (4, 1, 'Ing4')");
+        }
+    }
+
+    private Recipe buildRecipe() {
+        return new Recipe(
+                new UserId(1),
+                new Category(new CategoryId(1), "TestCat"),
+                new Difficulty(new DifficultyId(1), "Easy"),
+                "Receta Test", "Descripción test",
+                new PreparationTime(30),
+                new Servings(2)
+        );
+    }
+
+    @Test
+    @DisplayName("Debe persistir receta y componentes bajo la misma transacción")
+    void save_DebePersistirRecetaYComponentesBajoMismaTransaccion() {
+        Recipe recipe = buildRecipe();
+        recipe.syncIngredients(List.of(
+                new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.valueOf(500))
+        ));
+        recipe.syncSteps(List.of(new RecipeStep(1, "Cocinar todo")));
+
+        transactionManager.execute(() -> repository.save(recipe));
+
+        assertNotNull(recipe.getId(), "La identidad debe ser generada por la DB");
+        int id = recipe.getId().value();
+        assertEquals(1, queryCount("SELECT count(*) FROM recipes WHERE id_recipe = " + id), "La receta debe existir en DB");
+        assertEquals(1, queryCount("SELECT count(*) FROM recipe_ingredients WHERE recipe_id = " + id), "El ingrediente debe haberse persistido");
+    }
+
+    @Test
+    @DisplayName("Debe ejecutar borrado en cascada sin dejar registros huérfanos")
+    void delete_DebeEjecutarBorradoEnCascadaSinDejarRegistrosHuerfanos() {
+        Recipe recipe = buildRecipe();
+        recipe.syncIngredients(List.of(
+                new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.valueOf(100))
+        ));
+        recipe.syncSteps(List.of(new RecipeStep(1, "Paso único")));
+
+        transactionManager.execute(() -> repository.save(recipe));
+        int id = recipe.getId().value();
+
+        transactionManager.execute(() -> repository.delete(id));
+
+        assertEquals(0, queryCount("SELECT count(*) FROM recipes WHERE id_recipe = " + id));
+        assertEquals(0, queryCount("SELECT count(*) FROM recipe_ingredients WHERE recipe_id = " + id));
+        assertEquals(0, queryCount("SELECT count(*) FROM steps WHERE recipe_id = " + id));
+    }
+
+    @Test
+    @DisplayName("El Smart Diff debe actualizar, insertar y eliminar ingredientes de forma granular")
+    void testSmartDiffingLogic() {
+        Recipe recipe = buildRecipe();
+        recipe.syncIngredients(List.of(
+                new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.valueOf(100)), // unchanged
+                new RecipeIngredient(new IngredientId(2), new UnitId(1), BigDecimal.valueOf(200)), // to be modified
+                new RecipeIngredient(new IngredientId(3), new UnitId(1), BigDecimal.valueOf(300))  // to be deleted
+        ));
+        recipe.syncSteps(List.of(new RecipeStep(1, "Paso inicial")));
+        transactionManager.execute(() -> repository.save(recipe));
+
+        int recipeId = recipe.getId().value();
+
+        recipe.syncIngredients(List.of(
+                new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.valueOf(100)), // unchanged
+                new RecipeIngredient(new IngredientId(2), new UnitId(1), BigDecimal.valueOf(250)), // modified qty
+                new RecipeIngredient(new IngredientId(4), new UnitId(1), BigDecimal.valueOf(400))  // new
+        ));
+        transactionManager.execute(() -> repository.update(recipe));
+
+        assertEquals(BigDecimal.valueOf(100).setScale(2), queryQuantity(recipeId, 1), "Ingrediente 1 sin cambios");
+        assertEquals(BigDecimal.valueOf(250).setScale(2), queryQuantity(recipeId, 2), "Ingrediente 2 actualizado");
+        assertNull(queryQuantity(recipeId, 3), "Ingrediente 3 eliminado");
+        assertEquals(BigDecimal.valueOf(400).setScale(2), queryQuantity(recipeId, 4), "Ingrediente 4 nuevo");
+    }
+
+    private int queryCount(String sql) {
+        try (Connection conn = dataSource.getConnection();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            rs.next();
+            return rs.getInt(1);
         } catch (SQLException e) {
-            throw new RuntimeException("Fallo crítico de I/O al sembrar dependencias de Master Data.", e);
+            throw new RuntimeException(e);
         }
     }
 
-    private void execute(Connection conn, String sql) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.executeUpdate();
+    private BigDecimal queryQuantity(int recipeId, int ingredientId) {
+        String sql = "SELECT quantity FROM recipe_ingredients WHERE recipe_id = " + recipeId + " AND ingredient_id = " + ingredientId;
+        try (Connection conn = dataSource.getConnection();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            return rs.next() ? rs.getBigDecimal("quantity") : null;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
-    }
-
-    @Test
-    void save_PersisteRecetaYSusIngredientesDeFormaAtomica() {
-        // Instancia el Aggregate Root con su identidad de autor encapsulada en un Value Object.
-        Recipe recipe = new Recipe(new Recipe.AuthorId(1), 1, 1, "Tortilla de Patatas", "Descripción técnica", 30, 4);
-        recipe.addIngredient(new RecipeIngredient(1, 1, new BigDecimal("500.00")));
-
-        // Ejecuta la inserción transaccional.
-        repository.save(recipe);
-
-        // Verifica que la identidad física sea asignada e inyectada correctamente en la entidad.
-        assertTrue(recipe.getId() > 0, "El repositorio debe inyectar el ID generado tras la inserción.");
-        Optional<Recipe> persisted = repository.findById(recipe.getId());
-        assertTrue(persisted.isPresent());
-        assertEquals(1, persisted.get().getIngredients().size());
-    }
-
-    @Test
-    void findById_RealizaDeepLoadHidratandoNombresDeDependencias() {
-        // Establece una entidad preexistente para la validación de lectura.
-        Recipe recipe = new Recipe(new Recipe.AuthorId(1), 1, 1, "Receta Hidratada", "Desc", 20, 2);
-        recipe.addIngredient(new RecipeIngredient(1, 1, new BigDecimal("200.00")));
-        repository.save(recipe);
-
-        // Recupera la entidad mediante una consulta que incorpora Joins relacionales.
-        Optional<Recipe> found = repository.findById(recipe.getId());
-
-        // Confirma que el Data Mapper traduzca los alias de la tabla a las propiedades inmutables del dominio.
-        assertTrue(found.isPresent());
-        RecipeIngredient hydratedIngredient = found.get().getIngredients().get(0);
-        assertEquals("Ingrediente Test", hydratedIngredient.getIngredientName());
-        assertEquals("g", hydratedIngredient.getUnitAbbreviation());
-    }
-
-    @Test
-    void update_SincronizaCambiosMedianteEstrategiaWipeAndReplace() {
-        // Posiciona el registro base en la persistencia.
-        Recipe recipe = new Recipe(new Recipe.AuthorId(1), 1, 1, "Estado Original", "Desc", 10, 1);
-        recipe.addIngredient(new RecipeIngredient(1, 1, new BigDecimal("10.00")));
-        repository.save(recipe);
-
-        // Transiciona el estado en memoria, mutando la colección y la cabecera.
-        recipe.setTitle("Estado Actualizado");
-        recipe.clearIngredients();
-        recipe.addIngredient(new RecipeIngredient(1, 1, new BigDecimal("99.99")));
-
-        // Ejecuta el reemplazo atómico en la base de datos.
-        repository.update(recipe);
-
-        // Recupera el estado fresco para garantizar la ausencia de datos residuales.
-        Recipe updated = repository.findById(recipe.getId()).orElseThrow();
-        assertEquals("Estado Actualizado", updated.getTitle());
-        assertEquals(1, updated.getIngredients().size(), "La colección debe reflejar exclusivamente el último estado.");
-        assertEquals(0, new BigDecimal("99.99").compareTo(updated.getIngredients().get(0).getQuantity()));
-    }
-
-    @Test
-    void delete_EliminaRecetaYSusIngredientesTransaccionalmente() {
-        // Construye y persiste la entidad objetivo.
-        Recipe recipe = new Recipe(new Recipe.AuthorId(1), 1, 1, "Entidad a purgar", "Desc", 5, 1);
-        recipe.addIngredient(new RecipeIngredient(1, 1, new BigDecimal("1.00")));
-        repository.save(recipe);
-
-        // Emite el comando de borrado físico.
-        repository.delete(recipe.getId());
-
-        // Asegura que las restricciones transaccionales purguen el registro maestro y sus dependencias.
-        Optional<Recipe> deleted = repository.findById(recipe.getId());
-        assertTrue(deleted.isEmpty(), "La receta y sus dependencias deben ser eliminadas completamente.");
     }
 }

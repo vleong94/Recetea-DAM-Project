@@ -2,7 +2,7 @@ package com.recetea.infrastructure.ui.javafx.features.recipe.controllers;
 
 import com.recetea.core.recipe.application.ports.in.dto.RecipeIngredientResponse;
 import com.recetea.core.recipe.application.ports.in.dto.RecipeDetailResponse;
-import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeContext;
+import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryProvider;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
@@ -29,17 +29,11 @@ public class RecipeDetailController {
     @FXML private TableColumn<RecipeIngredientResponse, String> colUnit;
     @FXML private TableColumn<RecipeIngredientResponse, BigDecimal> colQuantity;
 
-    private RecipeContext context;
+    private RecipeQueryProvider queryProvider;
     private NavigationService nav;
 
-    /**
-     * Inicializa el controlador inyectando el contexto de la aplicación y el servicio de navegación.
-     * Define el enlace de datos (Data Binding) para las columnas de la tabla de ingredientes,
-     * asegurando que la representación visual se sincronice correctamente con los atributos
-     * del objeto de transferencia de datos inmutable.
-     */
-    public void init(RecipeContext context, NavigationService nav) {
-        this.context = context;
+    public void init(RecipeQueryProvider queryProvider, NavigationService nav) {
+        this.queryProvider = queryProvider;
         this.nav = nav;
 
         colIngredientName.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().ingredientName()));
@@ -57,7 +51,7 @@ public class RecipeDetailController {
      * @param recipeId Identificador único de la receta a cargar.
      */
     public void loadRecipeDetails(int recipeId) {
-        context.getRecipeById().execute(recipeId).ifPresentOrElse(
+        queryProvider.getRecipeById().execute(recipeId).ifPresentOrElse(
                 this::populateView,
                 () -> showError("Error de Consulta", "El sistema no pudo localizar la receta solicitada.")
         );

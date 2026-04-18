@@ -5,39 +5,39 @@ import com.recetea.core.recipe.application.ports.in.dto.SaveRecipeRequest;
 import java.util.stream.Collectors;
 
 /**
- * Especialización del controlador de formulario orientada exclusivamente a la mutación
- * de estado de recetas existentes.
- * * Hereda la infraestructura de validación de la clase base y añade la capacidad de
- * hidratar la vista con datos preexistentes. Aísla la complejidad de la actualización,
- * garantizando que las operaciones de modificación conserven la referencia de identidad
- * de la entidad objetivo.
+ * Controlador especializado en la gestión de mutaciones para recetas persistidas.
+ * Extiende la funcionalidad base del formulario para implementar la carga profunda
+ * de datos, asegurando que tanto los metadatos de cabecera como las colecciones
+ * de ingredientes y pasos se sincronicen correctamente para su edición.
  */
 public class RecipeUpdateController extends BaseRecipeFormController {
 
-    /**
-     * Identificador único de la entidad en edición.
-     * Es imperativo mantener este estado en memoria para garantizar que la capa
-     * de persistencia aplique los cambios sobre el registro correcto.
-     */
     private int currentRecipeId;
 
     /**
-     * Hidrata los componentes visuales heredados a partir de una proyección inmutable de la receta.
-     * Establece el estado inicial del formulario mapeando el modelo de lectura (Response)
-     * a las estructuras de entrada esperadas por las tablas y campos de texto.
+     * Realiza la hidratación integral de la interfaz a partir de una proyección detallada.
+     * Mapea el estado completo de la receta, incluyendo su taxonomía (categoría y dificultad)
+     * y sus flujos operativos, hacia los componentes visuales correspondientes para
+     * establecer un punto de partida consistente en la edición.
      *
-     * @param recipe Objeto de transferencia de datos con el estado persistido actual.
+     * @param recipe Objeto de respuesta con la información exhaustiva de la entidad.
      */
     public void loadRecipeData(RecipeDetailResponse recipe) {
         this.currentRecipeId = recipe.id();
 
+        // Hidratación de metadatos y taxonomía dinámica
+        // Se suministran los 6 argumentos requeridos para asegurar la integridad visual
         headerComponent.setData(
                 recipe.title(),
                 recipe.description(),
                 recipe.prepTimeMinutes(),
-                recipe.servings()
+                recipe.servings(),
+                recipe.categoryId(),
+                recipe.difficultyId()
         );
 
+        // Hidratación de la composición de ingredientes
+        // Transforma la respuesta detallada en el formato de petición esperado por la tabla
         ingredientTableComponent.loadExistingIngredients(
                 recipe.ingredients().stream()
                         .map(i -> new SaveRecipeRequest.IngredientRequest(
@@ -48,15 +48,17 @@ public class RecipeUpdateController extends BaseRecipeFormController {
                                 i.unitName()))
                         .collect(Collectors.toList())
         );
+
+        // Hidratación del flujo secuencial de instrucciones de preparación
+        stepTableComponent.loadSteps(recipe.steps());
     }
 
     /**
-     * Ejecuta la actualización del estado.
-     * Intercepta la orden de guardado validada por la clase base y vincula el identificador
-     * de la receta en memoria con el nuevo contrato de datos, delegando la transacción
-     * al caso de uso de actualización.
+     * Ejecuta la persistencia de los cambios realizados sobre la receta.
+     * Vincula el identificador técnico de la entidad con el contrato de datos
+     * capturado por los componentes visuales, delegando la actualización al Core.
      *
-     * @param request Estructura de datos validada con las mutaciones ingresadas por el usuario.
+     * @param request Payload validado con el nuevo estado de la receta.
      */
     @Override
     protected void handleSave(SaveRecipeRequest request) {

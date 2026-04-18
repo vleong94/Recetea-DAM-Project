@@ -3,7 +3,6 @@ package com.recetea.infrastructure.ui.javafx.features.recipe.components;
 import com.recetea.core.recipe.application.ports.in.dto.IngredientResponse;
 import com.recetea.core.recipe.application.ports.in.dto.UnitResponse;
 import com.recetea.core.recipe.application.ports.in.dto.SaveRecipeRequest.IngredientRequest;
-import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeContext;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -56,11 +55,11 @@ public class IngredientTableComponent extends VBox {
     }
 
     /**
-     * Inyecta el contexto de aplicación y dispara la hidratación de los catálogos.
+     * Hidrata los catálogos de selección con los datos de ingredientes y unidades disponibles.
      */
-    public void init(RecipeContext context) {
-        ingredientComboBox.setItems(FXCollections.observableArrayList(context.getAllIngredients().execute()));
-        unitComboBox.setItems(FXCollections.observableArrayList(context.getAllUnits().execute()));
+    public void init(List<IngredientResponse> ingredients, List<UnitResponse> units) {
+        ingredientComboBox.setItems(FXCollections.observableArrayList(ingredients));
+        unitComboBox.setItems(FXCollections.observableArrayList(units));
     }
 
     /**

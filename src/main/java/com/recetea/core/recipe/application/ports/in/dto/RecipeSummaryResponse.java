@@ -1,22 +1,24 @@
 package com.recetea.core.recipe.application.ports.in.dto;
 
 /**
- * Representa una vista simplificada de una receta para su visualización en listados o catálogos.
- * Este registro actúa como un objeto de transferencia de datos (DTO) inmutable, asegurando
- * que la capa de presentación no tenga acceso directo a las entidades de negocio.
- * @param id Identificador único de la receta en el sistema.
- * @param title Título descriptivo de la receta.
- * @param prepTimeMinutes Tiempo estimado de preparación expresado en minutos.
- * @param servings Número de raciones o porciones que rinde la receta.
+ * Proyección estructural simplificada de una receta diseñada para su exposición en catálogos y listados.
+ * Implementa el patrón Data Transfer Object (DTO) mediante un registro inmutable, garantizando
+ * el aislamiento estricto entre el estado de las entidades del Domain y la capa de presentación.
+ * * Centraliza los metadatos esenciales junto con las proyecciones en texto plano de la taxonomía,
+ * eliminando la necesidad de múltiples consultas a la base de datos (N+1) durante la renderización visual.
+ *
+ * @param id Identificador numérico único de la receta.
+ * @param title Nombre o identificador semántico de la receta.
+ * @param categoryName Descriptor textual de la clasificación taxonómica a la que pertenece.
+ * @param difficultyName Descriptor textual del nivel de complejidad operativa.
+ * @param prepTimeMinutes Métrica de tiempo de ejecución estimado expresado en minutos.
+ * @param servings Métrica de rendimiento en raciones o porciones.
  */
 public record RecipeSummaryResponse(
         int id,
         String title,
+        String categoryName,
+        String difficultyName,
         int prepTimeMinutes,
         int servings
-) {
-    /**
-     * El uso de un Java Record garantiza que los datos sean inmutables y proporciona
-     * automáticamente los métodos de acceso, equals, hashCode y toString.
-     */
-}
+) {}
