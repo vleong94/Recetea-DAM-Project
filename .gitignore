@@ -9,6 +9,11 @@ bin/
 build/
 out/
 
+# --- Maven & Wrapper ---
+.mvn/
+mvnw
+mvnw.cmd
+
 # --- IDEs & Editors ---
 .idea/
 *.iml
@@ -21,11 +26,12 @@ out/
 .project
 .factorypath
 
-# --- AI & Tooling Metadata (Nuclear Clean) ---
+# --- AI & Tooling Metadata ---
 CLAUDE.md
 .claudeignore
 .anthropic/
 .cursor/
+.claude/
 
 # --- OS & Temporary Files ---
 .DS_Store
