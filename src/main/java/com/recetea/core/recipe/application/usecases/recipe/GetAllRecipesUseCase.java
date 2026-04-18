@@ -16,15 +16,6 @@ public class GetAllRecipesUseCase implements IGetAllRecipesUseCase {
 
     @Override
     public List<RecipeSummaryResponse> execute() {
-        return repository.findAll().stream()
-                .map(recipe -> new RecipeSummaryResponse(
-                        recipe.getId().value(),
-                        recipe.getTitle(),
-                        recipe.getCategory().getName(),
-                        recipe.getDifficulty().getName(),
-                        recipe.getPreparationTimeMinutes().value(),
-                        recipe.getServings().value()
-                ))
-                .toList();
+        return repository.findAllSummaries();
     }
 }

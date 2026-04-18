@@ -34,7 +34,7 @@ public class GetAllUnitsUseCase implements IGetAllUnitsUseCase {
     public List<UnitResponse> execute() {
         return repository.findAll().stream()
                 .map(unit -> new UnitResponse(
-                        unit.getId().value(),
+                        unit.getId(),
                         unit.getName()
                 ))
                 .toList();

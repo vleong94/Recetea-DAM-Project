@@ -31,6 +31,9 @@ public class JdbcTransactionManager implements ITransactionManager {
 
     @Override
     public <T> T execute(Supplier<T> action) {
+        if (CONNECTION.isBound()) {
+            throw new IllegalStateException("Transacción anidada no permitida: ya existe una transacción activa en este hilo.");
+        }
         try (Connection conn = dataSource.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -40,10 +43,12 @@ public class JdbcTransactionManager implements ITransactionManager {
             } catch (Exception e) {
                 conn.rollback();
                 if (e instanceof RuntimeException re) throw re;
-                throw new RuntimeException(e);
+                throw new InfrastructureException("Error no recuperable durante la ejecución transaccional.", e);
             }
+        } catch (InfrastructureException | IllegalStateException e) {
+            throw e;
         } catch (SQLException e) {
-            throw new RuntimeException("Fallo crítico en el Transaction Bridge de JDBC.", e);
+            throw new InfrastructureException("Fallo crítico en el Transaction Bridge de JDBC.", e);
         }
     }
 

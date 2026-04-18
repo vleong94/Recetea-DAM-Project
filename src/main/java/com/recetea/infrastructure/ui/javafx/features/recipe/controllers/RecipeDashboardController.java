@@ -4,6 +4,7 @@ import com.recetea.core.recipe.application.ports.in.dto.RecipeSummaryResponse;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryProvider;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -15,12 +16,14 @@ import java.util.List;
 public class RecipeDashboardController {
 
     @FXML private TableView<RecipeSummaryResponse> recipeTable;
-    @FXML private TableColumn<RecipeSummaryResponse, Integer> idColumn;
+    @FXML private TableColumn<RecipeSummaryResponse, String> idColumn;
     @FXML private TableColumn<RecipeSummaryResponse, String> titleColumn;
     @FXML private TableColumn<RecipeSummaryResponse, String> categoryColumn;
     @FXML private TableColumn<RecipeSummaryResponse, String> difficultyColumn;
     @FXML private TableColumn<RecipeSummaryResponse, Integer> prepColumn;
     @FXML private TableColumn<RecipeSummaryResponse, Integer> servingsColumn;
+    @FXML private TableColumn<RecipeSummaryResponse, String> scoreColumn;
+    @FXML private TableColumn<RecipeSummaryResponse, Integer> ratingsColumn;
     @FXML private TableColumn<RecipeSummaryResponse, Void> actionsColumn;
 
     private RecipeQueryProvider queryProvider;
@@ -28,12 +31,15 @@ public class RecipeDashboardController {
 
     @FXML
     public void initialize() {
-        idColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().id()));
-        titleColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().title()));
-        categoryColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().categoryName()));
-        difficultyColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().difficultyName()));
+        idColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(String.valueOf(cell.getValue().id().value())));
+        titleColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().title()));
+        categoryColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().categoryName()));
+        difficultyColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().difficultyName()));
         prepColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().prepTimeMinutes()));
         servingsColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().servings()));
+        scoreColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(
+                cell.getValue().averageScore().setScale(1, java.math.RoundingMode.HALF_UP) + " / 5"));
+        ratingsColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().totalRatings()));
     }
 
     public void init(RecipeQueryProvider queryProvider, NavigationService nav) {

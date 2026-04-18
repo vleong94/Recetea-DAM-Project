@@ -1,20 +1,24 @@
 package com.recetea.infrastructure.persistence.recipe.jdbc.repositories;
 
+import com.recetea.core.recipe.application.ports.in.dto.RecipeSummaryResponse;
 import com.recetea.core.recipe.application.ports.in.dto.SearchCriteria;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
 import com.recetea.core.recipe.domain.Category;
 import com.recetea.core.recipe.domain.Difficulty;
+import com.recetea.core.recipe.domain.Rating;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
 import com.recetea.core.recipe.domain.RecipeStep;
 import com.recetea.core.recipe.domain.vo.*;
 import com.recetea.core.user.domain.UserId;
+import com.recetea.infrastructure.persistence.recipe.jdbc.InfrastructureException;
 import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import com.recetea.infrastructure.persistence.recipe.jdbc.mappers.RecipeMapper;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.*;
 
 public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeRepository {
@@ -52,6 +56,12 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
     private static final String DELETE_STEP =
             "DELETE FROM steps WHERE recipe_id = ? AND step_order = ?";
 
+    private static final String SELECT_RATINGS =
+            "SELECT user_id, score, comment, created_at FROM ratings WHERE recipe_id = ?";
+    private static final String INSERT_RATING =
+            "INSERT INTO ratings (recipe_id, user_id, score, comment, created_at) VALUES (?, ?, ?, ?, ?) " +
+            "ON CONFLICT (recipe_id, user_id) DO NOTHING";
+
     private static final String SELECT_BASE =
             "SELECT r.id_recipe, r.user_id, r.category_id, c.name AS category_name, " +
             "r.difficulty_id, d.level_name AS difficulty_name, r.title, r.description, r.prep_time_min, r.servings " +
@@ -59,9 +69,19 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             "INNER JOIN categories c ON r.category_id = c.id_category " +
             "INNER JOIN difficulties d ON r.difficulty_id = d.id_difficulty";
 
-    private static final String SELECT_ALL = SELECT_BASE;
     private static final String SELECT_BY_ID = SELECT_BASE + " WHERE r.id_recipe = ?";
-    private static final String SEARCH_BASE = SELECT_BASE;
+
+    private static final String SELECT_SUMMARIES_FROM =
+            "SELECT r.id_recipe, r.title, c.name AS category_name, d.level_name AS difficulty_name, " +
+            "r.prep_time_min, r.servings, " +
+            "COALESCE(AVG(rt.score), 0) AS avg_score, COUNT(rt.id_rating) AS total_ratings " +
+            "FROM recipes r " +
+            "INNER JOIN categories c ON r.category_id = c.id_category " +
+            "INNER JOIN difficulties d ON r.difficulty_id = d.id_difficulty " +
+            "LEFT JOIN ratings rt ON r.id_recipe = rt.recipe_id";
+    private static final String SELECT_SUMMARIES_GROUP_BY =
+            " GROUP BY r.id_recipe, r.title, c.name, d.level_name, r.prep_time_min, r.servings";
+    private static final String SELECT_SUMMARIES = SELECT_SUMMARIES_FROM + SELECT_SUMMARIES_GROUP_BY;
 
     public JdbcRecipeRepository(JdbcTransactionManager transactionManager) {
         super(transactionManager);
@@ -86,6 +106,7 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             }
             insertIngredients(conn, recipe);
             insertSteps(conn, recipe);
+            syncRatings(conn, recipe);
         } catch (SQLException e) {
             throw new RuntimeException("Error al persistir la nueva receta.", e);
         }
@@ -107,17 +128,18 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             }
             syncIngredients(conn, recipe);
             syncSteps(conn, recipe);
+            syncRatings(conn, recipe);
         } catch (SQLException e) {
             throw new RuntimeException("Error al actualizar la receta con ID: " + recipe.getId().value(), e);
         }
     }
 
     @Override
-    public void delete(int recipeId) {
+    public void delete(RecipeId id) {
         try {
             Connection conn = transactionManager.getConnection();
             try (PreparedStatement ps = conn.prepareStatement(DELETE_RECIPE)) {
-                ps.setInt(1, recipeId);
+                ps.setInt(1, id.value());
                 ps.executeUpdate();
             }
         } catch (SQLException e) {
@@ -132,7 +154,6 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
     private void syncIngredients(Connection conn, Recipe recipe) throws SQLException {
         int recipeId = recipe.getId().value();
 
-        // Fetch current DB state keyed by ingredient_id
         Map<Integer, DbIngredientRow> existing = new LinkedHashMap<>();
         try (PreparedStatement ps = conn.prepareStatement(SELECT_INGREDIENTS)) {
             ps.setInt(1, recipeId);
@@ -149,7 +170,6 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             incoming.put(ri.getIngredientId().value(), ri);
         }
 
-        // DELETE removed
         try (PreparedStatement ps = conn.prepareStatement(DELETE_INGREDIENT)) {
             for (int ingId : existing.keySet()) {
                 if (!incoming.containsKey(ingId)) {
@@ -161,7 +181,6 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             ps.executeBatch();
         }
 
-        // INSERT new
         try (PreparedStatement ps = conn.prepareStatement(INSERT_INGREDIENT)) {
             for (RecipeIngredient ri : recipe.getIngredients()) {
                 if (!existing.containsKey(ri.getIngredientId().value())) {
@@ -175,7 +194,6 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             ps.executeBatch();
         }
 
-        // UPDATE changed
         try (PreparedStatement ps = conn.prepareStatement(UPDATE_INGREDIENT)) {
             for (RecipeIngredient ri : recipe.getIngredients()) {
                 DbIngredientRow row = existing.get(ri.getIngredientId().value());
@@ -194,7 +212,6 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
     private void syncSteps(Connection conn, Recipe recipe) throws SQLException {
         int recipeId = recipe.getId().value();
 
-        // Fetch current DB state keyed by step_order
         Map<Integer, String> existing = new LinkedHashMap<>();
         try (PreparedStatement ps = conn.prepareStatement(SELECT_STEPS)) {
             ps.setInt(1, recipeId);
@@ -210,7 +227,6 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             incoming.put(s.stepOrder(), s);
         }
 
-        // DELETE removed
         try (PreparedStatement ps = conn.prepareStatement(DELETE_STEP)) {
             for (int order : existing.keySet()) {
                 if (!incoming.containsKey(order)) {
@@ -222,7 +238,6 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             ps.executeBatch();
         }
 
-        // INSERT new
         try (PreparedStatement ps = conn.prepareStatement(INSERT_STEP)) {
             for (RecipeStep s : recipe.getSteps()) {
                 if (!existing.containsKey(s.stepOrder())) {
@@ -235,7 +250,6 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             ps.executeBatch();
         }
 
-        // UPDATE changed
         try (PreparedStatement ps = conn.prepareStatement(UPDATE_STEP)) {
             for (RecipeStep s : recipe.getSteps()) {
                 String existingInstruction = existing.get(s.stepOrder());
@@ -245,6 +259,20 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
                     ps.setInt(3, s.stepOrder());
                     ps.addBatch();
                 }
+            }
+            ps.executeBatch();
+        }
+    }
+
+    private void syncRatings(Connection conn, Recipe recipe) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(INSERT_RATING)) {
+            for (Rating rating : recipe.getRatings()) {
+                ps.setInt(1, recipe.getId().value());
+                ps.setInt(2, rating.getUserId().value());
+                ps.setInt(3, rating.getScore().value());
+                ps.setString(4, rating.getComment());
+                ps.setObject(5, rating.getCreatedAt());
+                ps.addBatch();
             }
             ps.executeBatch();
         }
@@ -284,14 +312,14 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
     // -------------------------------------------------------------------------
 
     @Override
-    public Optional<Recipe> findById(int id) {
+    public Optional<Recipe> findById(RecipeId id) {
         Connection conn = null;
         try {
             conn = transactionManager.getConnection();
 
             Recipe recipe = null;
             try (PreparedStatement ps = conn.prepareStatement(SELECT_BY_ID)) {
-                ps.setInt(1, id);
+                ps.setInt(1, id.value());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) recipe = mapRow(rs);
                 }
@@ -299,7 +327,7 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             if (recipe == null) return Optional.empty();
 
             try (PreparedStatement ps = conn.prepareStatement(SELECT_INGREDIENTS_DEEP)) {
-                ps.setInt(1, id);
+                ps.setInt(1, id.value());
                 try (ResultSet rs = ps.executeQuery()) {
                     List<RecipeIngredient> ingredients = new ArrayList<>();
                     while (rs.next()) ingredients.add(RecipeMapper.mapIngredientRow(rs));
@@ -308,7 +336,7 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             }
 
             try (PreparedStatement ps = conn.prepareStatement(SELECT_STEPS_ORDERED)) {
-                ps.setInt(1, id);
+                ps.setInt(1, id.value());
                 try (ResultSet rs = ps.executeQuery()) {
                     List<RecipeStep> steps = new ArrayList<>();
                     while (rs.next()) steps.add(RecipeMapper.mapStepRow(rs));
@@ -316,37 +344,49 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
                 }
             }
 
+            try (PreparedStatement ps = conn.prepareStatement(SELECT_RATINGS)) {
+                ps.setInt(1, id.value());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Rating rating = new Rating(
+                                new UserId(rs.getInt("user_id")),
+                                new Score(rs.getInt("score")),
+                                rs.getString("comment"),
+                                rs.getObject("created_at", LocalDateTime.class));
+                        recipe.hydrateRating(rating);
+                    }
+                }
+            }
+
             return Optional.of(recipe);
         } catch (SQLException e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error al obtener la receta con ID: " + id, e);
+            throw new InfrastructureException("Error al obtener la receta con ID: " + id.value(), e);
         } finally {
-            closeIfNonTransactional(conn);
+            closeIfNonTransactional(conn, "findById id=" + id.value());
         }
     }
 
     @Override
-    public List<Recipe> findAll() {
+    public List<RecipeSummaryResponse> findAllSummaries() {
         Connection conn = null;
         try {
             conn = transactionManager.getConnection();
-            try (PreparedStatement ps = conn.prepareStatement(SELECT_ALL);
+            try (PreparedStatement ps = conn.prepareStatement(SELECT_SUMMARIES);
                  ResultSet rs = ps.executeQuery()) {
-                List<Recipe> results = new ArrayList<>();
-                while (rs.next()) results.add(mapRow(rs));
+                List<RecipeSummaryResponse> results = new ArrayList<>();
+                while (rs.next()) results.add(mapSummaryRow(rs));
                 return results;
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error al obtener todas las recetas.", e);
+            throw new InfrastructureException("Error al obtener los resúmenes de recetas.", e);
         } finally {
-            closeIfNonTransactional(conn);
+            closeIfNonTransactional(conn, "findAllSummaries");
         }
     }
 
     @Override
-    public List<Recipe> search(SearchCriteria criteria) {
-        StringBuilder sql = new StringBuilder(SEARCH_BASE);
+    public List<RecipeSummaryResponse> searchSummaries(SearchCriteria criteria) {
+        StringBuilder sql = new StringBuilder(SELECT_SUMMARIES_FROM);
         List<Object> params = new ArrayList<>();
         List<String> conditions = new ArrayList<>();
 
@@ -366,6 +406,7 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
         if (!conditions.isEmpty()) {
             sql.append(" WHERE ").append(String.join(" AND ", conditions));
         }
+        sql.append(SELECT_SUMMARIES_GROUP_BY);
 
         Connection conn = null;
         try {
@@ -375,16 +416,15 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
                     ps.setObject(i + 1, params.get(i));
                 }
                 try (ResultSet rs = ps.executeQuery()) {
-                    List<Recipe> results = new ArrayList<>();
-                    while (rs.next()) results.add(mapRow(rs));
+                    List<RecipeSummaryResponse> results = new ArrayList<>();
+                    while (rs.next()) results.add(mapSummaryRow(rs));
                     return results;
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error al buscar recetas con los criterios proporcionados.", e);
+            throw new InfrastructureException("Error al buscar resúmenes de recetas con los criterios proporcionados.", e);
         } finally {
-            closeIfNonTransactional(conn);
+            closeIfNonTransactional(conn, "searchSummaries");
         }
     }
 
@@ -406,6 +446,18 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
                 new Servings(rs.getInt("servings")));
         recipe.setId(new RecipeId(rs.getInt("id_recipe")));
         return recipe;
+    }
+
+    private RecipeSummaryResponse mapSummaryRow(ResultSet rs) throws SQLException {
+        return new RecipeSummaryResponse(
+                new RecipeId(rs.getInt("id_recipe")),
+                rs.getString("title"),
+                rs.getString("category_name"),
+                rs.getString("difficulty_name"),
+                rs.getInt("prep_time_min"),
+                rs.getInt("servings"),
+                rs.getBigDecimal("avg_score").setScale(2, RoundingMode.HALF_UP),
+                rs.getInt("total_ratings"));
     }
 
     private record DbIngredientRow(int ingredientId, int unitId, BigDecimal quantity) {

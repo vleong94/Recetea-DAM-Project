@@ -39,6 +39,9 @@
 
         <Label text="Dificultad:" GridPane.rowIndex="4" GridPane.columnIndex="0" styleClass="field-label" />
         <Label fx:id="difficultyLabel" text="-" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+
+        <Label text="Valoración Media:" GridPane.rowIndex="5" GridPane.columnIndex="0" styleClass="field-label" />
+        <Label fx:id="scoreLabel" text="-" GridPane.rowIndex="5" GridPane.columnIndex="1" />
     </GridPane>
 
     <Separator />

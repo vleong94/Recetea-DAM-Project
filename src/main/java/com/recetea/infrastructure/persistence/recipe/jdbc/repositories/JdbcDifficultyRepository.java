@@ -2,16 +2,13 @@ package com.recetea.infrastructure.persistence.recipe.jdbc.repositories;
 
 import com.recetea.core.recipe.application.ports.out.difficulty.IDifficultyRepository;
 import com.recetea.core.recipe.domain.Difficulty;
+import com.recetea.core.recipe.domain.vo.DifficultyId;
 import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import com.recetea.infrastructure.persistence.recipe.jdbc.mappers.DifficultyMapper;
+
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Adaptador JDBC para el catálogo de dificultades.
- * Extiende la funcionalidad base para realizar consultas seguras, utilizando
- * el mapper especializado para la reconstrucción de las entidades de dominio.
- */
 public class JdbcDifficultyRepository extends BaseJdbcRepository implements IDifficultyRepository {
 
     private static final String SELECT_ALL = "SELECT id_difficulty, level_name FROM difficulties ORDER BY id_difficulty ASC";
@@ -28,7 +25,7 @@ public class JdbcDifficultyRepository extends BaseJdbcRepository implements IDif
     }
 
     @Override
-    public Optional<Difficulty> findById(int id) {
-        return queryForObject(SELECT_BY_ID, mapper, id);
+    public Optional<Difficulty> findById(DifficultyId id) {
+        return queryForObject(SELECT_BY_ID, mapper, id.value());
     }
 }

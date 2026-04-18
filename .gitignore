@@ -1,84 +1,58 @@
-# --- JAVA & COMPILATION ---
+# --- Build & Compilation ---
+target/
+**/target/
 *.class
 *.jar
 *.war
 *.ear
-*.zip
-*.tar.gz
-*.rar
-
-# Build output directories
 bin/
 build/
 out/
-target/
 
-# --- INTELLIJ IDEA ---
+# --- IDEs & Editors ---
 .idea/
 *.iml
 *.iws
 *.ipr
-cmake-build-*/
-
-# --- CROSS-IDE COMPATIBILITY ---
-# VS Code
 .vscode/
 *.code-workspace
-# Eclipse
 .settings/
 .classpath
 .project
+.factorypath
 
-# --- OPERATING SYSTEM ---
+# --- AI & Tooling Metadata (Nuclear Clean) ---
+CLAUDE.md
+.claudeignore
+.anthropic/
+.cursor/
+
+# --- OS & Temporary Files ---
 .DS_Store
 ._*
 Thumbs.db
 desktop.ini
-
-# --- VIRTUAL MACHINE CRASH LOGS ---
-hs_err_pid*
-replay_pid*
-hsperfdata_*
-
-# --- EDITOR TEMPORARY FILES ---
-*.swp
 *~
+*.tmp
+*.bak
+*.swp
 .scratch
 
-# --- SECURITY & SECRETS ---
-# Environment variables
-.env
-.env.local
-
-# Local configuration files
+# --- Security, Secrets & Local Config ---
 **/src/main/resources/application-local.properties
 **/src/main/resources/application-local.yml
+.env
+.env.local
 config/local.properties
 
-# --- DATABASE STATE & LOGS ---
-# Database migration tools state and general application logs
+# --- Local Data, Logs & Backups ---
+docs/backups/
+logs/
+*.log
 .database/
 *.sql.log
-*.log
-logs/
 
-# --- TESTING & COVERAGE ---
-# Test coverage reports and binaries
+# --- Testing & Coverage ---
 *.exec
 coverage/
 jacoco.exec
-
-# --- DATA LEAK PREVENTION ---
-# Prevent accidental upload of heavy database dumps
-*.bak
-*.dump
-*.sqlite
-
-# --- MAVEN ---
-dependency-reduced-pom.xml
-.mvn/timing.properties
-.mvn/wrapper/maven-wrapper.jar
-
-CLAUDE.md
-.claudeignore
-.claude/

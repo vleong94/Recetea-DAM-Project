@@ -2,6 +2,7 @@ package com.recetea.infrastructure.persistence.recipe.jdbc.repositories;
 
 import com.recetea.core.recipe.application.ports.out.category.ICategoryRepository;
 import com.recetea.core.recipe.domain.Category;
+import com.recetea.core.recipe.domain.vo.CategoryId;
 import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import com.recetea.infrastructure.persistence.recipe.jdbc.mappers.CategoryMapper;
 
@@ -24,7 +25,7 @@ public class JdbcCategoryRepository extends BaseJdbcRepository implements ICateg
     }
 
     @Override
-    public Optional<Category> findById(int id) {
-        return queryForObject(SELECT_BY_ID, mapper, id);
+    public Optional<Category> findById(CategoryId id) {
+        return queryForObject(SELECT_BY_ID, mapper, id.value());
     }
 }

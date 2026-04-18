@@ -1,5 +1,6 @@
 package com.recetea.infrastructure.persistence.recipe.jdbc.repositories;
 
+import com.recetea.infrastructure.persistence.recipe.jdbc.InfrastructureException;
 import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import com.recetea.infrastructure.persistence.recipe.jdbc.RowMapper;
 import java.sql.*;
@@ -22,10 +23,9 @@ public abstract class BaseJdbcRepository {
                 while (rs.next()) { results.add(mapper.map(rs)); }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error SQL: " + sql, e);
+            throw new InfrastructureException("Error SQL en queryForList: " + sql, e);
         } finally {
-            closeIfNonTransactional(conn);
+            closeIfNonTransactional(conn, sql);
         }
         return results;
     }
@@ -39,17 +39,20 @@ public abstract class BaseJdbcRepository {
                 if (rs.next()) { return Optional.of(mapper.map(rs)); }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error SQL: " + sql, e);
+            throw new InfrastructureException("Error SQL en queryForObject: " + sql, e);
         } finally {
-            closeIfNonTransactional(conn);
+            closeIfNonTransactional(conn, sql);
         }
         return Optional.empty();
     }
 
-    protected void closeIfNonTransactional(Connection conn) {
+    protected void closeIfNonTransactional(Connection conn, String context) {
         if (conn != null && !transactionManager.isTransactional()) {
-            try { conn.close(); } catch (SQLException ignored) {}
+            try {
+                conn.close();
+            } catch (SQLException e) {
+                System.err.println("[BaseJdbcRepository] Fallo al cerrar conexión no transaccional. Contexto: " + context + " — " + e.getMessage());
+            }
         }
     }
 

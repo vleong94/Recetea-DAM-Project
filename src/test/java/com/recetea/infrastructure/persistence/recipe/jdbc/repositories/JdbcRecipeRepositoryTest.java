@@ -1,5 +1,6 @@
 package com.recetea.infrastructure.persistence.recipe.jdbc.repositories;
 
+import com.recetea.core.recipe.application.ports.in.dto.RecipeSummaryResponse;
 import com.recetea.core.recipe.domain.Category;
 import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Recipe;
@@ -36,6 +37,8 @@ class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
     private void seedReferenceData() throws SQLException {
         try (Connection conn = dataSource.getConnection(); Statement st = conn.createStatement()) {
             st.execute("INSERT INTO users (id_user, username, email, password_hash) OVERRIDING SYSTEM VALUE VALUES (1, 'test', 'test@test.com', 'hash')");
+            st.execute("INSERT INTO users (id_user, username, email, password_hash) OVERRIDING SYSTEM VALUE VALUES (2, 'voter1', 'voter1@test.com', 'hash')");
+            st.execute("INSERT INTO users (id_user, username, email, password_hash) OVERRIDING SYSTEM VALUE VALUES (3, 'voter2', 'voter2@test.com', 'hash')");
             st.execute("INSERT INTO categories (id_category, name) OVERRIDING SYSTEM VALUE VALUES (1, 'TestCat')");
             st.execute("INSERT INTO difficulties (id_difficulty, level_name) OVERRIDING SYSTEM VALUE VALUES (1, 'Easy')");
             st.execute("INSERT INTO ingredient_categories (id_ing_category, name) OVERRIDING SYSTEM VALUE VALUES (1, 'TestIngCat')");
@@ -85,7 +88,7 @@ class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
         transactionManager.execute(() -> repository.save(recipe));
         int id = recipe.getId().value();
 
-        transactionManager.execute(() -> repository.delete(id));
+        transactionManager.execute(() -> repository.delete(recipe.getId()));
 
         assertEquals(0, queryCount("SELECT count(*) FROM recipes WHERE id_recipe = " + id));
         assertEquals(0, queryCount("SELECT count(*) FROM recipe_ingredients WHERE recipe_id = " + id));
@@ -97,9 +100,9 @@ class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
     void testSmartDiffingLogic() {
         Recipe recipe = buildRecipe();
         recipe.syncIngredients(List.of(
-                new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.valueOf(100)), // unchanged
-                new RecipeIngredient(new IngredientId(2), new UnitId(1), BigDecimal.valueOf(200)), // to be modified
-                new RecipeIngredient(new IngredientId(3), new UnitId(1), BigDecimal.valueOf(300))  // to be deleted
+                new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.valueOf(100)),
+                new RecipeIngredient(new IngredientId(2), new UnitId(1), BigDecimal.valueOf(200)),
+                new RecipeIngredient(new IngredientId(3), new UnitId(1), BigDecimal.valueOf(300))
         ));
         recipe.syncSteps(List.of(new RecipeStep(1, "Paso inicial")));
         transactionManager.execute(() -> repository.save(recipe));
@@ -107,9 +110,9 @@ class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
         int recipeId = recipe.getId().value();
 
         recipe.syncIngredients(List.of(
-                new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.valueOf(100)), // unchanged
-                new RecipeIngredient(new IngredientId(2), new UnitId(1), BigDecimal.valueOf(250)), // modified qty
-                new RecipeIngredient(new IngredientId(4), new UnitId(1), BigDecimal.valueOf(400))  // new
+                new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.valueOf(100)),
+                new RecipeIngredient(new IngredientId(2), new UnitId(1), BigDecimal.valueOf(250)),
+                new RecipeIngredient(new IngredientId(4), new UnitId(1), BigDecimal.valueOf(400))
         ));
         transactionManager.execute(() -> repository.update(recipe));
 
@@ -117,6 +120,65 @@ class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
         assertEquals(BigDecimal.valueOf(250).setScale(2), queryQuantity(recipeId, 2), "Ingrediente 2 actualizado");
         assertNull(queryQuantity(recipeId, 3), "Ingrediente 3 eliminado");
         assertEquals(BigDecimal.valueOf(400).setScale(2), queryQuantity(recipeId, 4), "Ingrediente 4 nuevo");
+    }
+
+    @Test
+    @DisplayName("findById debe hidratar la lista de valoraciones del agregado")
+    void findById_ShouldHydrateRatingsList() {
+        Recipe recipe = buildRecipe();
+        recipe.syncIngredients(List.of(new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.ONE)));
+        recipe.syncSteps(List.of(new RecipeStep(1, "Paso 1")));
+        transactionManager.execute(() -> repository.save(recipe));
+        RecipeId recipeId = recipe.getId();
+
+        seedRating(new UserId(2), recipeId, 4);
+        seedRating(new UserId(3), recipeId, 5);
+
+        Recipe loaded = repository.findById(recipeId).orElseThrow();
+
+        assertEquals(2, loaded.getRatings().size(), "Debe hidratar exactamente 2 valoraciones");
+        assertTrue(loaded.getRatings().stream()
+                .anyMatch(r -> r.getUserId().equals(new UserId(2)) && r.getScore().value() == 4));
+        assertTrue(loaded.getRatings().stream()
+                .anyMatch(r -> r.getUserId().equals(new UserId(3)) && r.getScore().value() == 5));
+    }
+
+    @Test
+    @DisplayName("findAllSummaries debe calcular AVG y COUNT de valoraciones correctamente")
+    void findAllSummaries_ShouldCalculateAggregations() {
+        Recipe recipeA = buildRecipe();
+        recipeA.syncIngredients(List.of(new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.ONE)));
+        recipeA.syncSteps(List.of(new RecipeStep(1, "Paso A")));
+        transactionManager.execute(() -> repository.save(recipeA));
+        seedRating(new UserId(2), recipeA.getId(), 4);
+        seedRating(new UserId(3), recipeA.getId(), 5);
+
+        Recipe recipeB = buildRecipe();
+        recipeB.syncIngredients(List.of(new RecipeIngredient(new IngredientId(2), new UnitId(1), BigDecimal.ONE)));
+        recipeB.syncSteps(List.of(new RecipeStep(1, "Paso B")));
+        transactionManager.execute(() -> repository.save(recipeB));
+
+        List<RecipeSummaryResponse> summaries = repository.findAllSummaries();
+
+        RecipeSummaryResponse summaryA = summaries.stream()
+                .filter(s -> s.id().equals(recipeA.getId())).findFirst().orElseThrow();
+        RecipeSummaryResponse summaryB = summaries.stream()
+                .filter(s -> s.id().equals(recipeB.getId())).findFirst().orElseThrow();
+
+        assertEquals(0, new BigDecimal("4.5").compareTo(summaryA.averageScore()), "AVG de receta A debe ser 4.5");
+        assertEquals(2, summaryA.totalRatings(), "COUNT de receta A debe ser 2");
+        assertEquals(0, BigDecimal.ZERO.compareTo(summaryB.averageScore()), "AVG de receta B debe ser 0.0 (COALESCE)");
+        assertEquals(0, summaryB.totalRatings(), "COUNT de receta B debe ser 0");
+    }
+
+    private void seedRating(UserId userId, RecipeId recipeId, int score) {
+        String sql = "INSERT INTO ratings (user_id, recipe_id, score, comment, created_at) VALUES (" +
+                userId.value() + ", " + recipeId.value() + ", " + score + ", 'Test comment', NOW())";
+        try (Connection conn = dataSource.getConnection(); Statement st = conn.createStatement()) {
+            st.execute(sql);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private int queryCount(String sql) {

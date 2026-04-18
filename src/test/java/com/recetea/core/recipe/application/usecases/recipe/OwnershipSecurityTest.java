@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,6 +45,7 @@ class OwnershipSecurityTest {
     private Recipe ownerRecipe;
     private static final UserId OWNER = new UserId(1);
     private static final UserId INTRUDER = new UserId(2);
+    private static final RecipeId RECIPE_ID = new RecipeId(10);
 
     @BeforeEach
     void setUp() {
@@ -59,7 +61,7 @@ class OwnershipSecurityTest {
                 new Difficulty(new DifficultyId(1), "Fácil"),
                 "Receta del Propietario", "Descripción",
                 new PreparationTime(20), new Servings(2));
-        ownerRecipe.setId(new RecipeId(10));
+        ownerRecipe.setId(RECIPE_ID);
 
         doAnswer(inv -> { ((Runnable) inv.getArgument(0)).run(); return null; })
                 .when(transactionManager).execute(any(Runnable.class));
@@ -69,14 +71,20 @@ class OwnershipSecurityTest {
     @DisplayName("create: la receta se asigna al usuario de la sesión activa, no al payload")
     void create_assignsAuthorFromSession() {
         when(sessionService.getCurrentUserId()).thenReturn(OWNER);
-        when(categoryRepository.findById(1)).thenReturn(Optional.of(new Category(new CategoryId(1), "Entrantes")));
-        when(difficultyRepository.findById(1)).thenReturn(Optional.of(new Difficulty(new DifficultyId(1), "Fácil")));
+        when(categoryRepository.findById(new CategoryId(1)))
+                .thenReturn(Optional.of(new Category(new CategoryId(1), "Entrantes")));
+        when(difficultyRepository.findById(new DifficultyId(1)))
+                .thenReturn(Optional.of(new Difficulty(new DifficultyId(1), "Fácil")));
         when(transactionManager.execute(any(java.util.function.Supplier.class)))
                 .thenAnswer(inv -> inv.getArgument(0, java.util.function.Supplier.class).get());
         doAnswer(inv -> { ((Recipe) inv.getArgument(0)).setId(new RecipeId(99)); return null; })
                 .when(recipeRepository).save(any(Recipe.class));
 
-        SaveRecipeRequest request = new SaveRecipeRequest(1, 1, "Nueva Receta", "Desc", 20, 2, List.of(), List.of());
+        SaveRecipeRequest request = new SaveRecipeRequest(
+                new CategoryId(1), new DifficultyId(1), "Nueva Receta", "Desc", 20, 2,
+                List.of(new SaveRecipeRequest.IngredientRequest(
+                        new IngredientId(1), new UnitId(1), BigDecimal.ONE, "Sal", "g")),
+                List.of(new SaveRecipeRequest.StepRequest(1, "Paso de prueba")));
 
         createUseCase.execute(request);
 
@@ -88,48 +96,58 @@ class OwnershipSecurityTest {
     @Test
     @DisplayName("update: el propietario puede modificar su propia receta")
     void update_allowsOwner() {
-        when(recipeRepository.findById(10)).thenReturn(Optional.of(ownerRecipe));
+        when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(ownerRecipe));
         when(sessionService.getCurrentUserId()).thenReturn(OWNER);
-        when(categoryRepository.findById(1)).thenReturn(Optional.of(new Category(new CategoryId(1), "Entrantes")));
-        when(difficultyRepository.findById(1)).thenReturn(Optional.of(new Difficulty(new DifficultyId(1), "Fácil")));
+        when(categoryRepository.findById(new CategoryId(1)))
+                .thenReturn(Optional.of(new Category(new CategoryId(1), "Entrantes")));
+        when(difficultyRepository.findById(new DifficultyId(1)))
+                .thenReturn(Optional.of(new Difficulty(new DifficultyId(1), "Fácil")));
 
-        SaveRecipeRequest request = new SaveRecipeRequest(1, 1, "Título Actualizado", "Desc", 30, 2, List.of(), List.of());
+        SaveRecipeRequest request = new SaveRecipeRequest(
+                new CategoryId(1), new DifficultyId(1), "Título Actualizado", "Desc", 30, 2,
+                List.of(new SaveRecipeRequest.IngredientRequest(
+                        new IngredientId(1), new UnitId(1), BigDecimal.ONE, "Sal", "g")),
+                List.of(new SaveRecipeRequest.StepRequest(1, "Paso de prueba")));
 
-        assertDoesNotThrow(() -> updateUseCase.execute(10, request));
+        assertDoesNotThrow(() -> updateUseCase.execute(RECIPE_ID, request));
         verify(recipeRepository).update(ownerRecipe);
     }
 
     @Test
     @DisplayName("update: un usuario ajeno lanza UnauthorizedRecipeAccessException")
     void update_rejectsIntruder() {
-        when(recipeRepository.findById(10)).thenReturn(Optional.of(ownerRecipe));
+        when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(ownerRecipe));
         when(sessionService.getCurrentUserId()).thenReturn(INTRUDER);
 
-        SaveRecipeRequest request = new SaveRecipeRequest(1, 1, "Título", "Desc", 30, 2, List.of(), List.of());
+        SaveRecipeRequest request = new SaveRecipeRequest(
+                new CategoryId(1), new DifficultyId(1), "Título", "Desc", 30, 2,
+                List.of(new SaveRecipeRequest.IngredientRequest(
+                        new IngredientId(1), new UnitId(1), BigDecimal.ONE, "Sal", "g")),
+                List.of(new SaveRecipeRequest.StepRequest(1, "Paso de prueba")));
 
         assertThrows(UnauthorizedRecipeAccessException.class,
-                () -> updateUseCase.execute(10, request));
+                () -> updateUseCase.execute(RECIPE_ID, request));
         verify(recipeRepository, never()).update(any());
     }
 
     @Test
     @DisplayName("delete: el propietario puede eliminar su propia receta")
     void delete_allowsOwner() {
-        when(recipeRepository.findById(10)).thenReturn(Optional.of(ownerRecipe));
+        when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(ownerRecipe));
         when(sessionService.getCurrentUserId()).thenReturn(OWNER);
 
-        assertDoesNotThrow(() -> deleteUseCase.execute(10));
-        verify(recipeRepository).delete(10);
+        assertDoesNotThrow(() -> deleteUseCase.execute(RECIPE_ID));
+        verify(recipeRepository).delete(RECIPE_ID);
     }
 
     @Test
     @DisplayName("delete: un usuario ajeno lanza UnauthorizedRecipeAccessException")
     void delete_rejectsIntruder() {
-        when(recipeRepository.findById(10)).thenReturn(Optional.of(ownerRecipe));
+        when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(ownerRecipe));
         when(sessionService.getCurrentUserId()).thenReturn(INTRUDER);
 
         assertThrows(UnauthorizedRecipeAccessException.class,
-                () -> deleteUseCase.execute(10));
-        verify(recipeRepository, never()).delete(anyInt());
+                () -> deleteUseCase.execute(RECIPE_ID));
+        verify(recipeRepository, never()).delete(any(RecipeId.class));
     }
 }

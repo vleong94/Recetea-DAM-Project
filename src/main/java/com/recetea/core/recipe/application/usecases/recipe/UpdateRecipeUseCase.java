@@ -10,11 +10,10 @@ import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
 import com.recetea.core.recipe.domain.RecipeStep;
-import com.recetea.core.recipe.domain.vo.IngredientId;
-import com.recetea.core.recipe.domain.vo.PreparationTime;
-import com.recetea.core.recipe.domain.vo.Servings;
 import com.recetea.core.recipe.domain.UnauthorizedRecipeAccessException;
-import com.recetea.core.recipe.domain.vo.UnitId;
+import com.recetea.core.recipe.domain.vo.PreparationTime;
+import com.recetea.core.recipe.domain.vo.RecipeId;
+import com.recetea.core.recipe.domain.vo.Servings;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
 import com.recetea.core.user.domain.UserId;
@@ -40,10 +39,10 @@ public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
     }
 
     @Override
-    public void execute(int recipeId, SaveRecipeRequest request) {
+    public void execute(RecipeId recipeId, SaveRecipeRequest request) {
         transactionManager.execute(() -> {
             Recipe recipe = recipeRepository.findById(recipeId)
-                    .orElseThrow(() -> new IllegalArgumentException("Receta no encontrada con ID: " + recipeId));
+                    .orElseThrow(() -> new IllegalArgumentException("Receta no encontrada con ID: " + recipeId.value()));
 
             UserId currentUser = sessionService.getCurrentUserId();
             if (!recipe.getAuthorId().equals(currentUser)) {
@@ -65,8 +64,8 @@ public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
 
             recipe.syncIngredients(request.ingredients().stream()
                     .map(ir -> new RecipeIngredient(
-                            new IngredientId(ir.ingredientId()),
-                            new UnitId(ir.unitId()),
+                            ir.ingredientId(),
+                            ir.unitId(),
                             ir.quantity(),
                             ir.ingredientName(),
                             ir.unitName()))

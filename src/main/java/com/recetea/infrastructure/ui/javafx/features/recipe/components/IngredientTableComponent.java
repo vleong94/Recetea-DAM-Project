@@ -150,11 +150,11 @@ public class IngredientTableComponent extends VBox {
         IngredientRequest selected = ingredientsTable.getSelectionModel().getSelectedItem();
         if (selected != null) {
             ingredientComboBox.getItems().stream()
-                    .filter(i -> i.id() == selected.ingredientId())
+                    .filter(i -> i.id().equals(selected.ingredientId()))
                     .findFirst().ifPresent(ingredientComboBox::setValue);
 
             unitComboBox.getItems().stream()
-                    .filter(u -> u.id() == selected.unitId())
+                    .filter(u -> u.id().equals(selected.unitId()))
                     .findFirst().ifPresent(unitComboBox::setValue);
 
             quantityField.setText(selected.quantity().toPlainString());

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,6 +47,61 @@ class RecipeTest {
         ));
 
         assertEquals(1, recipe.getIngredients().size());
+    }
+
+    @Test
+    @DisplayName("Debe rechazar lista de ingredientes nula")
+    void shouldRejectNullIngredients() {
+        Recipe recipe = createBaseRecipe();
+        assertThrows(Recipe.RecipeValidationException.class, () -> recipe.syncIngredients(null));
+    }
+
+    @Test
+    @DisplayName("Debe rechazar lista de ingredientes vacía")
+    void shouldRejectEmptyIngredients() {
+        Recipe recipe = createBaseRecipe();
+        assertThrows(Recipe.RecipeValidationException.class, () -> recipe.syncIngredients(Collections.emptyList()));
+    }
+
+    @Test
+    @DisplayName("Debe rechazar lista de pasos nula")
+    void shouldRejectNullSteps() {
+        Recipe recipe = createBaseRecipe();
+        assertThrows(Recipe.RecipeValidationException.class, () -> recipe.syncSteps(null));
+    }
+
+    @Test
+    @DisplayName("Debe rechazar lista de pasos vacía")
+    void shouldRejectEmptySteps() {
+        Recipe recipe = createBaseRecipe();
+        assertThrows(Recipe.RecipeValidationException.class, () -> recipe.syncSteps(Collections.emptyList()));
+    }
+
+    @Test
+    @DisplayName("Debe prohibir que el autor valore su propia receta")
+    void shouldRejectSelfRating() {
+        Recipe recipe = createBaseRecipe();
+        UserId authorId = new UserId(1);
+        assertThrows(Recipe.RecipeValidationException.class,
+                () -> recipe.addRating(authorId, new Score(5), "Excelente"));
+    }
+
+    @Test
+    @DisplayName("Debe permitir que otro usuario valore la receta")
+    void shouldAllowRatingFromOtherUser() {
+        Recipe recipe = createBaseRecipe();
+        recipe.addRating(new UserId(2), new Score(4), "Muy buena");
+        assertEquals(1, recipe.getRatings().size());
+    }
+
+    @Test
+    @DisplayName("Debe rechazar una segunda valoración del mismo usuario")
+    void shouldRejectDuplicateRatingFromSameUser() {
+        Recipe recipe = createBaseRecipe();
+        UserId voter = new UserId(2);
+        recipe.addRating(voter, new Score(4), "Muy buena");
+        assertThrows(Recipe.RecipeValidationException.class,
+                () -> recipe.addRating(voter, new Score(3), "Intentando de nuevo"));
     }
 
     @Test

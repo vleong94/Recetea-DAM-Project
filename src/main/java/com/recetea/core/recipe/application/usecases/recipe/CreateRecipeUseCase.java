@@ -10,10 +10,9 @@ import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
 import com.recetea.core.recipe.domain.RecipeStep;
-import com.recetea.core.recipe.domain.vo.IngredientId;
 import com.recetea.core.recipe.domain.vo.PreparationTime;
+import com.recetea.core.recipe.domain.vo.RecipeId;
 import com.recetea.core.recipe.domain.vo.Servings;
-import com.recetea.core.recipe.domain.vo.UnitId;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
 
@@ -38,7 +37,7 @@ public class CreateRecipeUseCase implements ICreateRecipeUseCase {
     }
 
     @Override
-    public int execute(SaveRecipeRequest request) {
+    public RecipeId execute(SaveRecipeRequest request) {
         return transactionManager.execute(() -> {
             Category category = categoryRepository.findById(request.categoryId())
                     .orElseThrow(() -> new IllegalArgumentException("Categoría inválida."));
@@ -57,8 +56,8 @@ public class CreateRecipeUseCase implements ICreateRecipeUseCase {
 
             recipe.syncIngredients(request.ingredients().stream()
                     .map(ir -> new RecipeIngredient(
-                            new IngredientId(ir.ingredientId()),
-                            new UnitId(ir.unitId()),
+                            ir.ingredientId(),
+                            ir.unitId(),
                             ir.quantity(),
                             ir.ingredientName(),
                             ir.unitName()))
@@ -69,7 +68,7 @@ public class CreateRecipeUseCase implements ICreateRecipeUseCase {
                     .toList());
 
             recipeRepository.save(recipe);
-            return recipe.getId().value();
+            return recipe.getId();
         });
     }
 }

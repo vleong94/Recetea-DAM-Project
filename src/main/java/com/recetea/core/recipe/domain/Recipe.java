@@ -2,9 +2,11 @@ package com.recetea.core.recipe.domain;
 
 import com.recetea.core.recipe.domain.vo.PreparationTime;
 import com.recetea.core.recipe.domain.vo.RecipeId;
+import com.recetea.core.recipe.domain.vo.Score;
 import com.recetea.core.recipe.domain.vo.Servings;
 import com.recetea.core.user.domain.UserId;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -23,6 +25,7 @@ public class Recipe {
 
     private final List<RecipeIngredient> ingredients = new ArrayList<>();
     private final List<RecipeStep> steps = new ArrayList<>();
+    private final List<Rating> ratings = new ArrayList<>();
 
     public Recipe(UserId authorId, Category category, Difficulty difficulty,
                   String title, String description, PreparationTime preparationTimeMinutes, Servings servings) {
@@ -44,15 +47,16 @@ public class Recipe {
     public void setId(RecipeId id) { this.id = id; }
 
     public void syncIngredients(List<RecipeIngredient> newIngredients) {
+        if (newIngredients == null || newIngredients.isEmpty())
+            throw new RecipeValidationException("La receta debe tener al menos un ingrediente.");
         this.ingredients.clear();
-        if (newIngredients != null) {
-            newIngredients.stream().filter(i -> i != null).forEach(this.ingredients::add);
-        }
+        newIngredients.stream().filter(i -> i != null).forEach(this.ingredients::add);
     }
 
     public void syncSteps(List<RecipeStep> newSteps) {
+        if (newSteps == null || newSteps.isEmpty())
+            throw new RecipeValidationException("La receta debe tener al menos un paso.");
         this.steps.clear();
-        if (newSteps == null) return;
         for (RecipeStep step : newSteps) {
             if (step == null) continue;
             boolean duplicateOrder = steps.stream().anyMatch(s -> s.stepOrder() == step.stepOrder());
@@ -62,12 +66,29 @@ public class Recipe {
         this.steps.sort(Comparator.comparingInt(RecipeStep::stepOrder));
     }
 
+    public void hydrateRating(Rating rating) {
+        this.ratings.add(rating);
+    }
+
+    public void addRating(UserId voterId, Score score, String comment) {
+        if (voterId.equals(this.authorId))
+            throw new RecipeValidationException("El autor no puede valorar su propia receta.");
+        boolean alreadyRated = ratings.stream().anyMatch(r -> r.getUserId().equals(voterId));
+        if (alreadyRated)
+            throw new RecipeValidationException("El usuario ya ha valorado esta receta.");
+        ratings.add(new Rating(voterId, score, comment, LocalDateTime.now()));
+    }
+
     public List<RecipeIngredient> getIngredients() {
         return Collections.unmodifiableList(ingredients);
     }
 
     public List<RecipeStep> getSteps() {
         return Collections.unmodifiableList(steps);
+    }
+
+    public List<Rating> getRatings() {
+        return Collections.unmodifiableList(ratings);
     }
 
     public RecipeId getId() { return id; }

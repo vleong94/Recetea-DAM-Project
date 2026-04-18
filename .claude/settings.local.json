@@ -28,7 +28,13 @@
       "Bash(\"/c/Program Files/apache-maven-3.9.9/bin/mvn\" -f \"C:/DAM/1st/Intermodular/pom.xml\" clean compile test)",
       "Bash(\"/c/Program Files/JetBrains/IntelliJ IDEA 2025.3.1.1/plugins/maven/lib/maven3/bin/mvn\" -f \"C:/DAM/1st/Intermodular/pom.xml\" clean compile test)",
       "Bash(JAVA_HOME=\"/c/Users/vleon/.jdks/corretto-24.0.2\" \"/c/Program Files/JetBrains/IntelliJ IDEA 2025.3.1.1/plugins/maven/lib/maven3/bin/mvn\" -f \"C:/DAM/1st/Intermodular/pom.xml\" clean compile test)",
-      "Bash(JAVA_HOME=/c/Users/vleon/.jdks/corretto-24.0.2 \"/c/Program Files/JetBrains/IntelliJ IDEA 2025.3.1.1/plugins/maven/lib/maven3/bin/mvn\" clean compile test)"
+      "Bash(JAVA_HOME=/c/Users/vleon/.jdks/corretto-24.0.2 \"/c/Program Files/JetBrains/IntelliJ IDEA 2025.3.1.1/plugins/maven/lib/maven3/bin/mvn\" clean compile test)",
+      "Bash(JAVA_HOME=/c/Users/vleon/.jdks/corretto-24.0.2 mvn clean test -q)",
+      "Bash(JAVA_HOME=/c/Users/vleon/.jdks/corretto-24.0.2 /c/Users/vleon/AppData/Roaming/JetBrains/IntelliJIdea2025.3/plugins/maven/lib/maven3/bin/mvn clean test -q)",
+      "Bash(JAVA_HOME=/c/Users/vleon/.jdks/corretto-24.0.2 /c/Users/vleon/AppData/Roaming/JetBrains/IntelliJIdea2025.3/plugins/maven/lib/maven3/bin/mvn clean test)",
+      "Bash(.\\\\mvnw clean *)",
+      "Bash(export JAVA_HOME=\"/c/Program Files/Java/jdk-24\")",
+      "Bash(java -version)"
     ]
   }
 }

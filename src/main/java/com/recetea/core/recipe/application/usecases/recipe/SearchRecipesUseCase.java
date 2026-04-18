@@ -17,14 +17,6 @@ public class SearchRecipesUseCase implements ISearchRecipesUseCase {
 
     @Override
     public List<RecipeSummaryResponse> execute(SearchCriteria criteria) {
-        return recipeRepository.search(criteria).stream()
-                .map(r -> new RecipeSummaryResponse(
-                        r.getId().value(),
-                        r.getTitle(),
-                        r.getCategory().getName(),
-                        r.getDifficulty().getName(),
-                        r.getPreparationTimeMinutes().value(),
-                        r.getServings().value()))
-                .toList();
+        return recipeRepository.searchSummaries(criteria);
     }
 }
