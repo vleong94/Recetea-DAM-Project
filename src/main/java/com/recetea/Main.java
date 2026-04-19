@@ -48,6 +48,7 @@ public class Main extends Application {
 
         // Ensamblaje del RecipeContext inyectando los casos de uso y servicios compartidos
         RecipeContext context = new RecipeContext(
+                new AddRatingUseCase(recipeRepository, transactionManager, sessionService),
                 new CreateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager, sessionService),
                 new GetAllRecipesUseCase(recipeRepository),
                 new GetRecipeByIdUseCase(recipeRepository),

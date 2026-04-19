@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.VBox?>
+
+<fx:root type="VBox" spacing="8.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+    <padding>
+        <Insets top="10.0" right="0.0" bottom="0.0" left="0.0" />
+    </padding>
+
+    <Label text="Valorar esta receta" styleClass="section-header" />
+
+    <Label text="Puntuación (1-5):" styleClass="field-label" />
+    <ComboBox fx:id="scoreComboBox" promptText="Selecciona una puntuación" maxWidth="200.0" />
+
+    <Label text="Comentario (opcional):" styleClass="field-label" />
+    <TextArea fx:id="commentArea" promptText="Escribe tu opinión..." prefHeight="80.0" wrapText="true" />
+
+    <Button fx:id="submitButton" text="Enviar Valoración" styleClass="primary-button" onAction="#onSubmit" />
+</fx:root>

@@ -16,7 +16,10 @@ public class Rating {
     public Rating(UserId userId, Score score, String comment, LocalDateTime createdAt) {
         this.userId = Objects.requireNonNull(userId, "userId es obligatorio.");
         this.score = Objects.requireNonNull(score, "score es obligatorio.");
-        this.comment = Objects.requireNonNull(comment, "comment es obligatorio.");
+        Objects.requireNonNull(comment, "comment es obligatorio.");
+        if (comment.length() > 1000)
+            throw new IllegalArgumentException("El comentario no puede superar los 1000 caracteres.");
+        this.comment = comment;
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt es obligatorio.");
     }
 

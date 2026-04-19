@@ -9,12 +9,14 @@
 -- 1. LISTADO MAESTRO (JOIN múltiple)
 -- Ideal para la pantalla principal de la App.
 SELECT
-    r.id_recipe AS "ID",
-    r.title AS "Título",
-    u.username AS "Autor",
-    c.name AS "Categoría",
-    d.level_name AS "Dificultad",
-    r.prep_time_min AS "Tiempo (min)"
+    r.id_recipe        AS "ID",
+    r.title            AS "Título",
+    u.username         AS "Autor",
+    c.name             AS "Categoría",
+    d.level_name       AS "Dificultad",
+    r.prep_time_min    AS "Tiempo (min)",
+    r.average_score    AS "Puntuación Media",
+    r.total_ratings    AS "Total Votos"
 FROM "recipes" r
          JOIN "users" u ON r.user_id = u.id_user
          JOIN "categories" c ON r.category_id = c.id_category
@@ -40,16 +42,14 @@ FROM "recipe_ingredients" ri
          JOIN "unit_measures" um ON ri.unit_id = um.id_unit
 WHERE ri.recipe_id = 2;
 
--- 4. RANKING SOCIAL CON MANEJO DE NULOS (LEFT JOIN)
--- [MEJORA CLAVE]: Muestra TODAS las recetas. Si no tienen votos, devuelve 0 usando COALESCE.
+-- 4. RANKING SOCIAL (Lectura directa de columnas denormalizadas)
+-- [OPTIMIZED]: Now O(1) regarding aggregations. Uses denormalized metrics updated during write operations.
 SELECT
-    r.title AS "Receta",
-    COALESCE(ROUND(AVG(ra.score), 1), 0.0) AS "Puntuación Media",
-    COUNT(ra.id_rating) AS "Total Votos"
-FROM "recipes" r
-         LEFT JOIN "ratings" ra ON r.id_recipe = ra.recipe_id
-GROUP BY r.id_recipe, r.title
-ORDER BY "Puntuación Media" DESC;
+    title AS "Receta",
+    average_score AS "Puntuación Media",
+    total_ratings AS "Total Votos"
+FROM "recipes"
+ORDER BY average_score DESC;
 
 -- 5. ESTADÍSTICAS PARA DASHBOARD (Agrupación por Entidad Fuerte)
 -- ¿Cuántas recetas tenemos publicadas en cada categoría?

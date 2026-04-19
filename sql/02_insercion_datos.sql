@@ -51,7 +51,9 @@ INSERT INTO "recipes" ("user_id", "category_id", "difficulty_id", "title", "desc
 
 INSERT INTO "steps" ("recipe_id", "step_order", "instruction") VALUES
 (1, 1, 'Precalentar el horno a 200°C.'), (1, 2, 'Mezclar el queso crema con el azúcar hasta que esté suave.'), (1, 3, 'Añadir los huevos uno a uno mientras se bate.'),
-(2, 1, 'Sellar la carne con aceite de oliva.'), (2, 2, 'Picar la cebolla y el ajo y pochar a fuego lento.'), (2, 3, 'Añadir la carne, cubrir con agua y dejar cocer 3 horas.');
+(2, 1, 'Sellar la carne con aceite de oliva.'), (2, 2, 'Picar la cebolla y el ajo y pochar a fuego lento.'), (2, 3, 'Añadir la carne, cubrir con agua y dejar cocer 3 horas.'),
+(3, 1, 'Lavar la lechuga.'), (3, 2, 'Poner en un bol.'),
+(4, 1, 'Verter leche en vaso.'), (4, 2, 'Calentar 1 minuto.');
 
 INSERT INTO "recipe_media" ("recipe_id", "url", "is_main", "sort_order") VALUES
 (1, 'assets/img/tarta_queso_final.jpg', TRUE, 1), (1, 'assets/img/tarta_queso_horno.jpg', FALSE, 2);
@@ -72,6 +74,16 @@ INSERT INTO "ratings" ("user_id", "recipe_id", "score", "comment") VALUES
 (2, 1, 5, 'Espectacular, muy cremosa.'), (3, 1, 4, 'Rica, pero prefiero menos dulce.'), (4, 1, 5, 'Técnica impecable para ser express.'),
 (1, 2, 5, 'Me recuerda a mi abuela.'), (3, 2, 5, 'La carne se deshace.'),
 (1, 3, 1, 'Esto no es una receta, es un insulto.'), (4, 3, 2, 'Le falta aliño y dignidad.');
+
+-- ----------------------------------------------------------
+-- 6. SINCRONIZACIÓN DE MÉTRICAS DENORMALIZADAS
+-- Recalcula average_score y total_ratings a partir de los
+-- ratings insertados, garantizando consistencia inicial.
+-- ----------------------------------------------------------
+UPDATE "recipes" r
+SET
+    total_ratings = (SELECT COUNT(*)                        FROM "ratings" WHERE recipe_id = r.id_recipe),
+    average_score = COALESCE((SELECT ROUND(AVG(score), 2)  FROM "ratings" WHERE recipe_id = r.id_recipe), 0);
 
 COMMIT;
 

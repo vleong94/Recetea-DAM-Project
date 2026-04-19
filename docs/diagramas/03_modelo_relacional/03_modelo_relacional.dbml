@@ -5,7 +5,16 @@
 
 Project Recetea {
   database_type: 'PostgreSQL'
-  Note: 'Modelo normalizado para gestión de recetas, ingredientes y feedback social.'
+  Note: '''
+    Modelo híbrido para gestión de recetas, ingredientes y feedback social.
+
+    ARQUITECTURA DE MÉTRICAS SOCIALES (Denormalización Estratégica):
+    The system utilizes denormalized social metrics within the "recipes" table
+    (average_score, total_ratings) to guarantee O(1) read performance for
+    high-traffic list views (Dashboard/Search), bypassing expensive real-time
+    aggregations. These columns are refreshed transactionally on every write
+    operation (INSERT/UPDATE on ratings) by the infrastructure layer.
+  '''
 }
 
 // --- IDENTIDAD Y ACCESO ---
@@ -49,6 +58,8 @@ Table recipes {
   description text
   prep_time_min integer [note: 'Constraint: CHECK > 0']
   servings integer [note: 'Clave para escalar cantidades en el código. Constraint: CHECK > 0']
+  average_score decimal [default: 0, note: 'Denormalized for performance']
+  total_ratings integer [default: 0, note: 'Denormalized for performance']
   created_at timestamp [default: `now()`]
 }
 

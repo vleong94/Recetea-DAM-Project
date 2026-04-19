@@ -3,7 +3,9 @@ package com.recetea.infrastructure.ui.javafx.features.recipe.controllers;
 import com.recetea.core.recipe.application.ports.in.dto.RecipeDetailResponse;
 import com.recetea.core.recipe.application.ports.in.dto.RecipeIngredientResponse;
 import com.recetea.core.recipe.domain.vo.RecipeId;
+import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandProvider;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryProvider;
+import com.recetea.infrastructure.ui.javafx.features.recipe.components.RatingComponent;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
@@ -31,11 +33,16 @@ public class RecipeDetailController {
     @FXML private TableColumn<RecipeDetailResponse.RecipeStepResponse, Integer> colStepOrder;
     @FXML private TableColumn<RecipeDetailResponse.RecipeStepResponse, String> colInstruction;
 
-    private RecipeQueryProvider queryProvider;
-    private NavigationService nav;
+    @FXML private RatingComponent ratingComponent;
 
-    public void init(RecipeQueryProvider queryProvider, NavigationService nav) {
+    private RecipeQueryProvider queryProvider;
+    private RecipeCommandProvider commandProvider;
+    private NavigationService nav;
+    private RecipeId currentRecipeId;
+
+    public void init(RecipeQueryProvider queryProvider, RecipeCommandProvider commandProvider, NavigationService nav) {
         this.queryProvider = queryProvider;
+        this.commandProvider = commandProvider;
         this.nav = nav;
 
         colIngredientName.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().ingredientName()));
@@ -46,6 +53,8 @@ public class RecipeDetailController {
     }
 
     public void loadRecipeDetails(RecipeId recipeId) {
+        this.currentRecipeId = recipeId;
+        ratingComponent.setRecipeContext(commandProvider, recipeId, () -> loadRecipeDetails(currentRecipeId));
         queryProvider.getRecipeById().execute(recipeId).ifPresentOrElse(
                 this::populateView,
                 () -> showError("Error de Consulta", "El sistema no pudo localizar la receta solicitada.")

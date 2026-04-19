@@ -58,6 +58,8 @@ CREATE TABLE "recipes" (
     "description" text,
     "prep_time_min" integer CHECK (prep_time_min > 0),
     "servings" integer CHECK (servings > 0),
+    "average_score" DECIMAL(3,2) DEFAULT 0.00,                        -- Denormalizado: evita AVG() en lectura (Dashboard/Búsqueda)
+    "total_ratings" INTEGER DEFAULT 0 CHECK ("total_ratings" >= 0),   -- Denormalizado: evita COUNT() en lectura (Dashboard/Búsqueda)
     "created_at" timestamp DEFAULT (now())
 );
 

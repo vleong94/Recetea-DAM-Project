@@ -10,6 +10,7 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import com.recetea.infrastructure.ui.javafx.features.recipe.components.RatingComponent?>
 
 <VBox spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeDetailController">
@@ -66,6 +67,10 @@
             <TableColumn fx:id="colInstruction" prefWidth="390.0" text="Instrucción" />
         </columns>
     </TableView>
+
+    <Separator />
+
+    <RatingComponent fx:id="ratingComponent" />
 
     <HBox alignment="CENTER_RIGHT" spacing="10.0">
         <Button text="Volver al Catálogo" styleClass="secondary-button" onAction="#onBackButtonClick" />

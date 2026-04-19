@@ -15,6 +15,7 @@ erDiagram
 
     INGREDIENT_CATEGORIES ||--o{ INGREDIENTS : "agrupa"
 
+    RECIPES ||--o{ RATINGS : "recibe"
     RECIPES ||--o{ RECIPE_TAGS : "etiquetada_con"
     TAGS ||--o{ RECIPE_TAGS : "organiza"
 
@@ -35,6 +36,8 @@ erDiagram
         string description "text"
         int prep_time_min "CHECK > 0"
         int servings "CHECK > 0"
+        decimal average_score "Denormalized"
+        int total_ratings "Denormalized"
         datetime created_at
     }
 

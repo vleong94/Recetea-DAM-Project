@@ -105,6 +105,37 @@ class RecipeTest {
     }
 
     @Test
+    @DisplayName("Debe actualizar las métricas internas al añadir valoraciones")
+    void shouldUpdateInternalMetricsWhenRatingIsAdded() {
+        Recipe recipe = createBaseRecipe();
+
+        recipe.addRating(new UserId(2), new Score(5), "Perfecta");
+        recipe.addRating(new UserId(3), new Score(4), "Muy buena");
+        recipe.addRating(new UserId(4), new Score(3), "Correcta");
+
+        assertEquals(3, recipe.getTotalRatings());
+        assertEquals(0, BigDecimal.valueOf(4.00).setScale(2).compareTo(recipe.getAverageScore()));
+    }
+
+    @Test
+    @DisplayName("Las métricas sociales deben conservarse tras sincronizar los pasos")
+    void shouldMaintainMetricsAfterSyncSteps() {
+        Recipe recipe = createBaseRecipe();
+        recipe.addRating(new UserId(2), new Score(5), "Perfecta");
+
+        BigDecimal scoreBefore = recipe.getAverageScore();
+        int totalBefore = recipe.getTotalRatings();
+
+        recipe.syncSteps(List.of(
+                new RecipeStep(1, "Paso nuevo"),
+                new RecipeStep(2, "Otro paso")
+        ));
+
+        assertEquals(totalBefore, recipe.getTotalRatings());
+        assertEquals(0, scoreBefore.compareTo(recipe.getAverageScore()));
+    }
+
+    @Test
     @DisplayName("Debe lanzar excepción ante métricas de tiempo negativas")
     void shouldValidatePreparationTime() {
         assertThrows(IllegalArgumentException.class, () ->

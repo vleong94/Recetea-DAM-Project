@@ -3,6 +3,7 @@ package com.recetea.infrastructure.ui.javafx.features.recipe;
 import com.recetea.core.recipe.application.ports.in.category.IGetAllCategoriesUseCase;
 import com.recetea.core.recipe.application.ports.in.difficulty.IGetAllDifficultiesUseCase;
 import com.recetea.core.recipe.application.ports.in.ingredient.IGetAllIngredientsUseCase;
+import com.recetea.core.recipe.application.ports.in.recipe.IAddRatingUseCase;
 import com.recetea.core.recipe.application.ports.in.recipe.ICreateRecipeUseCase;
 import com.recetea.core.recipe.application.ports.in.recipe.IDeleteRecipeUseCase;
 import com.recetea.core.recipe.application.ports.in.recipe.IUpdateRecipeUseCase;
@@ -16,6 +17,9 @@ public final class RecipeCommandWrapper implements RecipeCommandProvider {
     public RecipeCommandWrapper(RecipeContext context) {
         this.context = context;
     }
+
+    @Override
+    public IAddRatingUseCase addRating() { return context.addRating(); }
 
     @Override
     public ICreateRecipeUseCase createRecipe() { return context.createRecipe(); }

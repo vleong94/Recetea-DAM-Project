@@ -53,7 +53,7 @@ public class NavigationService {
     public void toRecipeDetail(RecipeId recipeId) {
         loadScene("/com/recetea/infrastructure/ui/javafx/fxml/features/recipe/pages/recipe_detail.fxml", "Detalle de la Receta", loader -> {
             RecipeDetailController controller = loader.getController();
-            controller.init(queryProvider, this);
+            controller.init(queryProvider, commandProvider, this);
             controller.loadRecipeDetails(recipeId);
         });
     }

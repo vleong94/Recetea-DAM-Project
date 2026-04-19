@@ -6,6 +6,8 @@ import com.recetea.core.recipe.domain.vo.Score;
 import com.recetea.core.recipe.domain.vo.Servings;
 import com.recetea.core.user.domain.UserId;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,6 +24,9 @@ public class Recipe {
     private String description;
     private PreparationTime preparationTimeMinutes;
     private Servings servings;
+
+    private BigDecimal averageScore = BigDecimal.ZERO;
+    private int totalRatings = 0;
 
     private final List<RecipeIngredient> ingredients = new ArrayList<>();
     private final List<RecipeStep> steps = new ArrayList<>();
@@ -45,6 +50,10 @@ public class Recipe {
     public void setCategory(Category category) { this.category = category; }
     public void setDifficulty(Difficulty difficulty) { this.difficulty = difficulty; }
     public void setId(RecipeId id) { this.id = id; }
+    public void setSocialMetrics(BigDecimal averageScore, int totalRatings) {
+        this.averageScore = averageScore != null ? averageScore : BigDecimal.ZERO;
+        this.totalRatings = totalRatings;
+    }
 
     public void syncIngredients(List<RecipeIngredient> newIngredients) {
         if (newIngredients == null || newIngredients.isEmpty())
@@ -77,6 +86,17 @@ public class Recipe {
         if (alreadyRated)
             throw new RecipeValidationException("El usuario ya ha valorado esta receta.");
         ratings.add(new Rating(voterId, score, comment, LocalDateTime.now()));
+        recalculateSocialMetrics();
+    }
+
+    private void recalculateSocialMetrics() {
+        totalRatings = ratings.size();
+        if (ratings.isEmpty()) {
+            averageScore = BigDecimal.ZERO;
+        } else {
+            double avg = ratings.stream().mapToInt(r -> r.getScore().value()).average().orElse(0.0);
+            averageScore = BigDecimal.valueOf(avg).setScale(2, RoundingMode.HALF_UP);
+        }
     }
 
     public List<RecipeIngredient> getIngredients() {
@@ -93,6 +113,8 @@ public class Recipe {
 
     public RecipeId getId() { return id; }
     public UserId getAuthorId() { return authorId; }
+    public BigDecimal getAverageScore() { return averageScore; }
+    public int getTotalRatings() { return totalRatings; }
     public String getTitle() { return title; }
     public Category getCategory() { return category; }
     public Difficulty getDifficulty() { return difficulty; }

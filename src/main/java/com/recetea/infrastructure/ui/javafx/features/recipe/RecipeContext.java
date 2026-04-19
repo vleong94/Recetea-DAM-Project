@@ -8,6 +8,7 @@ import com.recetea.core.recipe.application.ports.in.unit.IGetAllUnitsUseCase;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
 
 public record RecipeContext(
+        IAddRatingUseCase addRating,
         ICreateRecipeUseCase createRecipe,
         IGetAllRecipesUseCase getAllRecipes,
         IGetRecipeByIdUseCase getRecipeById,

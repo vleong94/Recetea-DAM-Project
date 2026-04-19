@@ -3,8 +3,6 @@ package com.recetea.infrastructure.persistence.recipe.jdbc.repositories;
 import com.recetea.core.recipe.application.ports.in.dto.RecipeSummaryResponse;
 import com.recetea.core.recipe.application.ports.in.dto.SearchCriteria;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
-import com.recetea.core.recipe.domain.Category;
-import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Rating;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
@@ -58,30 +56,30 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
 
     private static final String SELECT_RATINGS =
             "SELECT user_id, score, comment, created_at FROM ratings WHERE recipe_id = ?";
-    private static final String INSERT_RATING =
-            "INSERT INTO ratings (recipe_id, user_id, score, comment, created_at) VALUES (?, ?, ?, ?, ?) " +
-            "ON CONFLICT (recipe_id, user_id) DO NOTHING";
+    private static final String UPSERT_RATING =
+            "INSERT INTO ratings (user_id, recipe_id, score, comment, created_at) VALUES (?, ?, ?, ?, ?) " +
+            "ON CONFLICT (user_id, recipe_id) DO UPDATE SET score = EXCLUDED.score, comment = EXCLUDED.comment";
 
-    private static final String SELECT_BASE =
-            "SELECT r.id_recipe, r.user_id, r.category_id, c.name AS category_name, " +
-            "r.difficulty_id, d.level_name AS difficulty_name, r.title, r.description, r.prep_time_min, r.servings " +
+    private static final String SELECT_BY_ID =
+            "SELECT r.*, c.name AS category_name, d.level_name AS difficulty_level " +
             "FROM recipes r " +
-            "INNER JOIN categories c ON r.category_id = c.id_category " +
-            "INNER JOIN difficulties d ON r.difficulty_id = d.id_difficulty";
+            "LEFT JOIN categories c ON r.category_id = c.id_category " +
+            "LEFT JOIN difficulties d ON r.difficulty_id = d.id_difficulty " +
+            "WHERE r.id_recipe = ?";
 
-    private static final String SELECT_BY_ID = SELECT_BASE + " WHERE r.id_recipe = ?";
+    private static final String UPDATE_RECIPE_METRICS =
+            "UPDATE recipes " +
+            "SET average_score = (SELECT COALESCE(AVG(score), 0) FROM ratings WHERE recipe_id = ?), " +
+            "    total_ratings  = (SELECT COUNT(*)            FROM ratings WHERE recipe_id = ?) " +
+            "WHERE id_recipe = ?";
 
     private static final String SELECT_SUMMARIES_FROM =
             "SELECT r.id_recipe, r.title, c.name AS category_name, d.level_name AS difficulty_name, " +
-            "r.prep_time_min, r.servings, " +
-            "COALESCE(AVG(rt.score), 0) AS avg_score, COUNT(rt.id_rating) AS total_ratings " +
+            "r.prep_time_min, r.servings, r.average_score, r.total_ratings " +
             "FROM recipes r " +
             "INNER JOIN categories c ON r.category_id = c.id_category " +
-            "INNER JOIN difficulties d ON r.difficulty_id = d.id_difficulty " +
-            "LEFT JOIN ratings rt ON r.id_recipe = rt.recipe_id";
-    private static final String SELECT_SUMMARIES_GROUP_BY =
-            " GROUP BY r.id_recipe, r.title, c.name, d.level_name, r.prep_time_min, r.servings";
-    private static final String SELECT_SUMMARIES = SELECT_SUMMARIES_FROM + SELECT_SUMMARIES_GROUP_BY;
+            "INNER JOIN difficulties d ON r.difficulty_id = d.id_difficulty";
+    private static final String SELECT_SUMMARIES = SELECT_SUMMARIES_FROM;
 
     public JdbcRecipeRepository(JdbcTransactionManager transactionManager) {
         super(transactionManager);
@@ -106,7 +104,7 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             }
             insertIngredients(conn, recipe);
             insertSteps(conn, recipe);
-            syncRatings(conn, recipe);
+            saveRatings(conn, recipe);
         } catch (SQLException e) {
             throw new RuntimeException("Error al persistir la nueva receta.", e);
         }
@@ -128,7 +126,7 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             }
             syncIngredients(conn, recipe);
             syncSteps(conn, recipe);
-            syncRatings(conn, recipe);
+            saveRatings(conn, recipe);
         } catch (SQLException e) {
             throw new RuntimeException("Error al actualizar la receta con ID: " + recipe.getId().value(), e);
         }
@@ -264,17 +262,28 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
         }
     }
 
-    private void syncRatings(Connection conn, Recipe recipe) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement(INSERT_RATING)) {
+    private void saveRatings(Connection conn, Recipe recipe) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(UPSERT_RATING)) {
             for (Rating rating : recipe.getRatings()) {
-                ps.setInt(1, recipe.getId().value());
-                ps.setInt(2, rating.getUserId().value());
+                ps.setInt(1, rating.getUserId().value());
+                ps.setInt(2, recipe.getId().value());
                 ps.setInt(3, rating.getScore().value());
                 ps.setString(4, rating.getComment());
                 ps.setObject(5, rating.getCreatedAt());
                 ps.addBatch();
             }
             ps.executeBatch();
+        }
+        int recipeId = recipe.getId().value();
+        try (PreparedStatement ps = conn.prepareStatement(UPDATE_RECIPE_METRICS + " RETURNING average_score, total_ratings")) {
+            ps.setInt(1, recipeId);
+            ps.setInt(2, recipeId);
+            ps.setInt(3, recipeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    recipe.setSocialMetrics(rs.getBigDecimal("average_score"), rs.getInt("total_ratings"));
+                }
+            }
         }
     }
 
@@ -321,7 +330,7 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             try (PreparedStatement ps = conn.prepareStatement(SELECT_BY_ID)) {
                 ps.setInt(1, id.value());
                 try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) recipe = mapRow(rs);
+                    if (rs.next()) recipe = RecipeMapper.mapRow(rs);
                 }
             }
             if (recipe == null) return Optional.empty();
@@ -406,7 +415,6 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
         if (!conditions.isEmpty()) {
             sql.append(" WHERE ").append(String.join(" AND ", conditions));
         }
-        sql.append(SELECT_SUMMARIES_GROUP_BY);
 
         Connection conn = null;
         try {
@@ -432,22 +440,6 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
     // Private helpers
     // -------------------------------------------------------------------------
 
-    private Recipe mapRow(ResultSet rs) throws SQLException {
-        Category category = new Category(
-                new CategoryId(rs.getInt("category_id")), rs.getString("category_name"));
-        Difficulty difficulty = new Difficulty(
-                new DifficultyId(rs.getInt("difficulty_id")), rs.getString("difficulty_name"));
-        Recipe recipe = new Recipe(
-                new UserId(rs.getInt("user_id")),
-                category, difficulty,
-                rs.getString("title"),
-                rs.getString("description"),
-                new PreparationTime(rs.getInt("prep_time_min")),
-                new Servings(rs.getInt("servings")));
-        recipe.setId(new RecipeId(rs.getInt("id_recipe")));
-        return recipe;
-    }
-
     private RecipeSummaryResponse mapSummaryRow(ResultSet rs) throws SQLException {
         return new RecipeSummaryResponse(
                 new RecipeId(rs.getInt("id_recipe")),
@@ -456,7 +448,7 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
                 rs.getString("difficulty_name"),
                 rs.getInt("prep_time_min"),
                 rs.getInt("servings"),
-                rs.getBigDecimal("avg_score").setScale(2, RoundingMode.HALF_UP),
+                rs.getBigDecimal("average_score").setScale(2, RoundingMode.HALF_UP),
                 rs.getInt("total_ratings"));
     }
 

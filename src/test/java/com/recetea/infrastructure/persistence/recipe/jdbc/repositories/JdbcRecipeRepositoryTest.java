@@ -144,19 +144,41 @@ class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
     }
 
     @Test
-    @DisplayName("findAllSummaries debe calcular AVG y COUNT de valoraciones correctamente")
-    void findAllSummaries_ShouldCalculateAggregations() {
+    @DisplayName("update debe sincronizar las métricas denormalizadas en la tabla recipes")
+    void update_ShouldSynchronizeDenormalizedMetrics() {
+        Recipe recipe = buildRecipe();
+        recipe.syncIngredients(List.of(new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.ONE)));
+        recipe.syncSteps(List.of(new RecipeStep(1, "Paso 1")));
+        transactionManager.execute(() -> repository.save(recipe));
+        RecipeId recipeId = recipe.getId();
+
+        seedRating(new UserId(2), recipeId, 5);
+
+        transactionManager.execute(() -> repository.update(recipe));
+
+        Recipe loaded = repository.findById(recipeId).orElseThrow();
+        assertEquals(1, loaded.getTotalRatings(), "total_ratings debe ser 1 tras la sincronización");
+        assertEquals(0, new BigDecimal("5.00").compareTo(loaded.getAverageScore()),
+                "average_score debe reflejar la puntuación del rating insertado");
+    }
+
+    @Test
+    @DisplayName("findAllSummaries debe leer average_score y total_ratings de las columnas denormalizadas")
+    void findAllSummaries_ShouldReadFromDenormalizedColumns() {
         Recipe recipeA = buildRecipe();
         recipeA.syncIngredients(List.of(new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.ONE)));
         recipeA.syncSteps(List.of(new RecipeStep(1, "Paso A")));
         transactionManager.execute(() -> repository.save(recipeA));
         seedRating(new UserId(2), recipeA.getId(), 4);
         seedRating(new UserId(3), recipeA.getId(), 5);
+        // Trigger denormalization sync: UPDATE_RECIPE_METRICS recalculates from ratings table
+        transactionManager.execute(() -> repository.update(recipeA));
 
         Recipe recipeB = buildRecipe();
         recipeB.syncIngredients(List.of(new RecipeIngredient(new IngredientId(2), new UnitId(1), BigDecimal.ONE)));
         recipeB.syncSteps(List.of(new RecipeStep(1, "Paso B")));
         transactionManager.execute(() -> repository.save(recipeB));
+        // recipeB has no ratings: denormalized defaults (0, 0.00) apply
 
         List<RecipeSummaryResponse> summaries = repository.findAllSummaries();
 
@@ -165,10 +187,17 @@ class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
         RecipeSummaryResponse summaryB = summaries.stream()
                 .filter(s -> s.id().equals(recipeB.getId())).findFirst().orElseThrow();
 
-        assertEquals(0, new BigDecimal("4.5").compareTo(summaryA.averageScore()), "AVG de receta A debe ser 4.5");
-        assertEquals(2, summaryA.totalRatings(), "COUNT de receta A debe ser 2");
-        assertEquals(0, BigDecimal.ZERO.compareTo(summaryB.averageScore()), "AVG de receta B debe ser 0.0 (COALESCE)");
-        assertEquals(0, summaryB.totalRatings(), "COUNT de receta B debe ser 0");
+        // Metrics are read from denormalized columns (no LEFT JOIN ratings / GROUP BY in the query).
+        // Correctness is proven by the fact that seeding ratings without calling update() leaves
+        // the values at DEFAULT 0 — only the UPDATE_RECIPE_METRICS subquery propagates them.
+        assertEquals(0, new BigDecimal("4.50").compareTo(summaryA.averageScore()),
+                "average_score de receta A debe ser 4.50 (leído de columna denormalizada)");
+        assertEquals(2, summaryA.totalRatings(),
+                "total_ratings de receta A debe ser 2 (leído de columna denormalizada)");
+        assertEquals(0, BigDecimal.ZERO.compareTo(summaryB.averageScore()),
+                "average_score de receta B debe ser 0.00 (sin valoraciones, DEFAULT aplicado)");
+        assertEquals(0, summaryB.totalRatings(),
+                "total_ratings de receta B debe ser 0");
     }
 
     private void seedRating(UserId userId, RecipeId recipeId, int score) {

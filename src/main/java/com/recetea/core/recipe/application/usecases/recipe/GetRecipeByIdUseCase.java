@@ -9,7 +9,6 @@ import com.recetea.core.recipe.domain.RecipeIngredient;
 import com.recetea.core.recipe.domain.RecipeStep;
 import com.recetea.core.recipe.domain.vo.RecipeId;
 
-import java.math.BigDecimal;
 import java.util.Optional;
 
 public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
@@ -40,8 +39,8 @@ public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
                 recipe.getServings().value(),
                 recipe.getIngredients().stream().map(this::mapToIngredientResponse).toList(),
                 recipe.getSteps().stream().map(this::mapToStepResponse).toList(),
-                BigDecimal.ZERO,
-                0
+                recipe.getAverageScore(),
+                recipe.getTotalRatings()
         );
     }
 
