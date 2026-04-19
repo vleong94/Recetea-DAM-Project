@@ -25,13 +25,15 @@ INSERT INTO "ingredient_categories" ("name") VALUES ('Lácteos'), ('Verduras'), 
 -- ----------------------------------------------------------
 -- 2. USUARIOS
 -- ----------------------------------------------------------
+-- All seed users share the password: password123
+-- Hash: BCrypt $2a$12$, 12 rounds
 INSERT INTO "users" ("username", "email", "password_hash") VALUES
-('chef_arturo', 'arturo@recetea.com', '$2a$12$V.v.h7.8.9...'),
-('ana_cocinitas', 'ana@recetea.com', '$2a$12$A.b.c1.2.3...'),
-('marcos_foodie', 'marcos@recetea.com', '$2a$12$X.y.z4.5.6...'),
-('gourmet_master', 'gourmet@recetea.com', '$2a$12$G.o.u.r.m...'),
-('hater_pro', 'hater@recetea.com', '$2a$12$H.a.t.e.r...'),
-('ghost_reader', 'ghost@recetea.com', '$2a$12$G.h.o.s.t...');
+('chef_arturo',   'arturo@recetea.com',  '$2a$12$5v254X9UAqIj3V/MEb2F.e/yk9zE7Xbp4IZgXd3yxiI0jOcvPMqCG'),
+('ana_cocinitas', 'ana@recetea.com',     '$2a$12$5v254X9UAqIj3V/MEb2F.e/yk9zE7Xbp4IZgXd3yxiI0jOcvPMqCG'),
+('marcos_foodie', 'marcos@recetea.com',  '$2a$12$5v254X9UAqIj3V/MEb2F.e/yk9zE7Xbp4IZgXd3yxiI0jOcvPMqCG'),
+('gourmet_master','gourmet@recetea.com', '$2a$12$5v254X9UAqIj3V/MEb2F.e/yk9zE7Xbp4IZgXd3yxiI0jOcvPMqCG'),
+('hater_pro',     'hater@recetea.com',   '$2a$12$5v254X9UAqIj3V/MEb2F.e/yk9zE7Xbp4IZgXd3yxiI0jOcvPMqCG'),
+('ghost_reader',  'ghost@recetea.com',   '$2a$12$5v254X9UAqIj3V/MEb2F.e/yk9zE7Xbp4IZgXd3yxiI0jOcvPMqCG');
 
 -- ----------------------------------------------------------
 -- 3. INGREDIENTES
@@ -43,11 +45,11 @@ INSERT INTO "ingredients" ("ing_category_id", "name") VALUES
 -- ----------------------------------------------------------
 -- 4. RECETAS, PASOS E INGREDIENTES
 -- ----------------------------------------------------------
-INSERT INTO "recipes" ("user_id", "category_id", "difficulty_id", "title", "description", "prep_time_min", "servings") VALUES
-(1, 1, 1, 'Tarta de Queso Express', 'La famosa tarta de queso de 5 ingredientes.', 45, 8),
-(4, 5, 3, 'Estofado de Ternera Tradicional', 'Cocción lenta a fuego muy bajo.', 180, 4),
-(5, 3, 1, 'Ensalada de Lechuga Sola', 'No tenía más cosas en la nevera.', 2, 1),
-(2, 6, 1, 'Vaso de Leche Caliente', 'Ideal para dormir.', 2, 1);
+INSERT INTO "recipes" ("user_id", "category_id", "difficulty_id", "title", "description", "prep_time_min", "servings", "average_score", "total_ratings") VALUES
+(1, 1, 1, 'Tarta de Queso Express',          'La famosa tarta de queso de 5 ingredientes.', 45,  8, 4.67, 3),
+(4, 5, 3, 'Estofado de Ternera Tradicional', 'Cocción lenta a fuego muy bajo.',              180, 4, 5.00, 2),
+(5, 3, 1, 'Ensalada de Lechuga Sola',        'No tenía más cosas en la nevera.',             2,   1, 1.50, 2),
+(2, 6, 1, 'Vaso de Leche Caliente',          'Ideal para dormir.',                           2,   1, 0.00, 0);
 
 INSERT INTO "steps" ("recipe_id", "step_order", "instruction") VALUES
 (1, 1, 'Precalentar el horno a 200°C.'), (1, 2, 'Mezclar el queso crema con el azúcar hasta que esté suave.'), (1, 3, 'Añadir los huevos uno a uno mientras se bate.'),
@@ -74,16 +76,6 @@ INSERT INTO "ratings" ("user_id", "recipe_id", "score", "comment") VALUES
 (2, 1, 5, 'Espectacular, muy cremosa.'), (3, 1, 4, 'Rica, pero prefiero menos dulce.'), (4, 1, 5, 'Técnica impecable para ser express.'),
 (1, 2, 5, 'Me recuerda a mi abuela.'), (3, 2, 5, 'La carne se deshace.'),
 (1, 3, 1, 'Esto no es una receta, es un insulto.'), (4, 3, 2, 'Le falta aliño y dignidad.');
-
--- ----------------------------------------------------------
--- 6. SINCRONIZACIÓN DE MÉTRICAS DENORMALIZADAS
--- Recalcula average_score y total_ratings a partir de los
--- ratings insertados, garantizando consistencia inicial.
--- ----------------------------------------------------------
-UPDATE "recipes" r
-SET
-    total_ratings = (SELECT COUNT(*)                        FROM "ratings" WHERE recipe_id = r.id_recipe),
-    average_score = COALESCE((SELECT ROUND(AVG(score), 2)  FROM "ratings" WHERE recipe_id = r.id_recipe), 0);
 
 COMMIT;
 

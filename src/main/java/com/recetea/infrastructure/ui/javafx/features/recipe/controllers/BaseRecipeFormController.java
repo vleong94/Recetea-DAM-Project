@@ -1,6 +1,7 @@
 package com.recetea.infrastructure.ui.javafx.features.recipe.controllers;
 
 import com.recetea.core.recipe.application.ports.in.dto.SaveRecipeRequest;
+import com.recetea.core.recipe.domain.AuthenticationRequiredException;
 import com.recetea.core.recipe.domain.Category;
 import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandProvider;
@@ -71,6 +72,8 @@ public abstract class BaseRecipeFormController {
 
             handleSave(request);
             nav.toDashboard();
+        } catch (AuthenticationRequiredException e) {
+            showWarning("Autenticación Requerida", "Debes iniciar sesión para realizar esta acción.");
         } catch (Exception e) {
             showError("Fallo de Persistencia", "No se pudo procesar la solicitud: " + e.getMessage());
         }
@@ -85,6 +88,13 @@ public abstract class BaseRecipeFormController {
 
     protected void showError(String header, String content) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    protected void showWarning(String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
         alert.setHeaderText(header);
         alert.setContentText(content);
         alert.showAndWait();

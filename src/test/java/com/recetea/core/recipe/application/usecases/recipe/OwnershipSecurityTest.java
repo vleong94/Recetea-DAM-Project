@@ -70,7 +70,7 @@ class OwnershipSecurityTest {
     @Test
     @DisplayName("create: la receta se asigna al usuario de la sesión activa, no al payload")
     void create_assignsAuthorFromSession() {
-        when(sessionService.getCurrentUserId()).thenReturn(OWNER);
+        when(sessionService.getCurrentUserId()).thenReturn(Optional.of(OWNER));
         when(categoryRepository.findById(new CategoryId(1)))
                 .thenReturn(Optional.of(new Category(new CategoryId(1), "Entrantes")));
         when(difficultyRepository.findById(new DifficultyId(1)))
@@ -97,7 +97,7 @@ class OwnershipSecurityTest {
     @DisplayName("update: el propietario puede modificar su propia receta")
     void update_allowsOwner() {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(ownerRecipe));
-        when(sessionService.getCurrentUserId()).thenReturn(OWNER);
+        when(sessionService.getCurrentUserId()).thenReturn(Optional.of(OWNER));
         when(categoryRepository.findById(new CategoryId(1)))
                 .thenReturn(Optional.of(new Category(new CategoryId(1), "Entrantes")));
         when(difficultyRepository.findById(new DifficultyId(1)))
@@ -117,7 +117,7 @@ class OwnershipSecurityTest {
     @DisplayName("update: un usuario ajeno lanza UnauthorizedRecipeAccessException")
     void update_rejectsIntruder() {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(ownerRecipe));
-        when(sessionService.getCurrentUserId()).thenReturn(INTRUDER);
+        when(sessionService.getCurrentUserId()).thenReturn(Optional.of(INTRUDER));
 
         SaveRecipeRequest request = new SaveRecipeRequest(
                 new CategoryId(1), new DifficultyId(1), "Título", "Desc", 30, 2,
@@ -134,7 +134,7 @@ class OwnershipSecurityTest {
     @DisplayName("delete: el propietario puede eliminar su propia receta")
     void delete_allowsOwner() {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(ownerRecipe));
-        when(sessionService.getCurrentUserId()).thenReturn(OWNER);
+        when(sessionService.getCurrentUserId()).thenReturn(Optional.of(OWNER));
 
         assertDoesNotThrow(() -> deleteUseCase.execute(RECIPE_ID));
         verify(recipeRepository).delete(RECIPE_ID);
@@ -144,7 +144,7 @@ class OwnershipSecurityTest {
     @DisplayName("delete: un usuario ajeno lanza UnauthorizedRecipeAccessException")
     void delete_rejectsIntruder() {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(ownerRecipe));
-        when(sessionService.getCurrentUserId()).thenReturn(INTRUDER);
+        when(sessionService.getCurrentUserId()).thenReturn(Optional.of(INTRUDER));
 
         assertThrows(UnauthorizedRecipeAccessException.class,
                 () -> deleteUseCase.execute(RECIPE_ID));

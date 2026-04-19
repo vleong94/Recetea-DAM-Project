@@ -92,10 +92,11 @@ public class Recipe {
     private void recalculateSocialMetrics() {
         totalRatings = ratings.size();
         if (ratings.isEmpty()) {
-            averageScore = BigDecimal.ZERO;
+            averageScore = BigDecimal.ZERO.setScale(2);
         } else {
-            double avg = ratings.stream().mapToInt(r -> r.getScore().value()).average().orElse(0.0);
-            averageScore = BigDecimal.valueOf(avg).setScale(2, RoundingMode.HALF_UP);
+            int sum = ratings.stream().mapToInt(r -> r.getScore().value()).sum();
+            averageScore = BigDecimal.valueOf(sum)
+                    .divide(BigDecimal.valueOf(totalRatings), 2, RoundingMode.HALF_UP);
         }
     }
 

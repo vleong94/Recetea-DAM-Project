@@ -15,6 +15,9 @@ module com.recetea {
     requires org.postgresql.jdbc;
     requires com.zaxxer.hikari;
 
+    // Declaración de dependencias de la Security Layer.
+    requires jbcrypt;
+
     // Expone el Composition Root para permitir el Bootstrapping de la aplicación por parte de la JVM.
     exports com.recetea;
 
@@ -29,4 +32,5 @@ module com.recetea {
     // de lo contrario el JPMS lanzará un FindException durante el Boot Layer Initialization.
     opens com.recetea.infrastructure.ui.javafx.features.recipe.controllers to javafx.fxml;
     opens com.recetea.infrastructure.ui.javafx.features.recipe.components to javafx.fxml;
+    opens com.recetea.infrastructure.ui.javafx.features.identity.controllers to javafx.fxml;
 }

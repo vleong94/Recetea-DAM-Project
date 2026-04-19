@@ -6,9 +6,9 @@ import com.recetea.core.recipe.application.ports.in.recipe.ISearchRecipesUseCase
 
 public final class RecipeQueryWrapper implements RecipeQueryProvider {
 
-    private final RecipeContext context;
+    private final RecipeQueryContext context;
 
-    public RecipeQueryWrapper(RecipeContext context) {
+    public RecipeQueryWrapper(RecipeQueryContext context) {
         this.context = context;
     }
 

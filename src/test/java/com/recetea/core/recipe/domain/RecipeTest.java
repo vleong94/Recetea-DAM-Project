@@ -136,6 +136,23 @@ class RecipeTest {
     }
 
     @Test
+    @DisplayName("averageScore debe redondear correctamente a 2 decimales con HALF_UP")
+    void shouldRoundAverageScoreToTwoDecimalPlaces() {
+        Recipe recipe = createBaseRecipe();
+
+        // 5 + 5 + 4 = 14 / 3 = 4.6666... → HALF_UP → 4.67
+        recipe.addRating(new UserId(2), new Score(5), "Excelente");
+        recipe.addRating(new UserId(3), new Score(5), "Perfecta");
+        recipe.addRating(new UserId(4), new Score(4), "Muy buena");
+
+        assertEquals(3, recipe.getTotalRatings());
+        assertEquals(0, new BigDecimal("4.67").compareTo(recipe.getAverageScore()),
+                "14/3 redondeado a 2 decimales con HALF_UP debe ser 4.67");
+        assertEquals(2, recipe.getAverageScore().scale(),
+                "El campo averageScore debe tener siempre escala 2 para coherencia con el esquema DB");
+    }
+
+    @Test
     @DisplayName("Debe lanzar excepción ante métricas de tiempo negativas")
     void shouldValidatePreparationTime() {
         assertThrows(IllegalArgumentException.class, () ->

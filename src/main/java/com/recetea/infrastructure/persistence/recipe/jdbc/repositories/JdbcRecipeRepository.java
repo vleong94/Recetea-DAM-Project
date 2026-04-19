@@ -67,11 +67,8 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             "LEFT JOIN difficulties d ON r.difficulty_id = d.id_difficulty " +
             "WHERE r.id_recipe = ?";
 
-    private static final String UPDATE_RECIPE_METRICS =
-            "UPDATE recipes " +
-            "SET average_score = (SELECT COALESCE(AVG(score), 0) FROM ratings WHERE recipe_id = ?), " +
-            "    total_ratings  = (SELECT COUNT(*)            FROM ratings WHERE recipe_id = ?) " +
-            "WHERE id_recipe = ?";
+    private static final String UPDATE_SOCIAL_METRICS =
+            "UPDATE recipes SET average_score = ?, total_ratings = ? WHERE id_recipe = ?";
 
     private static final String SELECT_SUMMARIES_FROM =
             "SELECT r.id_recipe, r.title, c.name AS category_name, d.level_name AS difficulty_name, " +
@@ -142,6 +139,21 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error al eliminar la receta.", e);
+        }
+    }
+
+    @Override
+    public void updateSocialMetrics(RecipeId id, BigDecimal averageScore, int totalRatings) {
+        try {
+            Connection conn = transactionManager.getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(UPDATE_SOCIAL_METRICS)) {
+                ps.setBigDecimal(1, averageScore);
+                ps.setInt(2, totalRatings);
+                ps.setInt(3, id.value());
+                ps.executeUpdate();
+            }
+        } catch (SQLException e) {
+            throw new InfrastructureException("Error al actualizar métricas sociales para la receta ID: " + id.value(), e);
         }
     }
 
@@ -274,16 +286,11 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             }
             ps.executeBatch();
         }
-        int recipeId = recipe.getId().value();
-        try (PreparedStatement ps = conn.prepareStatement(UPDATE_RECIPE_METRICS + " RETURNING average_score, total_ratings")) {
-            ps.setInt(1, recipeId);
-            ps.setInt(2, recipeId);
-            ps.setInt(3, recipeId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    recipe.setSocialMetrics(rs.getBigDecimal("average_score"), rs.getInt("total_ratings"));
-                }
-            }
+        try (PreparedStatement ps = conn.prepareStatement(UPDATE_SOCIAL_METRICS)) {
+            ps.setBigDecimal(1, recipe.getAverageScore());
+            ps.setInt(2, recipe.getTotalRatings());
+            ps.setInt(3, recipe.getId().value());
+            ps.executeUpdate();
         }
     }
 

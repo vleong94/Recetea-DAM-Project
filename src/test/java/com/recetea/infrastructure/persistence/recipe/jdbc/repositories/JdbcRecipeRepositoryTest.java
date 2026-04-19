@@ -144,17 +144,17 @@ class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
     }
 
     @Test
-    @DisplayName("update debe sincronizar las métricas denormalizadas en la tabla recipes")
-    void update_ShouldSynchronizeDenormalizedMetrics() {
+    @DisplayName("updateSocialMetrics debe persistir las métricas calculadas por el dominio")
+    void updateSocialMetrics_ShouldPersistDomainMetrics() {
         Recipe recipe = buildRecipe();
         recipe.syncIngredients(List.of(new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.ONE)));
         recipe.syncSteps(List.of(new RecipeStep(1, "Paso 1")));
         transactionManager.execute(() -> repository.save(recipe));
         RecipeId recipeId = recipe.getId();
 
-        seedRating(new UserId(2), recipeId, 5);
-
-        transactionManager.execute(() -> repository.update(recipe));
+        recipe.setSocialMetrics(new BigDecimal("5.00"), 1);
+        transactionManager.execute(() ->
+                repository.updateSocialMetrics(recipeId, recipe.getAverageScore(), recipe.getTotalRatings()));
 
         Recipe loaded = repository.findById(recipeId).orElseThrow();
         assertEquals(1, loaded.getTotalRatings(), "total_ratings debe ser 1 tras la sincronización");
@@ -169,10 +169,10 @@ class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
         recipeA.syncIngredients(List.of(new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.ONE)));
         recipeA.syncSteps(List.of(new RecipeStep(1, "Paso A")));
         transactionManager.execute(() -> repository.save(recipeA));
-        seedRating(new UserId(2), recipeA.getId(), 4);
-        seedRating(new UserId(3), recipeA.getId(), 5);
-        // Trigger denormalization sync: UPDATE_RECIPE_METRICS recalculates from ratings table
-        transactionManager.execute(() -> repository.update(recipeA));
+        // Push domain-computed metrics to the denormalized columns (simulates two ratings: avg 4.50)
+        recipeA.setSocialMetrics(new BigDecimal("4.50"), 2);
+        transactionManager.execute(() ->
+                repository.updateSocialMetrics(recipeA.getId(), recipeA.getAverageScore(), recipeA.getTotalRatings()));
 
         Recipe recipeB = buildRecipe();
         recipeB.syncIngredients(List.of(new RecipeIngredient(new IngredientId(2), new UnitId(1), BigDecimal.ONE)));
@@ -187,9 +187,8 @@ class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
         RecipeSummaryResponse summaryB = summaries.stream()
                 .filter(s -> s.id().equals(recipeB.getId())).findFirst().orElseThrow();
 
-        // Metrics are read from denormalized columns (no LEFT JOIN ratings / GROUP BY in the query).
-        // Correctness is proven by the fact that seeding ratings without calling update() leaves
-        // the values at DEFAULT 0 — only the UPDATE_RECIPE_METRICS subquery propagates them.
+        // Correctness is proven by the fact that seeding ratings directly into DB without calling
+        // updateSocialMetrics leaves the denormalized columns unchanged — summaries read them directly.
         assertEquals(0, new BigDecimal("4.50").compareTo(summaryA.averageScore()),
                 "average_score de receta A debe ser 4.50 (leído de columna denormalizada)");
         assertEquals(2, summaryA.totalRatings(),

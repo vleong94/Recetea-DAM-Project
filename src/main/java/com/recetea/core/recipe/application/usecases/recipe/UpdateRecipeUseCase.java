@@ -10,6 +10,7 @@ import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
 import com.recetea.core.recipe.domain.RecipeStep;
+import com.recetea.core.recipe.domain.AuthenticationRequiredException;
 import com.recetea.core.recipe.domain.UnauthorizedRecipeAccessException;
 import com.recetea.core.recipe.domain.vo.PreparationTime;
 import com.recetea.core.recipe.domain.vo.RecipeId;
@@ -44,7 +45,8 @@ public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
             Recipe recipe = recipeRepository.findById(recipeId)
                     .orElseThrow(() -> new IllegalArgumentException("Receta no encontrada con ID: " + recipeId.value()));
 
-            UserId currentUser = sessionService.getCurrentUserId();
+            UserId currentUser = sessionService.getCurrentUserId()
+                    .orElseThrow(AuthenticationRequiredException::new);
             if (!recipe.getAuthorId().equals(currentUser)) {
                 throw new UnauthorizedRecipeAccessException(
                         "El usuario " + currentUser.value() + " no tiene permiso para modificar esta receta.");

@@ -3,6 +3,7 @@ package com.recetea.core.recipe.application.usecases.recipe;
 import com.recetea.core.recipe.application.ports.in.dto.SaveRecipeRequest;
 import com.recetea.core.recipe.application.ports.in.recipe.ICreateRecipeUseCase;
 import com.recetea.core.recipe.application.ports.out.category.ICategoryRepository;
+import com.recetea.core.recipe.domain.AuthenticationRequiredException;
 import com.recetea.core.recipe.application.ports.out.difficulty.IDifficultyRepository;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
 import com.recetea.core.recipe.domain.Category;
@@ -45,7 +46,8 @@ public class CreateRecipeUseCase implements ICreateRecipeUseCase {
                     .orElseThrow(() -> new IllegalArgumentException("Dificultad inválida."));
 
             Recipe recipe = new Recipe(
-                    sessionService.getCurrentUserId(),
+                    sessionService.getCurrentUserId()
+                            .orElseThrow(AuthenticationRequiredException::new),
                     category,
                     difficulty,
                     request.title(),

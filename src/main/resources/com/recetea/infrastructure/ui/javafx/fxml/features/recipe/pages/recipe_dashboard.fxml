@@ -15,7 +15,10 @@
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
     </padding>
 
-    <Label text="Catálogo de Recetas" styleClass="header-label" />
+    <HBox alignment="CENTER_LEFT" spacing="10.0">
+        <Label text="Catálogo de Recetas" styleClass="header-label" HBox.hgrow="ALWAYS" />
+        <Button text="Cerrar sesión" styleClass="secondary-button" onAction="#onLogoutButtonClick" />
+    </HBox>
 
     <TableView fx:id="recipeTable" VBox.vgrow="ALWAYS">
         <columns>

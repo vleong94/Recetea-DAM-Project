@@ -21,10 +21,13 @@ class JdbcUserRepositoryTest extends BaseRepositoryTest {
         repository = new JdbcUserRepository(new JdbcTransactionManager(dataSource));
     }
 
+    private static final String HASH_A = "$2a$12$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    private static final String HASH_B = "$2a$12$bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
     @Test
     @DisplayName("save + findById deben hacer un roundtrip completo")
     void save_AndFindById_ShouldRoundtrip() {
-        User user = new User("victor", "victor@example.com", "hashed_pw");
+        User user = new User("victor", "victor@example.com", HASH_A);
         repository.save(user);
 
         assertNotNull(user.getId(), "El id debe ser asignado tras el save");
@@ -33,14 +36,14 @@ class JdbcUserRepositoryTest extends BaseRepositoryTest {
         assertTrue(found.isPresent());
         assertEquals("victor", found.get().getUsername());
         assertEquals("victor@example.com", found.get().getEmail());
-        assertEquals("hashed_pw", found.get().getPasswordHash());
+        assertEquals(HASH_A, found.get().getPasswordHash());
         assertEquals(user.getId().value(), found.get().getId().value());
     }
 
     @Test
     @DisplayName("findByUsername debe resolver un usuario existente")
     void findByUsername_ShouldReturnUser_WhenExists() {
-        repository.save(new User("maria", "maria@example.com", "pw123"));
+        repository.save(new User("maria", "maria@example.com", HASH_B));
 
         Optional<User> found = repository.findByUsername("maria");
         assertTrue(found.isPresent());
@@ -51,6 +54,25 @@ class JdbcUserRepositoryTest extends BaseRepositoryTest {
     @DisplayName("findByUsername debe devolver Optional.empty para usuarios inexistentes")
     void findByUsername_ShouldReturnEmpty_WhenNotFound() {
         Optional<User> found = repository.findByUsername("ghost");
+        assertTrue(found.isEmpty());
+    }
+
+    @Test
+    @DisplayName("findByEmail debe resolver un usuario existente y preservar el hash")
+    void findByEmail_ShouldReturnUser_AndPreservePasswordHash() {
+        repository.save(new User("ana", "ana@example.com", HASH_A));
+
+        Optional<User> found = repository.findByEmail("ana@example.com");
+        assertTrue(found.isPresent());
+        assertEquals("ana", found.get().getUsername());
+        assertEquals(HASH_A, found.get().getPasswordHash(),
+                "El roundtrip debe preservar el hash de contraseña exactamente");
+    }
+
+    @Test
+    @DisplayName("findByEmail debe devolver Optional.empty para emails inexistentes")
+    void findByEmail_ShouldReturnEmpty_WhenNotFound() {
+        Optional<User> found = repository.findByEmail("nobody@example.com");
         assertTrue(found.isEmpty());
     }
 }

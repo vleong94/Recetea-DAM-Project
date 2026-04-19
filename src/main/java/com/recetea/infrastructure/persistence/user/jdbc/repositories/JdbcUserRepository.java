@@ -17,6 +17,8 @@ public class JdbcUserRepository extends BaseJdbcRepository implements IUserRepos
             "SELECT id_user, username, email, password_hash FROM users WHERE id_user = ?";
     private static final String SELECT_BY_USERNAME =
             "SELECT id_user, username, email, password_hash FROM users WHERE username = ?";
+    private static final String SELECT_BY_EMAIL =
+            "SELECT id_user, username, email, password_hash FROM users WHERE email = ?";
 
     public JdbcUserRepository(JdbcTransactionManager transactionManager) {
         super(transactionManager);
@@ -48,6 +50,11 @@ public class JdbcUserRepository extends BaseJdbcRepository implements IUserRepos
     @Override
     public Optional<User> findByUsername(String username) {
         return queryForObject(SELECT_BY_USERNAME, this::mapRow, username);
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return queryForObject(SELECT_BY_EMAIL, this::mapRow, email);
     }
 
     private User mapRow(ResultSet rs) throws SQLException {

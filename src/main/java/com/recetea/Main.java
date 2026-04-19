@@ -10,13 +10,17 @@ import com.recetea.core.recipe.application.usecases.difficulty.GetAllDifficultie
 import com.recetea.core.recipe.application.usecases.ingredient.GetAllIngredientsUseCase;
 import com.recetea.core.recipe.application.usecases.recipe.*;
 import com.recetea.core.recipe.application.usecases.unit.GetAllUnitsUseCase;
-import com.recetea.core.shared.application.ports.in.IUserSessionService;
+import com.recetea.core.user.application.usecases.LoginUseCase;
+import com.recetea.core.user.application.usecases.RegisterUserUseCase;
 import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import com.recetea.infrastructure.persistence.recipe.jdbc.config.DatabaseConfig;
 import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.*;
-import com.recetea.infrastructure.security.MockUserSessionService;
+import com.recetea.infrastructure.persistence.user.jdbc.repositories.JdbcUserRepository;
+import com.recetea.infrastructure.security.PasswordHasher;
+import com.recetea.infrastructure.security.SessionManager;
+import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandContext;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandWrapper;
-import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeContext;
+import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryContext;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryWrapper;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.application.Application;
@@ -43,16 +47,22 @@ public class Main extends Application {
         ICategoryRepository categoryRepository = new JdbcCategoryRepository(transactionManager);
         IDifficultyRepository difficultyRepository = new JdbcDifficultyRepository(transactionManager);
 
-        // Inicialización del motor de seguridad y gestión de identidad (Mock placeholder)
-        IUserSessionService sessionService = new MockUserSessionService();
+        JdbcUserRepository userRepository = new JdbcUserRepository(transactionManager);
+        PasswordHasher passwordHasher = new PasswordHasher();
+        LoginUseCase loginUseCase = new LoginUseCase(userRepository, passwordHasher);
+        RegisterUserUseCase registerUseCase = new RegisterUserUseCase(userRepository, passwordHasher, transactionManager);
 
-        // Ensamblaje del RecipeContext inyectando los casos de uso y servicios compartidos
-        RecipeContext context = new RecipeContext(
-                new AddRatingUseCase(recipeRepository, transactionManager, sessionService),
-                new CreateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager, sessionService),
+        SessionManager sessionService = new SessionManager();
+
+        RecipeQueryContext queryContext = new RecipeQueryContext(
                 new GetAllRecipesUseCase(recipeRepository),
                 new GetRecipeByIdUseCase(recipeRepository),
-                new SearchRecipesUseCase(recipeRepository),
+                new SearchRecipesUseCase(recipeRepository)
+        );
+
+        RecipeCommandContext commandContext = new RecipeCommandContext(
+                new AddRatingUseCase(recipeRepository, transactionManager, sessionService),
+                new CreateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager, sessionService),
                 new UpdateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager, sessionService),
                 new DeleteRecipeUseCase(recipeRepository, transactionManager, sessionService),
                 new GetAllIngredientsUseCase(ingredientRepository),
@@ -62,13 +72,12 @@ public class Main extends Application {
                 sessionService
         );
 
-        // ISP wrappers prevent controllers from downcasting to the full RecipeContext
-        RecipeQueryWrapper queryWrapper = new RecipeQueryWrapper(context);
-        RecipeCommandWrapper commandWrapper = new RecipeCommandWrapper(context);
+        RecipeQueryWrapper queryWrapper = new RecipeQueryWrapper(queryContext);
+        RecipeCommandWrapper commandWrapper = new RecipeCommandWrapper(commandContext);
 
         // Inicialización del motor de enrutamiento y despliegue del entorno visual
-        NavigationService nav = new NavigationService(primaryStage, queryWrapper, commandWrapper);
-        nav.toDashboard();
+        NavigationService nav = new NavigationService(primaryStage, queryWrapper, commandWrapper, loginUseCase, registerUseCase, sessionService);
+        nav.toLogin();
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.recetea.infrastructure.ui.javafx.features.recipe.controllers;
 
 import com.recetea.core.recipe.application.ports.in.dto.RecipeSummaryResponse;
+import com.recetea.core.recipe.domain.AuthenticationRequiredException;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryProvider;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -82,8 +83,17 @@ public class RecipeDashboardController {
     }
 
     @FXML
+    public void onLogoutButtonClick() {
+        nav.logout();
+    }
+
+    @FXML
     public void onCreateButtonClick() {
-        nav.toRecipeCreate();
+        try {
+            nav.toRecipeCreate();
+        } catch (AuthenticationRequiredException e) {
+            showWarning("Autenticación Requerida", "Debes iniciar sesión para crear una receta.");
+        }
     }
 
     private void handleEditAction(RecipeSummaryResponse recipe) {
@@ -100,6 +110,8 @@ public class RecipeDashboardController {
                 try {
                     nav.deleteRecipe(recipe.id());
                     loadData();
+                } catch (AuthenticationRequiredException e) {
+                    showWarning("Autenticación Requerida", "Debes iniciar sesión para eliminar una receta.");
                 } catch (Exception e) {
                     showError("Delete Failure", "No se pudo completar la operación: " + e.getMessage());
                 }
@@ -118,6 +130,13 @@ public class RecipeDashboardController {
 
     private void showError(String header, String content) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    private void showWarning(String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
         alert.setHeaderText(header);
         alert.setContentText(content);
         alert.showAndWait();

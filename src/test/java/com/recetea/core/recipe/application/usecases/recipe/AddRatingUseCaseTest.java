@@ -2,6 +2,7 @@ package com.recetea.core.recipe.application.usecases.recipe;
 
 import com.recetea.core.recipe.application.ports.in.dto.AddRatingRequest;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
+import com.recetea.core.recipe.domain.AuthenticationRequiredException;
 import com.recetea.core.recipe.domain.Category;
 import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Recipe;
@@ -20,7 +21,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -62,7 +63,7 @@ class AddRatingUseCaseTest {
     void execute_ShouldSucceed_WhenValidDataProvided() {
         Recipe recipe = buildRecipe();
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(recipe));
-        when(sessionService.getCurrentUserId()).thenReturn(VOTER_ID);
+        when(sessionService.getCurrentUserId()).thenReturn(Optional.of(VOTER_ID));
 
         AddRatingRequest request = new AddRatingRequest(RECIPE_ID, new Score(5), "Excelente receta");
 
@@ -73,8 +74,9 @@ class AddRatingUseCaseTest {
         assertEquals(VOTER_ID, recipe.getRatings().get(0).getUserId());
         assertEquals(5, recipe.getRatings().get(0).getScore().value());
 
-        // Repository must be called exactly once with the mutated aggregate
-        verify(recipeRepository, times(1)).update(recipe);
+        // Repository must be called with the computed social metrics, not a full aggregate rewrite
+        verify(recipeRepository, times(1)).updateSocialMetrics(
+                eq(RECIPE_ID), eq(recipe.getAverageScore()), eq(recipe.getTotalRatings()));
 
         // Transaction boundary must have been entered
         verify(transactionManager, times(1)).execute(any(Supplier.class));
@@ -90,6 +92,20 @@ class AddRatingUseCaseTest {
         assertThrows(IllegalArgumentException.class, () -> useCase.execute(request),
                 "Debe lanzar IllegalArgumentException cuando la receta no existe");
 
-        verify(recipeRepository, never()).update(any());
+        verify(recipeRepository, never()).updateSocialMetrics(any(), any(), anyInt());
+    }
+
+    @Test
+    @DisplayName("execute: lanza AuthenticationRequiredException si no hay usuario en sesión")
+    void execute_ShouldThrowAuthenticationRequiredException_WhenSessionIsEmpty() {
+        when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(buildRecipe()));
+        when(sessionService.getCurrentUserId()).thenReturn(Optional.empty());
+
+        AddRatingRequest request = new AddRatingRequest(RECIPE_ID, new Score(5), "Comentario");
+
+        assertThrows(AuthenticationRequiredException.class, () -> useCase.execute(request),
+                "Debe lanzar AuthenticationRequiredException cuando la sesión está vacía");
+
+        verify(recipeRepository, never()).updateSocialMetrics(any(), any(), anyInt());
     }
 }

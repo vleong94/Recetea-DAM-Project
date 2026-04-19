@@ -1,25 +1,26 @@
 package com.recetea.core.user.domain;
 
+import com.recetea.core.user.domain.vo.Email;
+import com.recetea.core.user.domain.vo.PasswordHash;
+import com.recetea.core.user.domain.vo.Username;
+
 public class User {
 
     private UserId id;
-    private final String username;
-    private final String email;
-    private final String passwordHash;
+    private final Username username;
+    private final Email email;
+    private final PasswordHash passwordHash;
 
     public User(String username, String email, String passwordHash) {
-        if (username == null || username.isBlank()) throw new IllegalArgumentException("El nombre de usuario es obligatorio.");
-        if (email == null || email.isBlank()) throw new IllegalArgumentException("El email es obligatorio.");
-        if (passwordHash == null || passwordHash.isBlank()) throw new IllegalArgumentException("El hash de contraseña es obligatorio.");
-        this.username = username;
-        this.email = email;
-        this.passwordHash = passwordHash;
+        this.username = new Username(username);
+        this.email = new Email(email);
+        this.passwordHash = new PasswordHash(passwordHash);
     }
 
     public void setId(UserId id) { this.id = id; }
 
     public UserId getId() { return id; }
-    public String getUsername() { return username; }
-    public String getEmail() { return email; }
-    public String getPasswordHash() { return passwordHash; }
+    public String getUsername() { return username.value(); }
+    public String getEmail() { return email.value(); }
+    public String getPasswordHash() { return passwordHash.value(); }
 }

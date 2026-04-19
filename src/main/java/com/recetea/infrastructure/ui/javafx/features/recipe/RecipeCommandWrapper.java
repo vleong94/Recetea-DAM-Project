@@ -12,9 +12,9 @@ import com.recetea.core.shared.application.ports.in.IUserSessionService;
 
 public final class RecipeCommandWrapper implements RecipeCommandProvider {
 
-    private final RecipeContext context;
+    private final RecipeCommandContext context;
 
-    public RecipeCommandWrapper(RecipeContext context) {
+    public RecipeCommandWrapper(RecipeCommandContext context) {
         this.context = context;
     }
 
