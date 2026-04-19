@@ -18,6 +18,7 @@ import java.math.RoundingMode;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeRepository {
 
@@ -440,6 +441,29 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             throw new InfrastructureException("Error al buscar resúmenes de recetas con los criterios proporcionados.", e);
         } finally {
             closeIfNonTransactional(conn, "searchSummaries");
+        }
+    }
+
+    @Override
+    public List<RecipeSummaryResponse> findSummariesByIds(List<RecipeId> ids) {
+        if (ids.isEmpty()) return List.of();
+        String placeholders = ids.stream().map(id -> "?").collect(Collectors.joining(", "));
+        String sql = SELECT_SUMMARIES_FROM + " WHERE r.id_recipe IN (" + placeholders + ")";
+        Connection conn = null;
+        try {
+            conn = transactionManager.getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                for (int i = 0; i < ids.size(); i++) ps.setInt(i + 1, ids.get(i).value());
+                try (ResultSet rs = ps.executeQuery()) {
+                    List<RecipeSummaryResponse> results = new ArrayList<>();
+                    while (rs.next()) results.add(mapSummaryRow(rs));
+                    return results;
+                }
+            }
+        } catch (SQLException e) {
+            throw new InfrastructureException("Error al obtener resúmenes por IDs.", e);
+        } finally {
+            closeIfNonTransactional(conn, "findSummariesByIds");
         }
     }
 

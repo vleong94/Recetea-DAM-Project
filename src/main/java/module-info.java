@@ -11,7 +11,6 @@ module com.recetea {
 
     // Declaración de dependencias de la Persistence Layer.
     requires java.sql;
-    requires java.naming;
     requires org.postgresql.jdbc;
     requires com.zaxxer.hikari;
 
@@ -24,7 +23,10 @@ module com.recetea {
     // Expone el dominio y puertos del módulo de usuario.
     exports com.recetea.core.user.domain;
     exports com.recetea.core.user.application.ports.out;
-    exports com.recetea.infrastructure.persistence.user.jdbc.repositories;
+
+    // Expone los puertos del módulo social.
+    exports com.recetea.core.social.application.ports.in;
+    exports com.recetea.core.social.application.ports.out;
 
     // Apertura quirúrgica de paquetes para Reflection (Inbound Adapters y UI Components).
     // Obligatorio para que el FXMLLoader instancie y enlace los nodos FXML en los Fields anotados.

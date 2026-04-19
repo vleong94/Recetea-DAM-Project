@@ -3,6 +3,7 @@ package com.recetea.infrastructure.ui.javafx.features.recipe;
 import com.recetea.core.recipe.application.ports.in.recipe.IGetAllRecipesUseCase;
 import com.recetea.core.recipe.application.ports.in.recipe.IGetRecipeByIdUseCase;
 import com.recetea.core.recipe.application.ports.in.recipe.ISearchRecipesUseCase;
+import com.recetea.core.social.application.ports.in.IGetUserFavoritesUseCase;
 
 public final class RecipeQueryWrapper implements RecipeQueryProvider {
 
@@ -20,4 +21,7 @@ public final class RecipeQueryWrapper implements RecipeQueryProvider {
 
     @Override
     public ISearchRecipesUseCase searchRecipes() { return context.searchRecipes(); }
+
+    @Override
+    public IGetUserFavoritesUseCase getUserFavorites() { return context.getUserFavorites(); }
 }

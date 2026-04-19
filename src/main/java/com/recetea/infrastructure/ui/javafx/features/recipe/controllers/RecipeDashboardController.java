@@ -1,7 +1,8 @@
 package com.recetea.infrastructure.ui.javafx.features.recipe.controllers;
 
 import com.recetea.core.recipe.application.ports.in.dto.RecipeSummaryResponse;
-import com.recetea.core.recipe.domain.AuthenticationRequiredException;
+import com.recetea.core.recipe.domain.vo.RecipeId;
+import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandProvider;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryProvider;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -12,7 +13,10 @@ import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class RecipeDashboardController {
 
@@ -25,10 +29,15 @@ public class RecipeDashboardController {
     @FXML private TableColumn<RecipeSummaryResponse, Integer> servingsColumn;
     @FXML private TableColumn<RecipeSummaryResponse, String> scoreColumn;
     @FXML private TableColumn<RecipeSummaryResponse, Integer> ratingsColumn;
+    @FXML private TableColumn<RecipeSummaryResponse, Void> favoriteColumn;
     @FXML private TableColumn<RecipeSummaryResponse, Void> actionsColumn;
 
     private RecipeQueryProvider queryProvider;
+    private RecipeCommandProvider commandProvider;
     private NavigationService nav;
+
+    // Snapshot of the user's favorite recipe IDs; rebuilt on every loadData() call.
+    private Set<RecipeId> favoriteIds = new HashSet<>();
 
     @FXML
     public void initialize() {
@@ -43,14 +52,44 @@ public class RecipeDashboardController {
         ratingsColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().totalRatings()));
     }
 
-    public void init(RecipeQueryProvider queryProvider, NavigationService nav) {
+    public void init(RecipeQueryProvider queryProvider, RecipeCommandProvider commandProvider, NavigationService nav) {
         this.queryProvider = queryProvider;
+        this.commandProvider = commandProvider;
         this.nav = nav;
-        setupActions();
+        setupFavoriteColumn();
+        setupActionsColumn();
         loadData();
     }
 
-    private void setupActions() {
+    private void setupFavoriteColumn() {
+        favoriteColumn.setCellFactory(col -> new TableCell<>() {
+            private final ToggleButton btn = new ToggleButton();
+
+            {
+                btn.setOnAction(e -> {
+                    RecipeSummaryResponse recipe = getTableView().getItems().get(getIndex());
+                    commandProvider.toggleFavorite().execute(recipe.id());
+                    loadData();
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
+                    setGraphic(null);
+                    return;
+                }
+                RecipeSummaryResponse recipe = getTableView().getItems().get(getIndex());
+                boolean isFav = favoriteIds.contains(recipe.id());
+                btn.setSelected(isFav);
+                btn.setText(isFav ? "★" : "☆");
+                setGraphic(btn);
+            }
+        });
+    }
+
+    private void setupActionsColumn() {
         actionsColumn.setCellFactory(param -> new TableCell<>() {
             private final Button editBtn = new Button("Editar");
             private final Button deleteBtn = new Button("Borrar");
@@ -79,7 +118,11 @@ public class RecipeDashboardController {
 
     public void loadData() {
         List<RecipeSummaryResponse> recipes = queryProvider.getAllRecipes().execute();
+        favoriteIds = queryProvider.getUserFavorites().execute().stream()
+                .map(RecipeSummaryResponse::id)
+                .collect(Collectors.toCollection(HashSet::new));
         recipeTable.setItems(FXCollections.observableArrayList(recipes));
+        recipeTable.refresh();
     }
 
     @FXML
@@ -89,11 +132,7 @@ public class RecipeDashboardController {
 
     @FXML
     public void onCreateButtonClick() {
-        try {
-            nav.toRecipeCreate();
-        } catch (AuthenticationRequiredException e) {
-            showWarning("Autenticación Requerida", "Debes iniciar sesión para crear una receta.");
-        }
+        nav.toRecipeCreate();
     }
 
     private void handleEditAction(RecipeSummaryResponse recipe) {
@@ -107,14 +146,8 @@ public class RecipeDashboardController {
 
         alert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                try {
-                    nav.deleteRecipe(recipe.id());
-                    loadData();
-                } catch (AuthenticationRequiredException e) {
-                    showWarning("Autenticación Requerida", "Debes iniciar sesión para eliminar una receta.");
-                } catch (Exception e) {
-                    showError("Delete Failure", "No se pudo completar la operación: " + e.getMessage());
-                }
+                nav.deleteRecipe(recipe.id());
+                loadData();
             }
         });
     }
@@ -126,19 +159,5 @@ public class RecipeDashboardController {
                 nav.toRecipeDetail(selected.id());
             }
         }
-    }
-
-    private void showError(String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
-
-    private void showWarning(String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 }

@@ -6,9 +6,9 @@ import com.recetea.core.recipe.domain.vo.Score;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandProvider;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.VBox;
 
@@ -19,6 +19,7 @@ public class RatingComponent extends VBox {
     @FXML private ComboBox<Integer> scoreComboBox;
     @FXML private TextArea commentArea;
     @FXML private Button submitButton;
+    @FXML private Label statusLabel;
 
     private RecipeCommandProvider commandProvider;
     private RecipeId recipeId;
@@ -42,37 +43,48 @@ public class RatingComponent extends VBox {
     }
 
     public void setRecipeContext(RecipeCommandProvider commandProvider, RecipeId recipeId, Runnable onSuccess) {
+        boolean isNewRecipe = !recipeId.equals(this.recipeId);
         this.commandProvider = commandProvider;
         this.recipeId = recipeId;
         this.onSuccess = onSuccess;
+        if (isNewRecipe) reset();
+    }
+
+    public void disableWithStatus(String message) {
+        scoreComboBox.setDisable(true);
+        commentArea.setDisable(true);
+        submitButton.setDisable(true);
+        statusLabel.setText(message);
+        statusLabel.setVisible(true);
+        statusLabel.setManaged(true);
+    }
+
+    private void reset() {
+        scoreComboBox.setDisable(false);
+        scoreComboBox.setValue(null);
+        commentArea.setDisable(false);
+        commentArea.clear();
+        submitButton.setDisable(false);
+        statusLabel.setText("");
+        statusLabel.setVisible(false);
+        statusLabel.setManaged(false);
     }
 
     @FXML
     private void onSubmit() {
         Integer selectedScore = scoreComboBox.getValue();
         if (selectedScore == null) {
-            showError("Puntuación requerida", "Por favor, selecciona una puntuación entre 1 y 5.");
+            statusLabel.setText("Por favor, selecciona una puntuación entre 1 y 5.");
+            statusLabel.setVisible(true);
+            statusLabel.setManaged(true);
             return;
         }
 
         String comment = commentArea.getText() != null ? commentArea.getText().trim() : "";
         AddRatingRequest request = new AddRatingRequest(recipeId, new Score(selectedScore), comment);
 
-        try {
-            commandProvider.addRating().execute(request);
-            submitButton.setDisable(true);
-            scoreComboBox.setDisable(true);
-            commentArea.setDisable(true);
-            if (onSuccess != null) onSuccess.run();
-        } catch (Exception e) {
-            showError("Error al valorar", e.getMessage());
-        }
-    }
-
-    private void showError(String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
+        commandProvider.addRating().execute(request);
+        disableWithStatus("Valoración enviada. ¡Gracias!");
+        if (onSuccess != null) onSuccess.run();
     }
 }

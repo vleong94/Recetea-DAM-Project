@@ -30,6 +30,7 @@
             <TableColumn fx:id="servingsColumn" prefWidth="80.0" text="Raciones" />
             <TableColumn fx:id="scoreColumn" prefWidth="80.0" text="Score" />
             <TableColumn fx:id="ratingsColumn" prefWidth="60.0" text="Votes" />
+            <TableColumn fx:id="favoriteColumn" prefWidth="60.0" text="Fav." />
             <TableColumn fx:id="actionsColumn" prefWidth="140.0" text="Acciones" />
         </columns>
     </TableView>

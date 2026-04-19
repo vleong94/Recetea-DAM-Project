@@ -34,6 +34,7 @@ public class RecipeDetailController {
     @FXML private TableColumn<RecipeDetailResponse.RecipeStepResponse, String> colInstruction;
 
     @FXML private RatingComponent ratingComponent;
+    @FXML private ToggleButton favoriteButton;
 
     private RecipeQueryProvider queryProvider;
     private RecipeCommandProvider commandProvider;
@@ -50,15 +51,27 @@ public class RecipeDetailController {
         colQuantity.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().quantity()));
         colStepOrder.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().stepOrder()));
         colInstruction.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().instruction()));
+
+        favoriteButton.setOnAction(e -> {
+            commandProvider.toggleFavorite().execute(currentRecipeId);
+            refreshFavoriteButton(currentRecipeId);
+        });
     }
 
     public void loadRecipeDetails(RecipeId recipeId) {
         this.currentRecipeId = recipeId;
         ratingComponent.setRecipeContext(commandProvider, recipeId, () -> loadRecipeDetails(currentRecipeId));
+        refreshFavoriteButton(recipeId);
         queryProvider.getRecipeById().execute(recipeId).ifPresentOrElse(
                 this::populateView,
                 () -> showError("Error de Consulta", "El sistema no pudo localizar la receta solicitada.")
         );
+    }
+
+    private void refreshFavoriteButton(RecipeId recipeId) {
+        boolean isFav = commandProvider.isFavorite().execute(recipeId);
+        favoriteButton.setSelected(isFav);
+        favoriteButton.setText(isFav ? "★ En favoritos" : "☆ Añadir a favoritos");
     }
 
     private void populateView(RecipeDetailResponse recipe) {
@@ -74,6 +87,10 @@ public class RecipeDetailController {
 
         ingredientsTable.setItems(FXCollections.observableArrayList(recipe.ingredients()));
         stepsTable.setItems(FXCollections.observableArrayList(recipe.steps()));
+
+        commandProvider.sessionService().getCurrentUserId()
+                .filter(currentId -> currentId.equals(recipe.userId()))
+                .ifPresent(__ -> ratingComponent.disableWithStatus("No puedes valorar tu propia receta."));
     }
 
     @FXML

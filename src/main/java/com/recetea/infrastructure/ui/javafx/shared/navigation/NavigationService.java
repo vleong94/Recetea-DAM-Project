@@ -58,7 +58,7 @@ public class NavigationService {
     public void toDashboard() {
         loadScene("/com/recetea/infrastructure/ui/javafx/fxml/features/recipe/pages/recipe_dashboard.fxml", "Panel Principal", loader -> {
             RecipeDashboardController controller = loader.getController();
-            controller.init(queryProvider, this);
+            controller.init(queryProvider, commandProvider, this);
         });
     }
 

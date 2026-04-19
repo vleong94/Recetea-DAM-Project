@@ -21,4 +21,6 @@
     <TextArea fx:id="commentArea" promptText="Escribe tu opinión..." prefHeight="80.0" wrapText="true" />
 
     <Button fx:id="submitButton" text="Enviar Valoración" styleClass="primary-button" onAction="#onSubmit" />
+
+    <Label fx:id="statusLabel" styleClass="field-label" visible="false" managed="false" />
 </fx:root>

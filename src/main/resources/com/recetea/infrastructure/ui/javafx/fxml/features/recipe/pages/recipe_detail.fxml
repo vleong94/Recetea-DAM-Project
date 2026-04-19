@@ -6,6 +6,7 @@
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
@@ -73,6 +74,7 @@
     <RatingComponent fx:id="ratingComponent" />
 
     <HBox alignment="CENTER_RIGHT" spacing="10.0">
+        <ToggleButton fx:id="favoriteButton" text="☆ Añadir a favoritos" styleClass="secondary-button" />
         <Button text="Volver al Catálogo" styleClass="secondary-button" onAction="#onBackButtonClick" />
     </HBox>
 </VBox>

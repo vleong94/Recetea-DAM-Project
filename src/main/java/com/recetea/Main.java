@@ -10,11 +10,15 @@ import com.recetea.core.recipe.application.usecases.difficulty.GetAllDifficultie
 import com.recetea.core.recipe.application.usecases.ingredient.GetAllIngredientsUseCase;
 import com.recetea.core.recipe.application.usecases.recipe.*;
 import com.recetea.core.recipe.application.usecases.unit.GetAllUnitsUseCase;
+import com.recetea.core.social.application.usecases.GetUserFavoritesUseCase;
+import com.recetea.core.social.application.usecases.IsFavoriteUseCase;
+import com.recetea.core.social.application.usecases.ToggleFavoriteUseCase;
 import com.recetea.core.user.application.usecases.LoginUseCase;
 import com.recetea.core.user.application.usecases.RegisterUserUseCase;
 import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import com.recetea.infrastructure.persistence.recipe.jdbc.config.DatabaseConfig;
 import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.*;
+import com.recetea.infrastructure.persistence.social.jdbc.repositories.JdbcFavoriteRepository;
 import com.recetea.infrastructure.persistence.user.jdbc.repositories.JdbcUserRepository;
 import com.recetea.infrastructure.security.PasswordHasher;
 import com.recetea.infrastructure.security.SessionManager;
@@ -22,6 +26,7 @@ import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandContext
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandWrapper;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryContext;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryWrapper;
+import com.recetea.infrastructure.ui.javafx.shared.error.GlobalExceptionHandler;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.application.Application;
 import javafx.stage.Stage;
@@ -36,6 +41,8 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        GlobalExceptionHandler.register();
+
         // Inicialización del motor de persistencia y gestión de recursos JDBC
         // El Transaction Manager actúa como el Unit of Work central para la persistencia
         JdbcTransactionManager transactionManager = new JdbcTransactionManager(DatabaseConfig.getDataSource());
@@ -48,6 +55,7 @@ public class Main extends Application {
         IDifficultyRepository difficultyRepository = new JdbcDifficultyRepository(transactionManager);
 
         JdbcUserRepository userRepository = new JdbcUserRepository(transactionManager);
+        JdbcFavoriteRepository favoriteRepository = new JdbcFavoriteRepository(transactionManager);
         PasswordHasher passwordHasher = new PasswordHasher();
         LoginUseCase loginUseCase = new LoginUseCase(userRepository, passwordHasher);
         RegisterUserUseCase registerUseCase = new RegisterUserUseCase(userRepository, passwordHasher, transactionManager);
@@ -57,7 +65,8 @@ public class Main extends Application {
         RecipeQueryContext queryContext = new RecipeQueryContext(
                 new GetAllRecipesUseCase(recipeRepository),
                 new GetRecipeByIdUseCase(recipeRepository),
-                new SearchRecipesUseCase(recipeRepository)
+                new SearchRecipesUseCase(recipeRepository),
+                new GetUserFavoritesUseCase(favoriteRepository, recipeRepository, sessionService)
         );
 
         RecipeCommandContext commandContext = new RecipeCommandContext(
@@ -69,7 +78,9 @@ public class Main extends Application {
                 new GetAllUnitsUseCase(unitRepository),
                 new GetAllCategoriesUseCase(categoryRepository),
                 new GetAllDifficultiesUseCase(difficultyRepository),
-                sessionService
+                sessionService,
+                new ToggleFavoriteUseCase(favoriteRepository, transactionManager, sessionService),
+                new IsFavoriteUseCase(favoriteRepository, sessionService)
         );
 
         RecipeQueryWrapper queryWrapper = new RecipeQueryWrapper(queryContext);

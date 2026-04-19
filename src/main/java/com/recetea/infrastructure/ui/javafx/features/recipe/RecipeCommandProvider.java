@@ -9,6 +9,8 @@ import com.recetea.core.recipe.application.ports.in.recipe.IDeleteRecipeUseCase;
 import com.recetea.core.recipe.application.ports.in.recipe.IUpdateRecipeUseCase;
 import com.recetea.core.recipe.application.ports.in.unit.IGetAllUnitsUseCase;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
+import com.recetea.core.social.application.ports.in.IIsFavoriteUseCase;
+import com.recetea.core.social.application.ports.in.IToggleFavoriteUseCase;
 
 public interface RecipeCommandProvider {
     IAddRatingUseCase addRating();
@@ -20,4 +22,6 @@ public interface RecipeCommandProvider {
     IGetAllIngredientsUseCase getAllIngredients();
     IGetAllUnitsUseCase getAllUnits();
     IUserSessionService sessionService();
+    IToggleFavoriteUseCase toggleFavorite();
+    IIsFavoriteUseCase isFavorite();
 }
