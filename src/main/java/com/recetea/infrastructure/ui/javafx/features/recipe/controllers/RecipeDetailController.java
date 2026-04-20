@@ -3,8 +3,10 @@ package com.recetea.infrastructure.ui.javafx.features.recipe.controllers;
 import com.recetea.core.recipe.application.ports.in.dto.RecipeDetailResponse;
 import com.recetea.core.recipe.application.ports.in.dto.RecipeIngredientResponse;
 import com.recetea.core.recipe.domain.vo.RecipeId;
+import com.recetea.infrastructure.storage.StorageConfig;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandProvider;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryProvider;
+import com.recetea.infrastructure.ui.javafx.features.recipe.components.MediaGalleryComponent;
 import com.recetea.infrastructure.ui.javafx.features.recipe.components.RatingComponent;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -33,6 +35,7 @@ public class RecipeDetailController {
     @FXML private TableColumn<RecipeDetailResponse.RecipeStepResponse, Integer> colStepOrder;
     @FXML private TableColumn<RecipeDetailResponse.RecipeStepResponse, String> colInstruction;
 
+    @FXML private MediaGalleryComponent mediaGallery;
     @FXML private RatingComponent ratingComponent;
     @FXML private ToggleButton favoriteButton;
 
@@ -84,6 +87,8 @@ public class RecipeDetailController {
         scoreLabel.setText(String.format("%s (%d valoraciones)",
                 recipe.averageScore().setScale(1, java.math.RoundingMode.HALF_UP),
                 recipe.totalRatings()));
+
+        mediaGallery.setMedia(recipe.media(), StorageConfig.getBasePath());
 
         ingredientsTable.setItems(FXCollections.observableArrayList(recipe.ingredients()));
         stepsTable.setItems(FXCollections.observableArrayList(recipe.steps()));

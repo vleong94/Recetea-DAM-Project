@@ -6,6 +6,7 @@ import com.recetea.core.recipe.application.ports.in.recipe.IGetRecipeByIdUseCase
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
+import com.recetea.core.recipe.domain.RecipeMedia;
 import com.recetea.core.recipe.domain.RecipeStep;
 import com.recetea.core.recipe.domain.vo.RecipeId;
 
@@ -40,7 +41,8 @@ public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
                 recipe.getIngredients().stream().map(this::mapToIngredientResponse).toList(),
                 recipe.getSteps().stream().map(this::mapToStepResponse).toList(),
                 recipe.getAverageScore(),
-                recipe.getTotalRatings()
+                recipe.getTotalRatings(),
+                recipe.getMediaItems().stream().map(this::mapToMediaResponse).toList()
         );
     }
 
@@ -56,5 +58,11 @@ public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
 
     private RecipeDetailResponse.RecipeStepResponse mapToStepResponse(RecipeStep rs) {
         return new RecipeDetailResponse.RecipeStepResponse(rs.stepOrder(), rs.instruction());
+    }
+
+    private RecipeDetailResponse.RecipeMediaResponse mapToMediaResponse(RecipeMedia m) {
+        return new RecipeDetailResponse.RecipeMediaResponse(
+                m.id(), m.storageKey(), m.storageProvider(), m.mimeType(),
+                m.sizeBytes(), m.isMain(), m.sortOrder());
     }
 }

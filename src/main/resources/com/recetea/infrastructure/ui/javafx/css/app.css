@@ -90,6 +90,66 @@
     -fx-text-fill: #2c3e50;
 }
 
+/* ── Media Gallery ───────────────────────────────────────── */
+.gallery-main-container {
+    -fx-background-color: #1c1c1c;
+    -fx-min-height: 300px;
+    -fx-alignment: center;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+
+.gallery-no-media {
+    -fx-text-fill: #888888;
+    -fx-font-size: 14px;
+}
+
+.gallery-thumbnail {
+    -fx-cursor: hand;
+    -fx-border-color: transparent;
+    -fx-border-width: 2;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 2;
+    -fx-background-color: #2c2c2c;
+}
+
+.gallery-thumbnail:hover {
+    -fx-border-color: #2980b9;
+    -fx-background-color: #3a3a3a;
+}
+
+.gallery-thumbnail-selected {
+    -fx-border-color: #e74c3c;
+    -fx-background-color: #3a3a3a;
+}
+
+.gallery-strip-scroll {
+    -fx-background-color: transparent;
+    -fx-padding: 4 0 4 0;
+}
+
+.gallery-strip-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+/* ── Media Upload ────────────────────────────────────────── */
+.media-remove-btn {
+    -fx-background-color: rgba(231,76,60,0.85);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+    -fx-padding: 1 4 1 4;
+    -fx-background-radius: 10;
+    -fx-cursor: hand;
+    -fx-min-width: 18px;
+    -fx-min-height: 18px;
+}
+
+.media-remove-btn:hover {
+    -fx-background-color: #c0392b;
+}
+
 /* ── Hyperlink ───────────────────────────────────────────── */
 .hyperlink {
     -fx-text-fill: #2980b9;

@@ -8,6 +8,7 @@ import com.recetea.core.recipe.application.ports.out.unit.IUnitRepository;
 import com.recetea.core.recipe.application.usecases.category.GetAllCategoriesUseCase;
 import com.recetea.core.recipe.application.usecases.difficulty.GetAllDifficultiesUseCase;
 import com.recetea.core.recipe.application.usecases.ingredient.GetAllIngredientsUseCase;
+import com.recetea.core.recipe.application.usecases.media.AttachMediaUseCase;
 import com.recetea.core.recipe.application.usecases.recipe.*;
 import com.recetea.core.recipe.application.usecases.unit.GetAllUnitsUseCase;
 import com.recetea.core.social.application.usecases.GetUserFavoritesUseCase;
@@ -20,6 +21,8 @@ import com.recetea.infrastructure.persistence.recipe.jdbc.config.DatabaseConfig;
 import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.*;
 import com.recetea.infrastructure.persistence.social.jdbc.repositories.JdbcFavoriteRepository;
 import com.recetea.infrastructure.persistence.user.jdbc.repositories.JdbcUserRepository;
+import com.recetea.infrastructure.storage.LocalFileSystemMediaStorage;
+import com.recetea.infrastructure.storage.StorageConfig;
 import com.recetea.infrastructure.security.PasswordHasher;
 import com.recetea.infrastructure.security.SessionManager;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandContext;
@@ -61,6 +64,7 @@ public class Main extends Application {
         RegisterUserUseCase registerUseCase = new RegisterUserUseCase(userRepository, passwordHasher, transactionManager);
 
         SessionManager sessionService = new SessionManager();
+        LocalFileSystemMediaStorage mediaStorage = new LocalFileSystemMediaStorage(StorageConfig.getBasePath());
 
         RecipeQueryContext queryContext = new RecipeQueryContext(
                 new GetAllRecipesUseCase(recipeRepository),
@@ -74,6 +78,7 @@ public class Main extends Application {
                 new CreateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager, sessionService),
                 new UpdateRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository, transactionManager, sessionService),
                 new DeleteRecipeUseCase(recipeRepository, transactionManager, sessionService),
+                new AttachMediaUseCase(recipeRepository, mediaStorage, transactionManager, sessionService),
                 new GetAllIngredientsUseCase(ingredientRepository),
                 new GetAllUnitsUseCase(unitRepository),
                 new GetAllCategoriesUseCase(categoryRepository),

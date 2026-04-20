@@ -11,6 +11,7 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import com.recetea.infrastructure.ui.javafx.features.recipe.components.MediaGalleryComponent?>
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.RatingComponent?>
 
 <VBox spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
@@ -20,6 +21,8 @@
     </padding>
 
     <Label fx:id="titleLabel" text="Cargando Receta..." styleClass="header-label" />
+
+    <MediaGalleryComponent fx:id="mediaGallery" />
 
     <GridPane vgap="10.0" hgap="15.0">
         <columnConstraints>

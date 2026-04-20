@@ -2,8 +2,11 @@ package com.recetea.infrastructure.ui.javafx.features.recipe.controllers;
 
 import com.recetea.core.recipe.application.ports.in.dto.RecipeSummaryResponse;
 import com.recetea.core.recipe.domain.vo.RecipeId;
+import com.recetea.core.shared.domain.PageRequest;
+import com.recetea.infrastructure.storage.StorageConfig;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandProvider;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryProvider;
+import com.recetea.infrastructure.ui.javafx.shared.components.ThumbnailTableCell;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -21,6 +24,7 @@ import java.util.stream.Collectors;
 public class RecipeDashboardController {
 
     @FXML private TableView<RecipeSummaryResponse> recipeTable;
+    @FXML private TableColumn<RecipeSummaryResponse, String> photoColumn;
     @FXML private TableColumn<RecipeSummaryResponse, String> idColumn;
     @FXML private TableColumn<RecipeSummaryResponse, String> titleColumn;
     @FXML private TableColumn<RecipeSummaryResponse, String> categoryColumn;
@@ -41,6 +45,9 @@ public class RecipeDashboardController {
 
     @FXML
     public void initialize() {
+        photoColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().mainMediaStorageKey()));
+        photoColumn.setCellFactory(col -> new ThumbnailTableCell(StorageConfig.getBasePath()));
+
         idColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(String.valueOf(cell.getValue().id().value())));
         titleColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().title()));
         categoryColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().categoryName()));
@@ -109,7 +116,18 @@ public class RecipeDashboardController {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                setGraphic(empty ? null : container);
+                if (empty || getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
+                    setGraphic(null);
+                    return;
+                }
+                RecipeSummaryResponse recipe = getTableView().getItems().get(getIndex());
+                boolean isOwner = commandProvider.sessionService().getCurrentUserId()
+                        .map(id -> id.equals(recipe.authorId())).orElse(false);
+                editBtn.setVisible(isOwner);
+                editBtn.setManaged(isOwner);
+                deleteBtn.setVisible(isOwner);
+                deleteBtn.setManaged(isOwner);
+                setGraphic(container);
             }
         });
 
@@ -117,7 +135,7 @@ public class RecipeDashboardController {
     }
 
     public void loadData() {
-        List<RecipeSummaryResponse> recipes = queryProvider.getAllRecipes().execute();
+        List<RecipeSummaryResponse> recipes = queryProvider.getAllRecipes().execute(new PageRequest(0, 20)).content();
         favoriteIds = queryProvider.getUserFavorites().execute().stream()
                 .map(RecipeSummaryResponse::id)
                 .collect(Collectors.toCollection(HashSet::new));

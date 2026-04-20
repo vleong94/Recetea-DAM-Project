@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<fx:root type="javafx.scene.layout.VBox" spacing="8.0"
+         xmlns="http://javafx.com/javafx/17"
+         xmlns:fx="http://javafx.com/fxml/1">
+
+    <!-- Main large image area -->
+    <StackPane fx:id="mainContainer" styleClass="gallery-main-container" minHeight="300.0">
+        <ImageView fx:id="mainImageView" fitWidth="500.0" fitHeight="300.0" preserveRatio="true" />
+        <Label fx:id="noMediaLabel" text="Sin imágenes" styleClass="gallery-no-media" />
+    </StackPane>
+
+    <!-- Horizontal scrollable thumbnail strip -->
+    <ScrollPane styleClass="gallery-strip-scroll" fitToHeight="true"
+                hbarPolicy="AS_NEEDED" vbarPolicy="NEVER" prefHeight="90.0">
+        <HBox fx:id="thumbnailStrip" spacing="8.0">
+            <padding>
+                <Insets left="4.0" right="4.0" />
+            </padding>
+        </HBox>
+    </ScrollPane>
+
+</fx:root>

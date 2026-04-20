@@ -34,10 +34,12 @@ public class RecipeUpdateController extends BaseRecipeFormController {
         );
 
         stepTableComponent.loadSteps(recipe.steps());
+        mediaUploadComponent.loadExistingMedia(recipe.media());
     }
 
     @Override
-    protected void handleSave(SaveRecipeRequest request) {
+    protected RecipeId handleSave(SaveRecipeRequest request) {
         context.updateRecipe().execute(currentRecipeId, request);
+        return currentRecipeId;
     }
 }

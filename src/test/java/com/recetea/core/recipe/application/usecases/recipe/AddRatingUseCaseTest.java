@@ -74,9 +74,9 @@ class AddRatingUseCaseTest {
         assertEquals(VOTER_ID, recipe.getRatings().get(0).getUserId());
         assertEquals(5, recipe.getRatings().get(0).getScore().value());
 
-        // Repository must be called with the computed social metrics, not a full aggregate rewrite
-        verify(recipeRepository, times(1)).updateSocialMetrics(
-                eq(RECIPE_ID), eq(recipe.getAverageScore()), eq(recipe.getTotalRatings()));
+        // Repository must delegate the full update (which handles metrics via dirty flag)
+        verify(recipeRepository, times(1)).update(eq(recipe));
+        verify(recipeRepository, never()).updateSocialMetrics(any(), any(), anyInt());
 
         // Transaction boundary must have been entered
         verify(transactionManager, times(1)).execute(any(Supplier.class));
@@ -92,6 +92,7 @@ class AddRatingUseCaseTest {
         assertThrows(IllegalArgumentException.class, () -> useCase.execute(request),
                 "Debe lanzar IllegalArgumentException cuando la receta no existe");
 
+        verify(recipeRepository, never()).update(any());
         verify(recipeRepository, never()).updateSocialMetrics(any(), any(), anyInt());
     }
 
@@ -106,6 +107,7 @@ class AddRatingUseCaseTest {
         assertThrows(AuthenticationRequiredException.class, () -> useCase.execute(request),
                 "Debe lanzar AuthenticationRequiredException cuando la sesión está vacía");
 
+        verify(recipeRepository, never()).update(any());
         verify(recipeRepository, never()).updateSocialMetrics(any(), any(), anyInt());
     }
 }

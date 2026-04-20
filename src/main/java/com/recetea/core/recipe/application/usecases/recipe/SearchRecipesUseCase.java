@@ -4,8 +4,8 @@ import com.recetea.core.recipe.application.ports.in.dto.RecipeSummaryResponse;
 import com.recetea.core.recipe.application.ports.in.dto.SearchCriteria;
 import com.recetea.core.recipe.application.ports.in.recipe.ISearchRecipesUseCase;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
-
-import java.util.List;
+import com.recetea.core.shared.domain.PageRequest;
+import com.recetea.core.shared.domain.PageResponse;
 
 public class SearchRecipesUseCase implements ISearchRecipesUseCase {
 
@@ -16,7 +16,7 @@ public class SearchRecipesUseCase implements ISearchRecipesUseCase {
     }
 
     @Override
-    public List<RecipeSummaryResponse> execute(SearchCriteria criteria) {
-        return recipeRepository.searchSummaries(criteria);
+    public PageResponse<RecipeSummaryResponse> execute(SearchCriteria criteria, PageRequest pageRequest) {
+        return recipeRepository.searchSummaries(criteria, pageRequest);
     }
 }

@@ -166,4 +166,80 @@ class RecipeTest {
                 )
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Media management
+    // -------------------------------------------------------------------------
+
+    private RecipeMedia buildMedia(RecipeId recipeId, boolean isMain) {
+        return new RecipeMedia(null, recipeId, "key/img.jpg", "LOCAL", "image/jpeg", 1024L, isMain, 0);
+    }
+
+    @Test
+    @DisplayName("El primer elemento multimedia debe ser marcado como isMain automáticamente")
+    void addMedia_ShouldAutoSetIsMain_WhenCollectionIsEmpty() {
+        Recipe recipe = createBaseRecipe();
+        recipe.setId(new RecipeId(1));
+        RecipeMedia media = new RecipeMedia(null, recipe.getId(), "key/img.jpg", "LOCAL", "image/jpeg", 1024L, false, 0);
+
+        recipe.addMedia(media);
+
+        assertEquals(1, recipe.getMediaItems().size());
+        assertTrue(recipe.getMediaItems().get(0).isMain(), "El primer elemento debe ser promovido a isMain=true");
+    }
+
+    @Test
+    @DisplayName("Añadir un segundo elemento no-main no debe cambiar el isMain existente")
+    void addMedia_ShouldNotChangeExistingMain_WhenNewMediaIsNotMain() {
+        Recipe recipe = createBaseRecipe();
+        recipe.setId(new RecipeId(1));
+        recipe.addMedia(new RecipeMedia(null, recipe.getId(), "key/a.jpg", "LOCAL", "image/jpeg", 512L, false, 0));
+        recipe.addMedia(new RecipeMedia(null, recipe.getId(), "key/b.jpg", "LOCAL", "image/jpeg", 512L, false, 1));
+
+        assertTrue(recipe.getMediaItems().get(0).isMain(), "El primero sigue siendo main");
+        assertFalse(recipe.getMediaItems().get(1).isMain(), "El segundo no debe ser main");
+    }
+
+    @Test
+    @DisplayName("setMainMedia debe transferir isMain al elemento indicado y limpiar el anterior")
+    void setMainMedia_ShouldTransferIsMain_AtomicallyAndClearPrevious() {
+        Recipe recipe = createBaseRecipe();
+        recipe.setId(new RecipeId(1));
+        RecipeMediaId idA = new RecipeMediaId(10);
+        RecipeMediaId idB = new RecipeMediaId(20);
+        recipe.hydrateMedia(new RecipeMedia(idA, recipe.getId(), "key/a.jpg", "LOCAL", "image/jpeg", 512L, true,  0));
+        recipe.hydrateMedia(new RecipeMedia(idB, recipe.getId(), "key/b.jpg", "LOCAL", "image/jpeg", 512L, false, 1));
+
+        recipe.setMainMedia(idB);
+
+        assertFalse(recipe.getMediaItems().stream().filter(m -> idA.equals(m.id())).findFirst().orElseThrow().isMain(),
+                "El antiguo main debe perder el flag");
+        assertTrue(recipe.getMediaItems().stream().filter(m -> idB.equals(m.id())).findFirst().orElseThrow().isMain(),
+                "El nuevo main debe tener el flag");
+    }
+
+    @Test
+    @DisplayName("setMainMedia con ID inexistente debe lanzar RecipeValidationException")
+    void setMainMedia_ShouldThrow_WhenIdNotFound() {
+        Recipe recipe = createBaseRecipe();
+        recipe.setId(new RecipeId(1));
+        assertThrows(Recipe.RecipeValidationException.class,
+                () -> recipe.setMainMedia(new RecipeMediaId(999)));
+    }
+
+    @Test
+    @DisplayName("removeMedia debe eliminar el elemento indicado de la colección")
+    void removeMedia_ShouldRemoveCorrectElement() {
+        Recipe recipe = createBaseRecipe();
+        recipe.setId(new RecipeId(1));
+        RecipeMediaId idA = new RecipeMediaId(10);
+        RecipeMediaId idB = new RecipeMediaId(20);
+        recipe.hydrateMedia(new RecipeMedia(idA, recipe.getId(), "key/a.jpg", "LOCAL", "image/jpeg", 512L, true,  0));
+        recipe.hydrateMedia(new RecipeMedia(idB, recipe.getId(), "key/b.jpg", "LOCAL", "image/jpeg", 512L, false, 1));
+
+        recipe.removeMedia(idA);
+
+        assertEquals(1, recipe.getMediaItems().size());
+        assertEquals(idB, recipe.getMediaItems().get(0).id());
+    }
 }

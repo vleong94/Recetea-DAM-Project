@@ -22,6 +22,7 @@
 
     <TableView fx:id="recipeTable" VBox.vgrow="ALWAYS">
         <columns>
+            <TableColumn fx:id="photoColumn" prefWidth="70.0" text="Foto" />
             <TableColumn fx:id="idColumn" prefWidth="50.0" text="ID" />
             <TableColumn fx:id="titleColumn" prefWidth="200.0" text="Título de la Receta" />
             <TableColumn fx:id="categoryColumn" prefWidth="120.0" text="Categoría" />

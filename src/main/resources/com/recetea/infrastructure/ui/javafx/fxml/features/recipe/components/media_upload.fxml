@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<fx:root type="javafx.scene.layout.VBox" spacing="8.0"
+         xmlns="http://javafx.com/javafx/17"
+         xmlns:fx="http://javafx.com/fxml/1">
+
+    <Label text="Imágenes de la Receta" styleClass="section-header" />
+
+    <!-- Existing images (only visible in update mode) -->
+    <VBox fx:id="existingSection" spacing="6.0" managed="false" visible="false">
+        <Label text="Imágenes guardadas:" styleClass="field-label" />
+        <ScrollPane fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
+                    prefHeight="100.0" styleClass="gallery-strip-scroll">
+            <FlowPane fx:id="existingContainer" hgap="8.0" vgap="8.0">
+                <padding><Insets left="4.0" right="4.0" /></padding>
+            </FlowPane>
+        </ScrollPane>
+        <Separator />
+    </VBox>
+
+    <!-- Pending uploads -->
+    <Label text="Añadir nuevas imágenes:" styleClass="field-label" />
+    <ScrollPane fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
+                prefHeight="100.0" styleClass="gallery-strip-scroll">
+        <FlowPane fx:id="pendingContainer" hgap="8.0" vgap="8.0">
+            <padding><Insets left="4.0" right="4.0" /></padding>
+        </FlowPane>
+    </ScrollPane>
+
+    <HBox spacing="12.0" alignment="CENTER_LEFT">
+        <Button text="Añadir Imagen" styleClass="secondary-button" onAction="#onAddImageClick" />
+        <Label fx:id="statusLabel" styleClass="error-label" />
+    </HBox>
+
+</fx:root>

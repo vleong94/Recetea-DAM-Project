@@ -1,6 +1,7 @@
 package com.recetea.infrastructure.ui.javafx.features.recipe.controllers;
 
 import com.recetea.core.recipe.application.ports.in.dto.SaveRecipeRequest;
+import com.recetea.core.recipe.domain.vo.RecipeId;
 
 /**
  * Especialización del controlador de formulario para la creación de recetas.
@@ -19,7 +20,7 @@ public class RecipeCreateController extends BaseRecipeFormController {
      * @param request Contenedor inmutable (DTO) con los datos consolidados de la receta.
      */
     @Override
-    protected void handleSave(SaveRecipeRequest request) {
-        context.createRecipe().execute(request);
+    protected RecipeId handleSave(SaveRecipeRequest request) {
+        return context.createRecipe().execute(request);
     }
 }

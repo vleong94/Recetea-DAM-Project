@@ -8,6 +8,7 @@
 
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.RecipeHeaderComponent?>
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.IngredientTableComponent?>
+<?import com.recetea.infrastructure.ui.javafx.features.recipe.components.MediaUploadComponent?>
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.StepTableComponent?>
 
 <VBox spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
@@ -18,6 +19,8 @@
     <IngredientTableComponent fx:id="ingredientTableComponent" VBox.vgrow="ALWAYS" />
 
     <StepTableComponent fx:id="stepTableComponent" VBox.vgrow="ALWAYS" />
+
+    <MediaUploadComponent fx:id="mediaUploadComponent" />
 
     <HBox alignment="CENTER_RIGHT" spacing="15.0">
         <Button text="Cancelar / Volver" styleClass="secondary-button" onAction="#onBackButtonClick" />

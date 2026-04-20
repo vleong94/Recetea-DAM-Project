@@ -3,8 +3,8 @@ package com.recetea.core.recipe.application.usecases.recipe;
 import com.recetea.core.recipe.application.ports.in.dto.RecipeSummaryResponse;
 import com.recetea.core.recipe.application.ports.in.recipe.IGetAllRecipesUseCase;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
-
-import java.util.List;
+import com.recetea.core.shared.domain.PageRequest;
+import com.recetea.core.shared.domain.PageResponse;
 
 public class GetAllRecipesUseCase implements IGetAllRecipesUseCase {
 
@@ -15,7 +15,7 @@ public class GetAllRecipesUseCase implements IGetAllRecipesUseCase {
     }
 
     @Override
-    public List<RecipeSummaryResponse> execute() {
-        return repository.findAllSummaries();
+    public PageResponse<RecipeSummaryResponse> execute(PageRequest pageRequest) {
+        return repository.findAllSummaries(pageRequest);
     }
 }

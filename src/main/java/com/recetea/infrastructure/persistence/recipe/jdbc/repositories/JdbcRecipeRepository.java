@@ -3,9 +3,12 @@ package com.recetea.infrastructure.persistence.recipe.jdbc.repositories;
 import com.recetea.core.recipe.application.ports.in.dto.RecipeSummaryResponse;
 import com.recetea.core.recipe.application.ports.in.dto.SearchCriteria;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
+import com.recetea.core.shared.domain.PageRequest;
+import com.recetea.core.shared.domain.PageResponse;
 import com.recetea.core.recipe.domain.Rating;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
+import com.recetea.core.recipe.domain.RecipeMedia;
 import com.recetea.core.recipe.domain.RecipeStep;
 import com.recetea.core.recipe.domain.vo.*;
 import com.recetea.core.user.domain.UserId;
@@ -71,13 +74,32 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
     private static final String UPDATE_SOCIAL_METRICS =
             "UPDATE recipes SET average_score = ?, total_ratings = ? WHERE id_recipe = ?";
 
+    private static final String SELECT_MEDIA =
+            "SELECT id_media, recipe_id, storage_key, storage_provider, mime_type, size_bytes, is_main, sort_order " +
+            "FROM recipe_media WHERE recipe_id = ? ORDER BY sort_order ASC";
+    private static final String SELECT_MEDIA_FOR_DIFF =
+            "SELECT id_media, is_main, sort_order FROM recipe_media WHERE recipe_id = ?";
+    private static final String INSERT_MEDIA =
+            "INSERT INTO recipe_media (recipe_id, storage_key, storage_provider, mime_type, size_bytes, is_main, sort_order) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?)";
+    private static final String UPDATE_MEDIA =
+            "UPDATE recipe_media SET is_main = ?, sort_order = ? WHERE id_media = ?";
+    private static final String DELETE_MEDIA_ITEM =
+            "DELETE FROM recipe_media WHERE id_media = ?";
+
     private static final String SELECT_SUMMARIES_FROM =
-            "SELECT r.id_recipe, r.title, c.name AS category_name, d.level_name AS difficulty_name, " +
-            "r.prep_time_min, r.servings, r.average_score, r.total_ratings " +
+            "SELECT r.id_recipe, r.user_id, r.title, c.name AS category_name, d.level_name AS difficulty_name, " +
+            "r.prep_time_min, r.servings, r.average_score, r.total_ratings, " +
+            "rm.storage_key AS main_media_storage_key " +
             "FROM recipes r " +
             "INNER JOIN categories c ON r.category_id = c.id_category " +
-            "INNER JOIN difficulties d ON r.difficulty_id = d.id_difficulty";
+            "INNER JOIN difficulties d ON r.difficulty_id = d.id_difficulty " +
+            "LEFT JOIN recipe_media rm ON rm.recipe_id = r.id_recipe AND rm.is_main = true";
     private static final String SELECT_SUMMARIES = SELECT_SUMMARIES_FROM;
+    private static final String COUNT_FROM =
+            "SELECT count(*) FROM recipes r " +
+            "INNER JOIN categories c ON r.category_id = c.id_category " +
+            "INNER JOIN difficulties d ON r.difficulty_id = d.id_difficulty";
 
     public JdbcRecipeRepository(JdbcTransactionManager transactionManager) {
         super(transactionManager);
@@ -103,6 +125,7 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             insertIngredients(conn, recipe);
             insertSteps(conn, recipe);
             saveRatings(conn, recipe);
+            insertMedia(conn, recipe);
         } catch (SQLException e) {
             throw new RuntimeException("Error al persistir la nueva receta.", e);
         }
@@ -124,7 +147,11 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             }
             syncIngredients(conn, recipe);
             syncSteps(conn, recipe);
-            saveRatings(conn, recipe);
+            syncMedia(conn, recipe);
+            if (recipe.isMetricsDirty()) {
+                saveRatings(conn, recipe);
+                recipe.clearMetricsDirty();
+            }
         } catch (SQLException e) {
             throw new RuntimeException("Error al actualizar la receta con ID: " + recipe.getId().value(), e);
         }
@@ -375,6 +402,13 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
                 }
             }
 
+            try (PreparedStatement ps = conn.prepareStatement(SELECT_MEDIA)) {
+                ps.setInt(1, id.value());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) recipe.hydrateMedia(mapMediaRow(rs));
+                }
+            }
+
             return Optional.of(recipe);
         } catch (SQLException e) {
             throw new InfrastructureException("Error al obtener la receta con ID: " + id.value(), e);
@@ -384,15 +418,20 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
     }
 
     @Override
-    public List<RecipeSummaryResponse> findAllSummaries() {
+    public PageResponse<RecipeSummaryResponse> findAllSummaries(PageRequest pageRequest) {
         Connection conn = null;
         try {
             conn = transactionManager.getConnection();
-            try (PreparedStatement ps = conn.prepareStatement(SELECT_SUMMARIES);
-                 ResultSet rs = ps.executeQuery()) {
-                List<RecipeSummaryResponse> results = new ArrayList<>();
-                while (rs.next()) results.add(mapSummaryRow(rs));
-                return results;
+            long total = queryCount(conn, COUNT_FROM, List.of());
+            String sql = SELECT_SUMMARIES + " LIMIT ? OFFSET ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, pageRequest.size());
+                ps.setInt(2, pageRequest.offset());
+                try (ResultSet rs = ps.executeQuery()) {
+                    List<RecipeSummaryResponse> results = new ArrayList<>();
+                    while (rs.next()) results.add(mapSummaryRow(rs));
+                    return PageResponse.of(results, total, pageRequest.size());
+                }
             }
         } catch (SQLException e) {
             throw new InfrastructureException("Error al obtener los resúmenes de recetas.", e);
@@ -402,8 +441,7 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
     }
 
     @Override
-    public List<RecipeSummaryResponse> searchSummaries(SearchCriteria criteria) {
-        StringBuilder sql = new StringBuilder(SELECT_SUMMARIES_FROM);
+    public PageResponse<RecipeSummaryResponse> searchSummaries(SearchCriteria criteria, PageRequest pageRequest) {
         List<Object> params = new ArrayList<>();
         List<String> conditions = new ArrayList<>();
 
@@ -420,21 +458,24 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
             params.add(criteria.minServings());
         }
 
-        if (!conditions.isEmpty()) {
-            sql.append(" WHERE ").append(String.join(" AND ", conditions));
-        }
+        String whereClause = conditions.isEmpty() ? "" : " WHERE " + String.join(" AND ", conditions);
+        String countSql = COUNT_FROM + whereClause;
+        String dataSql = SELECT_SUMMARIES_FROM + whereClause + " LIMIT ? OFFSET ?";
+
+        List<Object> dataParams = new ArrayList<>(params);
+        dataParams.add(pageRequest.size());
+        dataParams.add(pageRequest.offset());
 
         Connection conn = null;
         try {
             conn = transactionManager.getConnection();
-            try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
-                for (int i = 0; i < params.size(); i++) {
-                    ps.setObject(i + 1, params.get(i));
-                }
+            long total = queryCount(conn, countSql, params);
+            try (PreparedStatement ps = conn.prepareStatement(dataSql)) {
+                for (int i = 0; i < dataParams.size(); i++) ps.setObject(i + 1, dataParams.get(i));
                 try (ResultSet rs = ps.executeQuery()) {
                     List<RecipeSummaryResponse> results = new ArrayList<>();
                     while (rs.next()) results.add(mapSummaryRow(rs));
-                    return results;
+                    return PageResponse.of(results, total, pageRequest.size());
                 }
             }
         } catch (SQLException e) {
@@ -471,6 +512,128 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
     // Private helpers
     // -------------------------------------------------------------------------
 
+    private void insertMedia(Connection conn, Recipe recipe) throws SQLException {
+        if (recipe.getMediaItems().isEmpty()) return;
+        try (PreparedStatement ps = conn.prepareStatement(INSERT_MEDIA)) {
+            for (RecipeMedia m : recipe.getMediaItems()) {
+                ps.setInt(1, recipe.getId().value());
+                ps.setString(2, m.storageKey());
+                ps.setString(3, m.storageProvider());
+                ps.setString(4, m.mimeType());
+                ps.setLong(5, m.sizeBytes());
+                ps.setBoolean(6, m.isMain());
+                ps.setInt(7, m.sortOrder());
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
+
+    private void syncMedia(Connection conn, Recipe recipe) throws SQLException {
+        int recipeId = recipe.getId().value();
+
+        Map<Integer, DbMediaRow> existing = new LinkedHashMap<>();
+        try (PreparedStatement ps = conn.prepareStatement(SELECT_MEDIA_FOR_DIFF)) {
+            ps.setInt(1, recipeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int mediaId = rs.getInt("id_media");
+                    existing.put(mediaId, new DbMediaRow(mediaId, rs.getBoolean("is_main"), rs.getInt("sort_order")));
+                }
+            }
+        }
+
+        Map<Integer, RecipeMedia> incomingById = new LinkedHashMap<>();
+        List<RecipeMedia> newItems = new ArrayList<>();
+        for (RecipeMedia m : recipe.getMediaItems()) {
+            if (m.id() != null) incomingById.put(m.id().value(), m);
+            else newItems.add(m);
+        }
+
+        // DELETE items removed from the aggregate
+        try (PreparedStatement ps = conn.prepareStatement(DELETE_MEDIA_ITEM)) {
+            for (int mediaId : existing.keySet()) {
+                if (!incomingById.containsKey(mediaId)) {
+                    ps.setInt(1, mediaId);
+                    ps.addBatch();
+                }
+            }
+            ps.executeBatch();
+        }
+
+        // UPDATE pass 1: clear is_main on items losing main status first to avoid
+        // violating the partial unique index (only one is_main=true per recipe)
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE recipe_media SET is_main = false WHERE id_media = ?")) {
+            for (Map.Entry<Integer, RecipeMedia> entry : incomingById.entrySet()) {
+                DbMediaRow row = existing.get(entry.getKey());
+                if (row != null && row.isMain() && !entry.getValue().isMain()) {
+                    ps.setInt(1, entry.getKey());
+                    ps.addBatch();
+                }
+            }
+            ps.executeBatch();
+        }
+
+        // UPDATE pass 2: apply full changes (gains is_main=true, sort_order changes)
+        try (PreparedStatement ps = conn.prepareStatement(UPDATE_MEDIA)) {
+            for (Map.Entry<Integer, RecipeMedia> entry : incomingById.entrySet()) {
+                DbMediaRow row = existing.get(entry.getKey());
+                if (row != null && row.isDifferentFrom(entry.getValue())) {
+                    ps.setBoolean(1, entry.getValue().isMain());
+                    ps.setInt(2, entry.getValue().sortOrder());
+                    ps.setInt(3, entry.getKey());
+                    ps.addBatch();
+                }
+            }
+            ps.executeBatch();
+        }
+
+        // INSERT new items (null id means not yet persisted)
+        if (!newItems.isEmpty()) {
+            try (PreparedStatement ps = conn.prepareStatement(INSERT_MEDIA)) {
+                for (RecipeMedia m : newItems) {
+                    ps.setInt(1, recipeId);
+                    ps.setString(2, m.storageKey());
+                    ps.setString(3, m.storageProvider());
+                    ps.setString(4, m.mimeType());
+                    ps.setLong(5, m.sizeBytes());
+                    ps.setBoolean(6, m.isMain());
+                    ps.setInt(7, m.sortOrder());
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+            }
+        }
+    }
+
+    private RecipeMedia mapMediaRow(ResultSet rs) throws SQLException {
+        return new RecipeMedia(
+                new RecipeMediaId(rs.getInt("id_media")),
+                new RecipeId(rs.getInt("recipe_id")),
+                rs.getString("storage_key"),
+                rs.getString("storage_provider"),
+                rs.getString("mime_type"),
+                rs.getLong("size_bytes"),
+                rs.getBoolean("is_main"),
+                rs.getInt("sort_order"));
+    }
+
+    private record DbMediaRow(int id, boolean isMain, int sortOrder) {
+        boolean isDifferentFrom(RecipeMedia m) {
+            return isMain != m.isMain() || sortOrder != m.sortOrder();
+        }
+    }
+
+    private long queryCount(Connection conn, String sql, List<Object> params) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.size(); i++) ps.setObject(i + 1, params.get(i));
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getLong(1);
+            }
+        }
+    }
+
     private RecipeSummaryResponse mapSummaryRow(ResultSet rs) throws SQLException {
         return new RecipeSummaryResponse(
                 new RecipeId(rs.getInt("id_recipe")),
@@ -480,7 +643,9 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
                 rs.getInt("prep_time_min"),
                 rs.getInt("servings"),
                 rs.getBigDecimal("average_score").setScale(2, RoundingMode.HALF_UP),
-                rs.getInt("total_ratings"));
+                rs.getInt("total_ratings"),
+                rs.getString("main_media_storage_key"),
+                new UserId(rs.getInt("user_id")));
     }
 
     private record DbIngredientRow(int ingredientId, int unitId, BigDecimal quantity) {

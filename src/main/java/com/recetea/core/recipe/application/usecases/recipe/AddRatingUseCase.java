@@ -30,7 +30,7 @@ public class AddRatingUseCase implements IAddRatingUseCase {
             var voterId = sessionService.getCurrentUserId()
                     .orElseThrow(AuthenticationRequiredException::new);
             recipe.addRating(voterId, request.score(), request.comment());
-            recipeRepository.updateSocialMetrics(recipe.getId(), recipe.getAverageScore(), recipe.getTotalRatings());
+            recipeRepository.update(recipe);
             return null;
         });
     }
