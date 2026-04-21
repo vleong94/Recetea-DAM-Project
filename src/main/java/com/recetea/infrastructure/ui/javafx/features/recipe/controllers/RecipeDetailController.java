@@ -13,7 +13,9 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.stage.FileChooser;
 
+import java.io.File;
 import java.math.BigDecimal;
 
 public class RecipeDetailController {
@@ -43,6 +45,7 @@ public class RecipeDetailController {
     private RecipeCommandProvider commandProvider;
     private NavigationService nav;
     private RecipeId currentRecipeId;
+    private String currentTitle = "receta";
 
     public void init(RecipeQueryProvider queryProvider, RecipeCommandProvider commandProvider, NavigationService nav) {
         this.queryProvider = queryProvider;
@@ -78,6 +81,7 @@ public class RecipeDetailController {
     }
 
     private void populateView(RecipeDetailResponse recipe) {
+        currentTitle = recipe.title();
         titleLabel.setText(recipe.title());
         prepTimeLabel.setText(String.format("%d min", recipe.prepTimeMinutes()));
         servingsLabel.setText(String.valueOf(recipe.servings()));
@@ -96,6 +100,30 @@ public class RecipeDetailController {
         commandProvider.sessionService().getCurrentUserId()
                 .filter(currentId -> currentId.equals(recipe.userId()))
                 .ifPresent(__ -> ratingComponent.disableWithStatus("No puedes valorar tu propia receta."));
+    }
+
+    @FXML
+    public void onExportButtonClick() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Exportar receta a XML");
+        chooser.setInitialFileName(sanitizeFilename(currentTitle) + ".xml");
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Archivos XML (*.xml)", "*.xml"));
+
+        File file = chooser.showSaveDialog(titleLabel.getScene().getWindow());
+        if (file == null) return;
+
+        commandProvider.exportRecipe().execute(currentRecipeId, file);
+
+        Alert ok = new Alert(Alert.AlertType.INFORMATION);
+        ok.setTitle("Exportación completada");
+        ok.setHeaderText(null);
+        ok.setContentText("La receta se ha exportado correctamente en:\n" + file.getAbsolutePath());
+        ok.showAndWait();
+    }
+
+    private static String sanitizeFilename(String title) {
+        return title.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
     }
 
     @FXML

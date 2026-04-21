@@ -17,6 +17,9 @@ module com.recetea {
     // Declaración de dependencias de la Security Layer.
     requires jbcrypt;
 
+    // Declaración de dependencias de la Interop Layer (XML).
+    requires jakarta.xml.bind;
+
     // Expone el Composition Root para permitir el Bootstrapping de la aplicación por parte de la JVM.
     exports com.recetea;
 
@@ -35,4 +38,7 @@ module com.recetea {
     opens com.recetea.infrastructure.ui.javafx.features.recipe.controllers to javafx.fxml;
     opens com.recetea.infrastructure.ui.javafx.features.recipe.components to javafx.fxml;
     opens com.recetea.infrastructure.ui.javafx.features.identity.controllers to javafx.fxml;
+
+    // JAXB runtime needs reflective access to marshal/unmarshal the XML-DTOs.
+    opens com.recetea.infrastructure.interop.xml.dto to jakarta.xml.bind;
 }

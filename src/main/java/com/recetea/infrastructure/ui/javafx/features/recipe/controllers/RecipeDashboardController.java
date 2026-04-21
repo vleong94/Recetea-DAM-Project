@@ -15,7 +15,9 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
+import javafx.stage.FileChooser;
 
+import java.io.File;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -151,6 +153,26 @@ public class RecipeDashboardController {
     @FXML
     public void onCreateButtonClick() {
         nav.toRecipeCreate();
+    }
+
+    @FXML
+    public void onImportButtonClick() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Importar receta desde XML");
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Archivos XML (*.xml)", "*.xml"));
+
+        File file = chooser.showOpenDialog(recipeTable.getScene().getWindow());
+        if (file == null) return;
+
+        commandProvider.importRecipe().execute(file);
+        loadData();
+
+        Alert ok = new Alert(Alert.AlertType.INFORMATION);
+        ok.setTitle("Importación completada");
+        ok.setHeaderText(null);
+        ok.setContentText("La receta se ha importado correctamente desde:\n" + file.getName());
+        ok.showAndWait();
     }
 
     private void handleEditAction(RecipeSummaryResponse recipe) {

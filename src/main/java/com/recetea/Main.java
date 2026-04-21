@@ -8,6 +8,8 @@ import com.recetea.core.recipe.application.ports.out.unit.IUnitRepository;
 import com.recetea.core.recipe.application.usecases.category.GetAllCategoriesUseCase;
 import com.recetea.core.recipe.application.usecases.difficulty.GetAllDifficultiesUseCase;
 import com.recetea.core.recipe.application.usecases.ingredient.GetAllIngredientsUseCase;
+import com.recetea.core.recipe.application.usecases.interop.ExportRecipeUseCase;
+import com.recetea.core.recipe.application.usecases.interop.ImportRecipeUseCase;
 import com.recetea.core.recipe.application.usecases.media.AttachMediaUseCase;
 import com.recetea.core.recipe.application.usecases.recipe.*;
 import com.recetea.core.recipe.application.usecases.unit.GetAllUnitsUseCase;
@@ -21,6 +23,7 @@ import com.recetea.infrastructure.persistence.recipe.jdbc.config.DatabaseConfig;
 import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.*;
 import com.recetea.infrastructure.persistence.social.jdbc.repositories.JdbcFavoriteRepository;
 import com.recetea.infrastructure.persistence.user.jdbc.repositories.JdbcUserRepository;
+import com.recetea.infrastructure.interop.xml.XmlInteropAdapter;
 import com.recetea.infrastructure.storage.LocalFileSystemMediaStorage;
 import com.recetea.infrastructure.storage.StorageConfig;
 import com.recetea.infrastructure.security.PasswordHasher;
@@ -65,6 +68,7 @@ public class Main extends Application {
 
         SessionManager sessionService = new SessionManager();
         LocalFileSystemMediaStorage mediaStorage = new LocalFileSystemMediaStorage(StorageConfig.getBasePath());
+        XmlInteropAdapter xmlAdapter = new XmlInteropAdapter();
 
         RecipeQueryContext queryContext = new RecipeQueryContext(
                 new GetAllRecipesUseCase(recipeRepository),
@@ -85,7 +89,10 @@ public class Main extends Application {
                 new GetAllDifficultiesUseCase(difficultyRepository),
                 sessionService,
                 new ToggleFavoriteUseCase(favoriteRepository, transactionManager, sessionService),
-                new IsFavoriteUseCase(favoriteRepository, sessionService)
+                new IsFavoriteUseCase(favoriteRepository, sessionService),
+                new ImportRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository,
+                        ingredientRepository, unitRepository, transactionManager, sessionService, xmlAdapter),
+                new ExportRecipeUseCase(recipeRepository, xmlAdapter)
         );
 
         RecipeQueryWrapper queryWrapper = new RecipeQueryWrapper(queryContext);

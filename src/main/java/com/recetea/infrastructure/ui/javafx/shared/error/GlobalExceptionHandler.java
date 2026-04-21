@@ -1,5 +1,6 @@
 package com.recetea.infrastructure.ui.javafx.shared.error;
 
+import com.recetea.infrastructure.interop.xml.XmlInteropAdapter;
 import com.recetea.infrastructure.persistence.recipe.jdbc.InfrastructureException;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -29,6 +30,8 @@ public class GlobalExceptionHandler {
     private static void showAlert(Throwable cause) {
         if (isDomainException(cause)) {
             show(Alert.AlertType.WARNING, "Operación no permitida", null, cause.getMessage());
+        } else if (cause instanceof XmlInteropAdapter.XmlInteropException) {
+            show(Alert.AlertType.WARNING, "Error de importación/exportación XML", null, cause.getMessage());
         } else if (cause instanceof InfrastructureException || cause instanceof SQLException) {
             show(Alert.AlertType.ERROR, "Error técnico",
                     "Fallo de infraestructura",

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="https://recetea.com/xml/recipe"
+           xmlns:tns="https://recetea.com/xml/recipe"
+           elementFormDefault="qualified">
+
+    <xs:element name="recipe" type="tns:RecipeType"/>
+
+    <!-- ================================================================
+         Root type: maps to the Recipe Aggregate Root.
+         All fields are required except description (optional narrative).
+    ================================================================ -->
+    <xs:complexType name="RecipeType">
+        <xs:sequence>
+            <xs:element name="title"                   type="tns:NonEmptyString"/>
+            <xs:element name="description"             type="xs:string"          minOccurs="0"/>
+            <xs:element name="preparationTimeMinutes"  type="tns:PositiveInteger"/>
+            <xs:element name="servings"                type="tns:PositiveInteger"/>
+            <xs:element name="categoryName"            type="tns:NonEmptyString"/>
+            <xs:element name="difficultyName"          type="tns:NonEmptyString"/>
+            <xs:element name="ingredients"             type="tns:IngredientsType"/>
+            <xs:element name="steps"                   type="tns:StepsType"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- ================================================================
+         Ingredients wrapper: at least one ingredient is required,
+         mirroring Recipe.syncIngredients() invariant.
+    ================================================================ -->
+    <xs:complexType name="IngredientsType">
+        <xs:sequence>
+            <xs:element name="ingredient" type="tns:IngredientType"
+                        minOccurs="1" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- Single ingredient line: quantity/unit/name triad -->
+    <xs:complexType name="IngredientType">
+        <xs:sequence>
+            <xs:element name="quantity" type="tns:PositiveDecimal"/>
+            <xs:element name="unit"     type="tns:NonEmptyString"/>
+            <xs:element name="name"     type="tns:NonEmptyString"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- ================================================================
+         Steps wrapper: at least one step is required,
+         mirroring Recipe.syncSteps() invariant.
+    ================================================================ -->
+    <xs:complexType name="StepsType">
+        <xs:sequence>
+            <xs:element name="step" type="tns:StepType"
+                        minOccurs="1" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- Single step: stepOrder must be unique and positive (enforced at domain layer) -->
+    <xs:complexType name="StepType">
+        <xs:sequence>
+            <xs:element name="order"       type="tns:PositiveInteger"/>
+            <xs:element name="instruction" type="tns:NonEmptyString"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- ================================================================
+         Reusable simple types
+    ================================================================ -->
+
+    <!-- Strings that must contain at least one character -->
+    <xs:simpleType name="NonEmptyString">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Maps to PreparationTime and Servings value objects (min value = 1) -->
+    <xs:simpleType name="PositiveInteger">
+        <xs:restriction base="xs:integer">
+            <xs:minInclusive value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Maps to RecipeIngredient.quantity (BigDecimal, strictly > 0) -->
+    <xs:simpleType name="PositiveDecimal">
+        <xs:restriction base="xs:decimal">
+            <xs:minExclusive value="0"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+</xs:schema>
