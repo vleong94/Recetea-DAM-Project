@@ -20,6 +20,10 @@ module com.recetea {
     // Declaración de dependencias de la Interop Layer (XML).
     requires jakarta.xml.bind;
 
+    // Declaración de dependencias de la Reports Layer (PDF).
+    requires com.github.librepdf.openpdf;
+    requires java.desktop;
+
     // Expone el Composition Root para permitir el Bootstrapping de la aplicación por parte de la JVM.
     exports com.recetea;
 

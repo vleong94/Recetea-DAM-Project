@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.ByteArrayInputStream;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -68,7 +69,7 @@ class AttachMediaUseCaseTest {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(buildRecipe()));
         when(sessionService.getCurrentUserId()).thenReturn(Optional.of(AUTHOR_ID));
 
-        useCase.execute(RECIPE_ID, new byte[]{1, 2}, "foto.jpg");
+        useCase.execute(RECIPE_ID, new ByteArrayInputStream(new byte[]{1, 2}), "foto.jpg");
 
         verify(storageService).store(any(), eq("foto.jpg"));
         verify(recipeRepository).update(argThat(r -> !r.getMediaItems().isEmpty()));
@@ -83,7 +84,7 @@ class AttachMediaUseCaseTest {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(recipe));
         when(sessionService.getCurrentUserId()).thenReturn(Optional.of(AUTHOR_ID));
 
-        useCase.execute(RECIPE_ID, new byte[]{1}, "primera.jpg");
+        useCase.execute(RECIPE_ID, new ByteArrayInputStream(new byte[]{1}), "primera.jpg");
 
         assertTrue(recipe.getMediaItems().get(0).isMain(), "El primer media debe ser promovido a isMain=true");
     }
@@ -95,7 +96,7 @@ class AttachMediaUseCaseTest {
         when(transactionManager.execute(any(Supplier.class)))
                 .thenThrow(new RuntimeException("DB error"));
 
-        assertThrows(RuntimeException.class, () -> useCase.execute(RECIPE_ID, new byte[]{1}, "foto.jpg"));
+        assertThrows(RuntimeException.class, () -> useCase.execute(RECIPE_ID, new ByteArrayInputStream(new byte[]{1}), "foto.jpg"));
 
         verify(storageService).delete(STORED.storageKey());
     }
@@ -105,7 +106,7 @@ class AttachMediaUseCaseTest {
     void execute_ShouldNotTouchDB_WhenStorageFails() {
         when(storageService.store(any(), any())).thenThrow(new RuntimeException("disco lleno"));
 
-        assertThrows(RuntimeException.class, () -> useCase.execute(RECIPE_ID, new byte[]{1}, "foto.jpg"));
+        assertThrows(RuntimeException.class, () -> useCase.execute(RECIPE_ID, new ByteArrayInputStream(new byte[]{1}), "foto.jpg"));
 
         verify(recipeRepository, never()).update(any());
         verify(transactionManager, never()).execute(any(Supplier.class));
@@ -119,7 +120,7 @@ class AttachMediaUseCaseTest {
         when(sessionService.getCurrentUserId()).thenReturn(Optional.empty());
 
         assertThrows(AuthenticationRequiredException.class,
-                () -> useCase.execute(RECIPE_ID, new byte[]{1}, "foto.jpg"));
+                () -> useCase.execute(RECIPE_ID, new ByteArrayInputStream(new byte[]{1}), "foto.jpg"));
 
         verify(recipeRepository, never()).update(any());
         verify(storageService).delete(STORED.storageKey());
@@ -133,7 +134,7 @@ class AttachMediaUseCaseTest {
         when(sessionService.getCurrentUserId()).thenReturn(Optional.of(OTHER_ID));
 
         assertThrows(UnauthorizedRecipeAccessException.class,
-                () -> useCase.execute(RECIPE_ID, new byte[]{1}, "foto.jpg"));
+                () -> useCase.execute(RECIPE_ID, new ByteArrayInputStream(new byte[]{1}), "foto.jpg"));
 
         verify(recipeRepository, never()).update(any());
         verify(storageService).delete(STORED.storageKey());
@@ -146,7 +147,7 @@ class AttachMediaUseCaseTest {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class,
-                () -> useCase.execute(RECIPE_ID, new byte[]{1}, "foto.jpg"));
+                () -> useCase.execute(RECIPE_ID, new ByteArrayInputStream(new byte[]{1}), "foto.jpg"));
 
         verify(recipeRepository, never()).update(any());
         verify(storageService).delete(STORED.storageKey());

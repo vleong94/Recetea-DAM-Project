@@ -13,6 +13,8 @@ import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
 import com.recetea.core.user.domain.UserId;
 
+import java.io.InputStream;
+
 public class AttachMediaUseCase implements IAttachMediaUseCase {
 
     private final IRecipeRepository recipeRepository;
@@ -31,7 +33,7 @@ public class AttachMediaUseCase implements IAttachMediaUseCase {
     }
 
     @Override
-    public void execute(RecipeId recipeId, byte[] data, String originalName) {
+    public void execute(RecipeId recipeId, InputStream data, String originalName) {
         // Store first: if storage fails the DB is never touched.
         StorageResult stored = storageService.store(data, originalName);
 

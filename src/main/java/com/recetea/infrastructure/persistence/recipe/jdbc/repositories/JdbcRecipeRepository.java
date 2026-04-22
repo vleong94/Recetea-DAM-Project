@@ -60,6 +60,8 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
 
     private static final String SELECT_RATINGS =
             "SELECT user_id, score, comment, created_at FROM ratings WHERE recipe_id = ?";
+    private static final String COUNT_USER_RATING =
+            "SELECT COUNT(*) FROM ratings WHERE user_id = ? AND recipe_id = ?";
     private static final String UPSERT_RATING =
             "INSERT INTO ratings (user_id, recipe_id, score, comment, created_at) VALUES (?, ?, ?, ?, ?) " +
             "ON CONFLICT (user_id, recipe_id) DO UPDATE SET score = EXCLUDED.score, comment = EXCLUDED.comment";
@@ -624,6 +626,28 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
         }
     }
 
+    @Override
+    public boolean hasUserRatedRecipe(UserId userId, RecipeId recipeId) {
+        Connection conn = null;
+        try {
+            conn = transactionManager.getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(COUNT_USER_RATING)) {
+                ps.setInt(1, userId.value());
+                ps.setInt(2, recipeId.value());
+                try (ResultSet rs = ps.executeQuery()) {
+                    rs.next();
+                    return rs.getLong(1) > 0;
+                }
+            }
+        } catch (SQLException e) {
+            throw new InfrastructureException(
+                    "Error al verificar valoración del usuario " + userId.value() +
+                    " para receta " + recipeId.value(), e);
+        } finally {
+            closeIfNonTransactional(conn, "hasUserRatedRecipe");
+        }
+    }
+
     private long queryCount(Connection conn, String sql, List<Object> params) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             for (int i = 0; i < params.size(); i++) ps.setObject(i + 1, params.get(i));
@@ -642,7 +666,7 @@ public class JdbcRecipeRepository extends BaseJdbcRepository implements IRecipeR
                 rs.getString("difficulty_name"),
                 rs.getInt("prep_time_min"),
                 rs.getInt("servings"),
-                rs.getBigDecimal("average_score").setScale(2, RoundingMode.HALF_UP),
+                Optional.ofNullable(rs.getBigDecimal("average_score")).orElse(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP),
                 rs.getInt("total_ratings"),
                 rs.getString("main_media_storage_key"),
                 new UserId(rs.getInt("user_id")));

@@ -9,24 +9,33 @@ import com.recetea.core.recipe.domain.RecipeIngredient;
 import com.recetea.core.recipe.domain.RecipeMedia;
 import com.recetea.core.recipe.domain.RecipeStep;
 import com.recetea.core.recipe.domain.vo.RecipeId;
+import com.recetea.core.shared.application.ports.in.IUserSessionService;
+import com.recetea.core.user.domain.UserId;
 
 import java.util.Optional;
 
 public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
 
     private final IRecipeRepository repository;
+    private final IUserSessionService sessionService;
 
-    public GetRecipeByIdUseCase(IRecipeRepository repository) {
+    public GetRecipeByIdUseCase(IRecipeRepository repository, IUserSessionService sessionService) {
         this.repository = repository;
+        this.sessionService = sessionService;
     }
 
     @Override
     public Optional<RecipeDetailResponse> execute(RecipeId recipeId) {
+        Optional<UserId> currentUser = sessionService.getCurrentUserId();
         return repository.findById(recipeId)
-                .map(this::mapToResponse);
+                .map(recipe -> mapToResponse(recipe, currentUser));
     }
 
-    private RecipeDetailResponse mapToResponse(Recipe recipe) {
+    private RecipeDetailResponse mapToResponse(Recipe recipe, Optional<UserId> currentUser) {
+        boolean alreadyRated = currentUser
+                .map(uid -> repository.hasUserRatedRecipe(uid, recipe.getId()))
+                .orElse(false);
+
         return new RecipeDetailResponse(
                 recipe.getId(),
                 recipe.getAuthorId(),
@@ -42,7 +51,8 @@ public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
                 recipe.getSteps().stream().map(this::mapToStepResponse).toList(),
                 recipe.getAverageScore(),
                 recipe.getTotalRatings(),
-                recipe.getMediaItems().stream().map(this::mapToMediaResponse).toList()
+                recipe.getMediaItems().stream().map(this::mapToMediaResponse).toList(),
+                alreadyRated
         );
     }
 

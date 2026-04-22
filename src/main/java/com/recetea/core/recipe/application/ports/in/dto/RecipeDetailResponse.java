@@ -24,7 +24,8 @@ public record RecipeDetailResponse(
         List<RecipeStepResponse> steps,
         BigDecimal averageScore,
         int totalRatings,
-        List<RecipeMediaResponse> media
+        List<RecipeMediaResponse> media,
+        boolean alreadyRatedByCurrentUser
 ) {
     public record RecipeStepResponse(
             int stepOrder,

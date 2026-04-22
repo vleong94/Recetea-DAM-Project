@@ -12,6 +12,8 @@ import com.recetea.core.recipe.application.usecases.interop.ExportRecipeUseCase;
 import com.recetea.core.recipe.application.usecases.interop.ImportRecipeUseCase;
 import com.recetea.core.recipe.application.usecases.media.AttachMediaUseCase;
 import com.recetea.core.recipe.application.usecases.recipe.*;
+import com.recetea.core.recipe.application.usecases.report.GenerateGlobalInventoryReportUseCase;
+import com.recetea.core.recipe.application.usecases.report.GenerateRecipeTechnicalSheetUseCase;
 import com.recetea.core.recipe.application.usecases.unit.GetAllUnitsUseCase;
 import com.recetea.core.social.application.usecases.GetUserFavoritesUseCase;
 import com.recetea.core.social.application.usecases.IsFavoriteUseCase;
@@ -23,7 +25,10 @@ import com.recetea.infrastructure.persistence.recipe.jdbc.config.DatabaseConfig;
 import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.*;
 import com.recetea.infrastructure.persistence.social.jdbc.repositories.JdbcFavoriteRepository;
 import com.recetea.infrastructure.persistence.user.jdbc.repositories.JdbcUserRepository;
+import com.recetea.core.recipe.application.ports.out.interop.IRecipeInteropPort;
 import com.recetea.infrastructure.interop.xml.XmlInteropAdapter;
+import com.recetea.infrastructure.reports.openpdf.OpenPdfRecipeAdapter;
+import com.recetea.infrastructure.reports.openpdf.OpenPdfStatsAdapter;
 import com.recetea.infrastructure.storage.LocalFileSystemMediaStorage;
 import com.recetea.infrastructure.storage.StorageConfig;
 import com.recetea.infrastructure.security.PasswordHasher;
@@ -68,11 +73,13 @@ public class Main extends Application {
 
         SessionManager sessionService = new SessionManager();
         LocalFileSystemMediaStorage mediaStorage = new LocalFileSystemMediaStorage(StorageConfig.getBasePath());
-        XmlInteropAdapter xmlAdapter = new XmlInteropAdapter();
+        IRecipeInteropPort interopPort = new XmlInteropAdapter();
+        OpenPdfRecipeAdapter recipeReportAdapter = new OpenPdfRecipeAdapter();
+        OpenPdfStatsAdapter statsReportAdapter = new OpenPdfStatsAdapter();
 
         RecipeQueryContext queryContext = new RecipeQueryContext(
                 new GetAllRecipesUseCase(recipeRepository),
-                new GetRecipeByIdUseCase(recipeRepository),
+                new GetRecipeByIdUseCase(recipeRepository, sessionService),
                 new SearchRecipesUseCase(recipeRepository),
                 new GetUserFavoritesUseCase(favoriteRepository, recipeRepository, sessionService)
         );
@@ -91,8 +98,10 @@ public class Main extends Application {
                 new ToggleFavoriteUseCase(favoriteRepository, transactionManager, sessionService),
                 new IsFavoriteUseCase(favoriteRepository, sessionService),
                 new ImportRecipeUseCase(recipeRepository, categoryRepository, difficultyRepository,
-                        ingredientRepository, unitRepository, transactionManager, sessionService, xmlAdapter),
-                new ExportRecipeUseCase(recipeRepository, xmlAdapter)
+                        ingredientRepository, unitRepository, transactionManager, sessionService, interopPort),
+                new ExportRecipeUseCase(recipeRepository, interopPort),
+                new GenerateRecipeTechnicalSheetUseCase(recipeRepository, recipeReportAdapter),
+                new GenerateGlobalInventoryReportUseCase(recipeRepository, statsReportAdapter)
         );
 
         RecipeQueryWrapper queryWrapper = new RecipeQueryWrapper(queryContext);

@@ -287,6 +287,26 @@ class JdbcRecipeRepositoryTest extends BaseRepositoryTest {
         assertEquals(5L, lastPage.totalElements());
     }
 
+    @Test
+    @DisplayName("hasUserRatedRecipe debe retornar true solo cuando existe una valoración del usuario para esa receta")
+    void hasUserRatedRecipe_ShouldReturnTrueOnlyWhenRatingExists() {
+        Recipe recipe = buildRecipe();
+        recipe.syncIngredients(List.of(new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.ONE)));
+        recipe.syncSteps(List.of(new RecipeStep(1, "Paso 1")));
+        transactionManager.execute(() -> repository.save(recipe));
+        RecipeId recipeId = recipe.getId();
+
+        assertFalse(repository.hasUserRatedRecipe(new UserId(2), recipeId),
+                "Antes de votar debe retornar false");
+
+        seedRating(new UserId(2), recipeId, 4);
+
+        assertTrue(repository.hasUserRatedRecipe(new UserId(2), recipeId),
+                "Tras votar debe retornar true");
+        assertFalse(repository.hasUserRatedRecipe(new UserId(3), recipeId),
+                "Un usuario distinto sin voto debe retornar false");
+    }
+
     private void seedRating(UserId userId, RecipeId recipeId, int score) {
         String sql = "INSERT INTO ratings (user_id, recipe_id, score, comment, created_at) VALUES (" +
                 userId.value() + ", " + recipeId.value() + ", " + score + ", 'Test comment', NOW())";

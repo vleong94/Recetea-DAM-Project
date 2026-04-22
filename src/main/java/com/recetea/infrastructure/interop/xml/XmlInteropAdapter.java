@@ -3,6 +3,7 @@ package com.recetea.infrastructure.interop.xml;
 import com.recetea.core.recipe.application.ports.out.category.ICategoryRepository;
 import com.recetea.core.recipe.application.ports.out.difficulty.IDifficultyRepository;
 import com.recetea.core.recipe.application.ports.out.ingredient.IIngredientRepository;
+import com.recetea.core.recipe.application.ports.out.interop.IRecipeInteropPort;
 import com.recetea.core.recipe.application.ports.out.unit.IUnitRepository;
 import com.recetea.core.recipe.domain.Category;
 import com.recetea.core.recipe.domain.Difficulty;
@@ -38,15 +39,12 @@ import java.util.stream.Collectors;
 
 /**
  * Translates between the XML interop layer (XmlRecipeDto) and the domain layer (Recipe aggregate).
+ * Implements {@link IRecipeInteropPort} so the application core depends only on the port interface.
  *
  * Export path: Recipe → XmlRecipeDto → XML string/file.
- * Import path: XML string/file → XmlRecipeDto (schema-validated) → Recipe.
- *
- * On import, Category/Difficulty/Ingredient/Unit are resolved by name/abbreviation against
- * their repositories. Resolution failure throws XmlInteropException before any domain object
- * is constructed.
+ * Import path: XML file → XmlRecipeDto (schema-validated) → catalogue resolution → Recipe.
  */
-public class XmlInteropAdapter {
+public class XmlInteropAdapter implements IRecipeInteropPort {
 
     private static final String SCHEMA_RESOURCE = "/com/recetea/infrastructure/interop/xml/recipe.xsd";
 
@@ -70,7 +68,38 @@ public class XmlInteropAdapter {
     }
 
     // -------------------------------------------------------------------------
-    // Export: Recipe → XML
+    // IRecipeInteropPort — Export
+    // -------------------------------------------------------------------------
+
+    @Override
+    public void exportRecipe(Recipe recipe, File destination) {
+        XmlRecipeDto dto = toDto(recipe);
+        try {
+            Marshaller m = jaxbContext.createMarshaller();
+            m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+            m.marshal(dto, destination);
+        } catch (JAXBException e) {
+            throw new XmlInteropException(
+                    "Error al escribir la receta en el archivo: " + destination.getAbsolutePath(), e);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // IRecipeInteropPort — Import (schema-validate + catalogue resolve in one step)
+    // -------------------------------------------------------------------------
+
+    @Override
+    public Recipe importRecipe(File source, UserId currentAuthor,
+                               ICategoryRepository categories,
+                               IDifficultyRepository difficulties,
+                               IIngredientRepository ingredients,
+                               IUnitRepository units) {
+        XmlRecipeDto dto = parseAndValidate(source);
+        return toDomain(dto, currentAuthor, categories, difficulties, ingredients, units);
+    }
+
+    // -------------------------------------------------------------------------
+    // Public utility — string-based export/import (not part of the port contract)
     // -------------------------------------------------------------------------
 
     public String toXml(Recipe recipe) {
@@ -86,14 +115,29 @@ public class XmlInteropAdapter {
         }
     }
 
-    public void toFile(Recipe recipe, File file) {
-        XmlRecipeDto dto = toDto(recipe);
+    /** Schema-validates a raw XML string and returns the unmarshalled DTO. */
+    public XmlRecipeDto fromXml(String xml) {
         try {
-            Marshaller m = jaxbContext.createMarshaller();
-            m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-            m.marshal(dto, file);
+            Unmarshaller u = jaxbContext.createUnmarshaller();
+            u.setSchema(schema);
+            return (XmlRecipeDto) u.unmarshal(new StringReader(xml));
         } catch (JAXBException e) {
-            throw new XmlInteropException("Error al escribir la receta en el archivo: " + file.getAbsolutePath(), e);
+            throw new XmlInteropException("El XML es inválido o no cumple el esquema XSD.", e);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private XmlRecipeDto parseAndValidate(File file) {
+        try {
+            Unmarshaller u = jaxbContext.createUnmarshaller();
+            u.setSchema(schema);
+            return (XmlRecipeDto) u.unmarshal(new StreamSource(file));
+        } catch (JAXBException e) {
+            throw new XmlInteropException(
+                    "El archivo XML es inválido o no cumple el esquema XSD: " + file.getAbsolutePath(), e);
         }
     }
 
@@ -106,57 +150,27 @@ public class XmlInteropAdapter {
         dto.setCategoryName(recipe.getCategory().getName());
         dto.setDifficultyName(recipe.getDifficulty().getName());
 
-        List<XmlIngredientDto> ingredients = recipe.getIngredients().stream()
+        List<XmlIngredientDto> xmlIngredients = recipe.getIngredients().stream()
                 .map(ri -> new XmlIngredientDto(
                         ri.getQuantity(),
                         ri.getUnitAbbreviation() != null ? ri.getUnitAbbreviation() : "",
-                        ri.getIngredientName() != null ? ri.getIngredientName() : ""))
+                        ri.getIngredientName()   != null ? ri.getIngredientName()   : ""))
                 .toList();
-        dto.setIngredients(ingredients);
+        dto.setIngredients(xmlIngredients);
 
-        List<XmlStepDto> steps = recipe.getSteps().stream()
+        List<XmlStepDto> xmlSteps = recipe.getSteps().stream()
                 .map(s -> new XmlStepDto(s.stepOrder(), s.instruction()))
                 .toList();
-        dto.setSteps(steps);
+        dto.setSteps(xmlSteps);
 
         return dto;
     }
 
-    // -------------------------------------------------------------------------
-    // Import: XML → XmlRecipeDto (schema-validated)
-    // -------------------------------------------------------------------------
-
-    public XmlRecipeDto fromXml(String xml) {
-        try {
-            Unmarshaller u = jaxbContext.createUnmarshaller();
-            u.setSchema(schema);
-            return (XmlRecipeDto) u.unmarshal(new StringReader(xml));
-        } catch (JAXBException e) {
-            throw new XmlInteropException("El XML es inválido o no cumple el esquema XSD.", e);
-        }
-    }
-
-    public XmlRecipeDto fromFile(File file) {
-        try {
-            Unmarshaller u = jaxbContext.createUnmarshaller();
-            u.setSchema(schema);
-            return (XmlRecipeDto) u.unmarshal(new StreamSource(file));
-        } catch (JAXBException e) {
-            throw new XmlInteropException("El archivo XML es inválido o no cumple el esquema XSD: " + file.getAbsolutePath(), e);
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Domain conversion: XmlRecipeDto → Recipe
-    // -------------------------------------------------------------------------
-
-    public Recipe toDomain(
-            XmlRecipeDto dto,
-            UserId authorId,
-            ICategoryRepository categoryRepo,
-            IDifficultyRepository difficultyRepo,
-            IIngredientRepository ingredientRepo,
-            IUnitRepository unitRepo) {
+    private Recipe toDomain(XmlRecipeDto dto, UserId authorId,
+                             ICategoryRepository categoryRepo,
+                             IDifficultyRepository difficultyRepo,
+                             IIngredientRepository ingredientRepo,
+                             IUnitRepository unitRepo) {
 
         Category category = resolveByName(
                 categoryRepo.findAll(), Category::getName, dto.getCategoryName(), "categoría");
@@ -207,7 +221,8 @@ public class XmlInteropAdapter {
         return recipe;
     }
 
-    private <T> T resolveByName(List<T> all, Function<T, String> nameExtractor, String name, String entityType) {
+    private <T> T resolveByName(List<T> all, Function<T, String> nameExtractor,
+                                 String name, String entityType) {
         return all.stream()
                 .filter(e -> nameExtractor.apply(e).equalsIgnoreCase(name))
                 .findFirst()
@@ -216,7 +231,7 @@ public class XmlInteropAdapter {
     }
 
     // -------------------------------------------------------------------------
-    // Checked exception wrapper
+    // Exception
     // -------------------------------------------------------------------------
 
     public static class XmlInteropException extends RuntimeException {

@@ -11,6 +11,7 @@ import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
@@ -18,6 +19,7 @@ import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -143,6 +145,38 @@ public class RecipeDashboardController {
                 .collect(Collectors.toCollection(HashSet::new));
         recipeTable.setItems(FXCollections.observableArrayList(recipes));
         recipeTable.refresh();
+    }
+
+    @FXML
+    public void onGlobalReportButtonClick() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Guardar informe global PDF");
+        chooser.setInitialFileName("inventario_recetas.pdf");
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Archivos PDF (*.pdf)", "*.pdf"));
+
+        File file = chooser.showSaveDialog(recipeTable.getScene().getWindow());
+        if (file == null) return;
+
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                try (FileOutputStream out = new FileOutputStream(file)) {
+                    commandProvider.generateGlobalInventory().execute(out);
+                }
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> {
+            Alert ok = new Alert(Alert.AlertType.INFORMATION);
+            ok.setTitle("Informe generado");
+            ok.setHeaderText(null);
+            ok.setContentText("El informe global se ha guardado en:\n" + file.getAbsolutePath());
+            ok.showAndWait();
+        });
+        task.setOnFailed(e -> Thread.getDefaultUncaughtExceptionHandler()
+                .uncaughtException(Thread.currentThread(), task.getException()));
+        new Thread(task).start();
     }
 
     @FXML

@@ -14,8 +14,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -100,9 +100,8 @@ public abstract class BaseRecipeFormController {
         List<File> pending = mediaUploadComponent.getPendingFiles();
         if (pending.isEmpty()) return;
         for (File file : pending) {
-            try {
-                byte[] data = Files.readAllBytes(file.toPath());
-                context.attachMedia().execute(recipeId, data, file.getName());
+            try (FileInputStream fis = new FileInputStream(file)) {
+                context.attachMedia().execute(recipeId, fis, file.getName());
             } catch (IOException e) {
                 throw new RuntimeException(
                         "Error al leer el archivo seleccionado: " + file.getName(), e);

@@ -37,6 +37,7 @@
     </TableView>
 
     <HBox alignment="CENTER_RIGHT" spacing="10.0">
+        <Button text="Informe Global PDF" styleClass="secondary-button" onAction="#onGlobalReportButtonClick" />
         <Button text="Importar Receta (XML)" styleClass="secondary-button" onAction="#onImportButtonClick" />
         <Button text="Nueva Receta" styleClass="primary-button" onAction="#onCreateButtonClick" />
     </HBox>

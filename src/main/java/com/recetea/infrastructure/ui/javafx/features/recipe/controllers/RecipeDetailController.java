@@ -11,11 +11,13 @@ import com.recetea.infrastructure.ui.javafx.features.recipe.components.RatingCom
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.FileChooser;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.math.BigDecimal;
 
 public class RecipeDetailController {
@@ -97,9 +99,44 @@ public class RecipeDetailController {
         ingredientsTable.setItems(FXCollections.observableArrayList(recipe.ingredients()));
         stepsTable.setItems(FXCollections.observableArrayList(recipe.steps()));
 
+        if (recipe.alreadyRatedByCurrentUser()) {
+            ratingComponent.disableWithStatus("Ya has valorado esta receta.");
+        }
         commandProvider.sessionService().getCurrentUserId()
                 .filter(currentId -> currentId.equals(recipe.userId()))
                 .ifPresent(__ -> ratingComponent.disableWithStatus("No puedes valorar tu propia receta."));
+    }
+
+    @FXML
+    public void onGeneratePdfClick() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Guardar ficha técnica PDF");
+        chooser.setInitialFileName(sanitizeFilename(currentTitle) + ".pdf");
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Archivos PDF (*.pdf)", "*.pdf"));
+
+        File file = chooser.showSaveDialog(titleLabel.getScene().getWindow());
+        if (file == null) return;
+
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                try (FileOutputStream out = new FileOutputStream(file)) {
+                    commandProvider.generateTechnicalSheet().execute(currentRecipeId, out);
+                }
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> {
+            Alert ok = new Alert(Alert.AlertType.INFORMATION);
+            ok.setTitle("PDF generado");
+            ok.setHeaderText(null);
+            ok.setContentText("La ficha técnica se ha guardado en:\n" + file.getAbsolutePath());
+            ok.showAndWait();
+        });
+        task.setOnFailed(e -> Thread.getDefaultUncaughtExceptionHandler()
+                .uncaughtException(Thread.currentThread(), task.getException()));
+        new Thread(task).start();
     }
 
     @FXML

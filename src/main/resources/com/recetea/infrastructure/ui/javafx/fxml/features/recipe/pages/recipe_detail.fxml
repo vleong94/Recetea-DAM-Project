@@ -79,6 +79,7 @@
     <HBox alignment="CENTER_RIGHT" spacing="10.0">
         <ToggleButton fx:id="favoriteButton" text="☆ Añadir a favoritos" styleClass="secondary-button" />
         <Button text="Exportar a XML" styleClass="secondary-button" onAction="#onExportButtonClick" />
+        <Button text="Generar PDF" styleClass="secondary-button" onAction="#onGeneratePdfClick" />
         <Button text="Volver al Catálogo" styleClass="secondary-button" onAction="#onBackButtonClick" />
     </HBox>
 </VBox>

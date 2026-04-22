@@ -6,6 +6,8 @@ import com.recetea.core.recipe.application.ports.in.ingredient.IGetAllIngredient
 import com.recetea.core.recipe.application.ports.in.interop.IExportRecipeUseCase;
 import com.recetea.core.recipe.application.ports.in.interop.IImportRecipeUseCase;
 import com.recetea.core.recipe.application.ports.in.media.IAttachMediaUseCase;
+import com.recetea.core.recipe.application.ports.in.report.IGenerateGlobalInventoryReportUseCase;
+import com.recetea.core.recipe.application.ports.in.report.IGenerateRecipeTechnicalSheetUseCase;
 import com.recetea.core.recipe.application.ports.in.recipe.IAddRatingUseCase;
 import com.recetea.core.recipe.application.ports.in.recipe.ICreateRecipeUseCase;
 import com.recetea.core.recipe.application.ports.in.recipe.IDeleteRecipeUseCase;
@@ -30,4 +32,6 @@ public interface RecipeCommandProvider {
     IIsFavoriteUseCase isFavorite();
     IImportRecipeUseCase importRecipe();
     IExportRecipeUseCase exportRecipe();
+    IGenerateRecipeTechnicalSheetUseCase generateTechnicalSheet();
+    IGenerateGlobalInventoryReportUseCase generateGlobalInventory();
 }

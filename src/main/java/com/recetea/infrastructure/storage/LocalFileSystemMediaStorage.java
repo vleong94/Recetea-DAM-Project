@@ -5,8 +5,10 @@ import com.recetea.core.recipe.application.ports.out.media.StorageResult;
 import com.recetea.infrastructure.persistence.recipe.jdbc.InfrastructureException;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 public class LocalFileSystemMediaStorage implements IMediaStorageService {
@@ -18,14 +20,13 @@ public class LocalFileSystemMediaStorage implements IMediaStorageService {
     }
 
     @Override
-    public StorageResult store(byte[] data, String originalName) {
+    public StorageResult store(InputStream data, String originalName) {
         String filename = UUID.randomUUID() + buildExtensionSuffix(originalName);
         Path target = basePath.resolve(filename);
         try {
-            Files.write(target, data);
+            long sizeBytes = Files.copy(data, target, StandardCopyOption.REPLACE_EXISTING);
             String mimeType = Files.probeContentType(target);
             if (mimeType == null) mimeType = "application/octet-stream";
-            long sizeBytes = target.toFile().length();
             return new StorageResult(filename, sizeBytes, mimeType);
         } catch (IOException e) {
             throw new InfrastructureException("Error al guardar el archivo multimedia: " + filename, e);
