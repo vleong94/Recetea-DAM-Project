@@ -3,43 +3,109 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+<VBox spacing="16.0" maxWidth="Infinity" maxHeight="Infinity"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeDashboardController">
 
     <padding>
-        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+        <Insets bottom="20.0" left="24.0" right="24.0" top="20.0" />
     </padding>
 
+    <!-- ── Header ──────────────────────────────────────────────────────── -->
     <HBox alignment="CENTER_LEFT" spacing="10.0">
-        <Label text="Catálogo de Recetas" styleClass="header-label" HBox.hgrow="ALWAYS" />
-        <Button text="Cerrar sesión" styleClass="secondary-button" onAction="#onLogoutButtonClick" />
+        <Label text="%dashboard.title" styleClass="header-label" HBox.hgrow="ALWAYS" />
+        <Button text="%nav.profile" styleClass="secondary-button" onAction="#onProfileButtonClick" />
+        <Button text="%nav.logout" styleClass="secondary-button" onAction="#onLogoutButtonClick" />
     </HBox>
 
-    <TableView fx:id="recipeTable" VBox.vgrow="ALWAYS">
-        <columns>
-            <TableColumn fx:id="photoColumn" prefWidth="70.0" text="Foto" />
-            <TableColumn fx:id="idColumn" prefWidth="50.0" text="ID" />
-            <TableColumn fx:id="titleColumn" prefWidth="200.0" text="Título de la Receta" />
-            <TableColumn fx:id="categoryColumn" prefWidth="120.0" text="Categoría" />
-            <TableColumn fx:id="difficultyColumn" prefWidth="100.0" text="Dificultad" />
-            <TableColumn fx:id="prepColumn" prefWidth="90.0" text="Prep (min)" />
-            <TableColumn fx:id="servingsColumn" prefWidth="80.0" text="Raciones" />
-            <TableColumn fx:id="scoreColumn" prefWidth="80.0" text="Score" />
-            <TableColumn fx:id="ratingsColumn" prefWidth="60.0" text="Votes" />
-            <TableColumn fx:id="favoriteColumn" prefWidth="60.0" text="Fav." />
-            <TableColumn fx:id="actionsColumn" prefWidth="140.0" text="Acciones" />
-        </columns>
-    </TableView>
+    <!-- ── Search bar + filter drawer ─────────────────────────────────── -->
+    <VBox styleClass="glass-card" spacing="12.0">
 
+        <HBox spacing="10.0" alignment="CENTER_LEFT">
+            <TextField fx:id="searchField"
+                       promptText="%dashboard.search.prompt"
+                       HBox.hgrow="ALWAYS" />
+            <Button text="%dashboard.button.clearFilters" styleClass="secondary-button"
+                    onAction="#onClearSearch" />
+        </HBox>
+
+        <TitledPane fx:id="filterPane" text="%dashboard.filters.title" expanded="false"
+                    styleClass="filter-drawer">
+            <GridPane hgap="16.0" vgap="10.0">
+                <padding>
+                    <Insets top="10.0" bottom="4.0" />
+                </padding>
+                <columnConstraints>
+                    <ColumnConstraints minWidth="80.0" />
+                    <ColumnConstraints hgrow="ALWAYS" minWidth="110.0" />
+                    <ColumnConstraints minWidth="80.0" />
+                    <ColumnConstraints hgrow="ALWAYS" minWidth="110.0" />
+                </columnConstraints>
+
+                <Label text="%field.label.category" styleClass="field-label"
+                       GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                <TextField fx:id="categoryFilter" promptText="%dashboard.filter.category.prompt"
+                           GridPane.columnIndex="1" GridPane.rowIndex="0"
+                           GridPane.hgrow="ALWAYS" />
+
+                <Label text="%field.label.difficulty" styleClass="field-label"
+                       GridPane.columnIndex="2" GridPane.rowIndex="0" />
+                <TextField fx:id="difficultyFilter" promptText="%dashboard.filter.difficulty.prompt"
+                           GridPane.columnIndex="3" GridPane.rowIndex="0"
+                           GridPane.hgrow="ALWAYS" />
+
+                <Label text="%field.label.ingredient" styleClass="field-label"
+                       GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                <TextField fx:id="ingredientFilter" promptText="%dashboard.filter.ingredient.prompt"
+                           GridPane.columnIndex="1" GridPane.rowIndex="1"
+                           GridPane.hgrow="ALWAYS" />
+
+                <Label text="%field.label.author" styleClass="field-label"
+                       GridPane.columnIndex="2" GridPane.rowIndex="1" />
+                <TextField fx:id="authorFilter" promptText="%dashboard.filter.author.prompt"
+                           GridPane.columnIndex="3" GridPane.rowIndex="1"
+                           GridPane.hgrow="ALWAYS" />
+            </GridPane>
+        </TitledPane>
+
+    </VBox>
+
+    <!-- ── Empty-state placeholder ─────────────────────────────────────── -->
+    <VBox fx:id="emptyPlaceholder" alignment="CENTER" spacing="8.0"
+          visible="false" managed="false" VBox.vgrow="ALWAYS"
+          styleClass="glass-card">
+        <Label text="⊘" styleClass="empty-state-icon" />
+        <Label text="%dashboard.empty.title" styleClass="section-header" />
+        <Label text="%dashboard.empty.message" styleClass="text-caption" />
+    </VBox>
+
+    <!-- ── Recipe card gallery ────────────────────────────────────────── -->
+    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
+        <FlowPane fx:id="recipeContainer" hgap="20.0" vgap="20.0">
+            <padding>
+                <Insets bottom="8.0" left="4.0" right="4.0" top="8.0" />
+            </padding>
+        </FlowPane>
+    </ScrollPane>
+
+    <!-- ── Action bar ───────────────────────────────────────────────────── -->
     <HBox alignment="CENTER_RIGHT" spacing="10.0">
-        <Button text="Informe Global PDF" styleClass="secondary-button" onAction="#onGlobalReportButtonClick" />
-        <Button text="Importar Receta (XML)" styleClass="secondary-button" onAction="#onImportButtonClick" />
-        <Button text="Nueva Receta" styleClass="primary-button" onAction="#onCreateButtonClick" />
+        <Button fx:id="globalReportButton" text="%dashboard.button.exportFavorites"
+                styleClass="secondary-button" disable="true"
+                onAction="#onGlobalReportButtonClick" />
+        <Button text="%dashboard.button.importRecipe" styleClass="secondary-button"
+                onAction="#onImportButtonClick" />
+        <Button text="%dashboard.button.newRecipe" styleClass="primary-button"
+                onAction="#onCreateButtonClick" />
     </HBox>
 
 </VBox>

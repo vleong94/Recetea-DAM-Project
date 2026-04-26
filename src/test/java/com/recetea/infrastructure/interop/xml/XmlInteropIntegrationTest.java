@@ -9,6 +9,7 @@ import com.recetea.core.recipe.application.usecases.interop.ExportRecipeUseCase;
 import com.recetea.core.recipe.application.usecases.interop.ImportRecipeUseCase;
 import com.recetea.core.recipe.domain.Category;
 import com.recetea.core.recipe.domain.Difficulty;
+import com.recetea.core.recipe.domain.InvalidIngredientException;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
 import com.recetea.core.recipe.domain.RecipeStep;
@@ -202,7 +203,7 @@ class XmlInteropIntegrationTest extends BaseRepositoryTest {
     }
 
     @Test
-    @DisplayName("importRecipe debe lanzar XmlInteropException si el ingrediente del XML no existe en el catalogo")
+    @DisplayName("importRecipe debe lanzar InvalidIngredientException si el ingrediente del XML no existe en el catalogo")
     void importRecipe_ShouldThrow_WhenIngredientNotFoundInCatalogue() throws IOException {
         // Build & export a valid recipe so we get a well-formed XML
         Recipe recipe = buildRecipe();
@@ -220,8 +221,8 @@ class XmlInteropIntegrationTest extends BaseRepositoryTest {
         String corrupted = xml.replace("<name>Harina</name>", "<name>IngredienteFantasma</name>");
         Files.writeString(xmlFile.toPath(), corrupted);
 
-        assertThrows(XmlInteropAdapter.XmlInteropException.class,
+        assertThrows(InvalidIngredientException.class,
                 () -> importUseCase.execute(xmlFile),
-                "Debe lanzar XmlInteropException cuando el ingrediente no existe en el catalogo");
+                "Debe lanzar InvalidIngredientException cuando el ingrediente no existe en el catalogo");
     }
 }

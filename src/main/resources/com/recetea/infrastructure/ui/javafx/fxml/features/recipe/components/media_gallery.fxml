@@ -5,6 +5,7 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
@@ -15,7 +16,9 @@
     <!-- Main large image area -->
     <StackPane fx:id="mainContainer" styleClass="gallery-main-container" minHeight="300.0">
         <ImageView fx:id="mainImageView" fitWidth="500.0" fitHeight="300.0" preserveRatio="true" />
-        <Label fx:id="noMediaLabel" text="Sin imágenes" styleClass="gallery-no-media" />
+        <Region fx:id="mainSkeleton" styleClass="skeleton-pulse"
+                minWidth="500.0" minHeight="300.0" visible="false" />
+        <Label fx:id="noMediaLabel" text="%media.gallery.noMedia" styleClass="gallery-no-media" />
     </StackPane>
 
     <!-- Horizontal scrollable thumbnail strip -->

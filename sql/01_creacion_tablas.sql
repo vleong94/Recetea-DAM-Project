@@ -134,17 +134,37 @@ CREATE TABLE "ratings" (
 );
 
 -- ----------------------------------------------------------
--- 4. ÍNDICES DE ROBUSTEZ (OPTIMIZACIÓN)
+-- 4. INDEXES
 -- ----------------------------------------------------------
 
--- Partial Index: Asegura solo una foto de portada por receta
-CREATE UNIQUE INDEX idx_unique_main_photo ON "recipe_media" ("recipe_id")WHERE ("is_main" = TRUE);
+-- Integrity: at most one main photo per recipe
+CREATE UNIQUE INDEX idx_unique_main_photo ON "recipe_media" ("recipe_id") WHERE ("is_main" = TRUE);
 
--- Índice compuesto para integridad secuencial de pasos
+-- Integrity: step order must be unique within a recipe
 CREATE UNIQUE INDEX ON "steps" ("recipe_id", "step_order");
 
--- Índice compuesto para prevenir spam en valoraciones
+-- Integrity: one rating per (user, recipe) pair
 CREATE UNIQUE INDEX ON "ratings" ("user_id", "recipe_id");
+
+-- B-Tree indexes for common join and filter access patterns --------------------
+
+-- recipes.user_id: supports findByAuthorId and the author EXISTS filter in searchSummaries
+CREATE INDEX idx_recipes_user_id        ON "recipes" ("user_id");
+
+-- recipes.category_id / difficulty_id: support the INNER JOINs in every summary query
+CREATE INDEX idx_recipes_category_id    ON "recipes" ("category_id");
+CREATE INDEX idx_recipes_difficulty_id  ON "recipes" ("difficulty_id");
+
+-- recipe_media.recipe_id: supports the LEFT JOIN in summary queries and the diff scan in syncMedia;
+-- the partial unique index above already covers the is_main=true join path
+CREATE INDEX idx_recipe_media_recipe_id ON "recipe_media" ("recipe_id");
+
+-- recipes.title: effective only for prefix searches (LIKE 'x%' / ILIKE 'x%').
+-- For full substring search (LIKE '%x%') this index is bypassed by the planner.
+-- Production upgrade path:
+--   CREATE EXTENSION IF NOT EXISTS pg_trgm;
+--   CREATE INDEX idx_recipes_title_trgm ON recipes USING gin (lower(title) gin_trgm_ops);
+CREATE INDEX idx_recipes_title ON "recipes" (lower("title"));
 
 -- ----------------------------------------------------------
 -- 5. COMENTARIOS DE COLUMNA (METADATOS DB)

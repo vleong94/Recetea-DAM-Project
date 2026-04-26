@@ -39,7 +39,7 @@ public class JdbcFavoriteRepository extends BaseJdbcRepository implements IFavor
                 ps.executeUpdate();
             }
         } catch (SQLException e) {
-            throw new InfrastructureException("Error al guardar favorito.", e);
+            throw new InfrastructureException("Failed to save favourite.", e);
         } finally {
             closeIfNonTransactional(conn, INSERT);
         }
@@ -56,7 +56,7 @@ public class JdbcFavoriteRepository extends BaseJdbcRepository implements IFavor
                 ps.executeUpdate();
             }
         } catch (SQLException e) {
-            throw new InfrastructureException("Error al eliminar favorito.", e);
+            throw new InfrastructureException("Failed to delete favourite.", e);
         } finally {
             closeIfNonTransactional(conn, DELETE);
         }

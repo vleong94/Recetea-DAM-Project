@@ -6,19 +6,25 @@ import com.recetea.core.recipe.domain.vo.RecipeId;
 import com.recetea.infrastructure.storage.StorageConfig;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandProvider;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryProvider;
+import com.recetea.infrastructure.ui.javafx.features.recipe.components.CommentItemComponent;
 import com.recetea.infrastructure.ui.javafx.features.recipe.components.MediaGalleryComponent;
 import com.recetea.infrastructure.ui.javafx.features.recipe.components.RatingComponent;
+import com.recetea.infrastructure.ui.javafx.shared.i18n.I18n;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.collections.FXCollections;
+import com.recetea.infrastructure.ui.javafx.shared.notification.NotificationService;
+import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.math.BigDecimal;
+import java.util.concurrent.ExecutorService;
 
 public class RecipeDetailController {
 
@@ -30,35 +36,28 @@ public class RecipeDetailController {
     @FXML private Label difficultyLabel;
     @FXML private Label scoreLabel;
 
-    @FXML private TableView<RecipeIngredientResponse> ingredientsTable;
-    @FXML private TableColumn<RecipeIngredientResponse, String> colIngredientName;
-    @FXML private TableColumn<RecipeIngredientResponse, String> colUnit;
-    @FXML private TableColumn<RecipeIngredientResponse, BigDecimal> colQuantity;
-
-    @FXML private TableView<RecipeDetailResponse.RecipeStepResponse> stepsTable;
-    @FXML private TableColumn<RecipeDetailResponse.RecipeStepResponse, Integer> colStepOrder;
-    @FXML private TableColumn<RecipeDetailResponse.RecipeStepResponse, String> colInstruction;
+    @FXML private ScrollPane mainContentScroll;
+    @FXML private FlowPane   ingredientsContainer;
+    @FXML private VBox       stepsContainer;
 
     @FXML private MediaGalleryComponent mediaGallery;
     @FXML private RatingComponent ratingComponent;
     @FXML private ToggleButton favoriteButton;
+    @FXML private VBox reviewsList;
 
-    private RecipeQueryProvider queryProvider;
+    private RecipeQueryProvider   queryProvider;
     private RecipeCommandProvider commandProvider;
-    private NavigationService nav;
-    private RecipeId currentRecipeId;
-    private String currentTitle = "receta";
+    private NavigationService     nav;
+    private ExecutorService       executor;
+    private RecipeId              currentRecipeId;
+    private String                currentTitle = "receta";
 
-    public void init(RecipeQueryProvider queryProvider, RecipeCommandProvider commandProvider, NavigationService nav) {
-        this.queryProvider = queryProvider;
+    public void init(RecipeQueryProvider queryProvider, RecipeCommandProvider commandProvider,
+                     NavigationService nav, ExecutorService executor) {
+        this.queryProvider   = queryProvider;
         this.commandProvider = commandProvider;
-        this.nav = nav;
-
-        colIngredientName.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().ingredientName()));
-        colUnit.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().unitName()));
-        colQuantity.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().quantity()));
-        colStepOrder.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().stepOrder()));
-        colInstruction.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().instruction()));
+        this.nav             = nav;
+        this.executor        = executor;
 
         favoriteButton.setOnAction(e -> {
             commandProvider.toggleFavorite().execute(currentRecipeId);
@@ -68,18 +67,33 @@ public class RecipeDetailController {
 
     public void loadRecipeDetails(RecipeId recipeId) {
         this.currentRecipeId = recipeId;
+        mainContentScroll.setVvalue(0);
         ratingComponent.setRecipeContext(commandProvider, recipeId, () -> loadRecipeDetails(currentRecipeId));
-        refreshFavoriteButton(recipeId);
-        queryProvider.getRecipeById().execute(recipeId).ifPresentOrElse(
-                this::populateView,
-                () -> showError("Error de Consulta", "El sistema no pudo localizar la receta solicitada.")
-        );
+        executor.execute(() -> {
+            boolean isFav = commandProvider.isFavorite().execute(recipeId);
+            var response  = queryProvider.getRecipeById().execute(recipeId);
+            Platform.runLater(() -> {
+                favoriteButton.setSelected(isFav);
+                favoriteButton.setText(isFav ? I18n.get("recipe.detail.button.inFavorites")
+                                             : I18n.get("recipe.detail.button.addFavorite"));
+                response.ifPresentOrElse(
+                        this::populateView,
+                        () -> NotificationService.error(titleLabel,
+                                I18n.get("recipe.detail.error.notFound"))
+                );
+            });
+        });
     }
 
     private void refreshFavoriteButton(RecipeId recipeId) {
-        boolean isFav = commandProvider.isFavorite().execute(recipeId);
-        favoriteButton.setSelected(isFav);
-        favoriteButton.setText(isFav ? "★ En favoritos" : "☆ Añadir a favoritos");
+        executor.execute(() -> {
+            boolean isFav = commandProvider.isFavorite().execute(recipeId);
+            Platform.runLater(() -> {
+                favoriteButton.setSelected(isFav);
+                favoriteButton.setText(isFav ? I18n.get("recipe.detail.button.inFavorites")
+                                             : I18n.get("recipe.detail.button.addFavorite"));
+            });
+        });
     }
 
     private void populateView(RecipeDetailResponse recipe) {
@@ -90,30 +104,61 @@ public class RecipeDetailController {
         descriptionLabel.setText(recipe.description());
         categoryLabel.setText(recipe.categoryName());
         difficultyLabel.setText(recipe.difficultyName());
-        scoreLabel.setText(String.format("%s (%d valoraciones)",
+        scoreLabel.setText(I18n.format("recipe.detail.meta.scoreFormat",
                 recipe.averageScore().setScale(1, java.math.RoundingMode.HALF_UP),
                 recipe.totalRatings()));
 
         mediaGallery.setMedia(recipe.media(), StorageConfig.getBasePath());
 
-        ingredientsTable.setItems(FXCollections.observableArrayList(recipe.ingredients()));
-        stepsTable.setItems(FXCollections.observableArrayList(recipe.steps()));
+        buildIngredientChips(recipe);
+        buildStepCards(recipe);
 
         if (recipe.alreadyRatedByCurrentUser()) {
-            ratingComponent.disableWithStatus("Ya has valorado esta receta.");
+            ratingComponent.disableWithStatus(I18n.get("rating.disabled.alreadyRated"));
         }
         commandProvider.sessionService().getCurrentUserId()
-                .filter(currentId -> currentId.equals(recipe.userId()))
-                .ifPresent(__ -> ratingComponent.disableWithStatus("No puedes valorar tu propia receta."));
+                .filter(id -> id.equals(recipe.userId()))
+                .ifPresent(__ -> ratingComponent.disableWithStatus(I18n.get("rating.disabled.ownRecipe")));
+
+        reviewsList.getChildren().clear();
+        recipe.ratings().forEach(r -> reviewsList.getChildren().add(new CommentItemComponent(r)));
+    }
+
+    private void buildIngredientChips(RecipeDetailResponse recipe) {
+        ingredientsContainer.getChildren().clear();
+        for (RecipeIngredientResponse ing : recipe.ingredients()) {
+            String qty  = ing.quantity().stripTrailingZeros().toPlainString();
+            Label  chip = new Label(qty + " " + ing.unitName() + "  ·  " + ing.ingredientName());
+            chip.getStyleClass().add("ingredient-chip");
+            ingredientsContainer.getChildren().add(chip);
+        }
+    }
+
+    private void buildStepCards(RecipeDetailResponse recipe) {
+        stepsContainer.getChildren().clear();
+        for (RecipeDetailResponse.RecipeStepResponse step : recipe.steps()) {
+            VBox card = new VBox(6);
+            card.getStyleClass().add("step-detail-card");
+
+            Label num = new Label(I18n.format("recipe.detail.step.label", step.stepOrder()));
+            num.getStyleClass().add("step-detail-number");
+
+            Label instr = new Label(step.instruction());
+            instr.setWrapText(true);
+            instr.getStyleClass().add("step-detail-instruction");
+
+            card.getChildren().addAll(num, instr);
+            stepsContainer.getChildren().add(card);
+        }
     }
 
     @FXML
     public void onGeneratePdfClick() {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Guardar ficha técnica PDF");
+        chooser.setTitle(I18n.get("dialog.savePdf.title"));
         chooser.setInitialFileName(sanitizeFilename(currentTitle) + ".pdf");
         chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Archivos PDF (*.pdf)", "*.pdf"));
+                new FileChooser.ExtensionFilter(I18n.get("dialog.filter.pdf"), "*.pdf"));
 
         File file = chooser.showSaveDialog(titleLabel.getScene().getWindow());
         if (file == null) return;
@@ -127,36 +172,27 @@ public class RecipeDetailController {
                 return null;
             }
         };
-        task.setOnSucceeded(e -> {
-            Alert ok = new Alert(Alert.AlertType.INFORMATION);
-            ok.setTitle("PDF generado");
-            ok.setHeaderText(null);
-            ok.setContentText("La ficha técnica se ha guardado en:\n" + file.getAbsolutePath());
-            ok.showAndWait();
-        });
+        task.setOnSucceeded(e ->
+                NotificationService.success(titleLabel,
+                        I18n.format("recipe.detail.notification.pdfSaved", file.getName())));
         task.setOnFailed(e -> Thread.getDefaultUncaughtExceptionHandler()
                 .uncaughtException(Thread.currentThread(), task.getException()));
-        new Thread(task).start();
+        executor.execute(task);
     }
 
     @FXML
     public void onExportButtonClick() {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Exportar receta a XML");
+        chooser.setTitle(I18n.get("dialog.exportXml.title"));
         chooser.setInitialFileName(sanitizeFilename(currentTitle) + ".xml");
         chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Archivos XML (*.xml)", "*.xml"));
+                new FileChooser.ExtensionFilter(I18n.get("dialog.filter.xml"), "*.xml"));
 
         File file = chooser.showSaveDialog(titleLabel.getScene().getWindow());
         if (file == null) return;
 
         commandProvider.exportRecipe().execute(currentRecipeId, file);
-
-        Alert ok = new Alert(Alert.AlertType.INFORMATION);
-        ok.setTitle("Exportación completada");
-        ok.setHeaderText(null);
-        ok.setContentText("La receta se ha exportado correctamente en:\n" + file.getAbsolutePath());
-        ok.showAndWait();
+        NotificationService.success(titleLabel, I18n.format("recipe.detail.notification.xmlExported", file.getName()));
     }
 
     private static String sanitizeFilename(String title) {
@@ -166,12 +202,5 @@ public class RecipeDetailController {
     @FXML
     public void onBackButtonClick() {
         nav.toDashboard();
-    }
-
-    private void showError(String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 }

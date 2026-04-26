@@ -5,23 +5,23 @@
 
 <fx:root type="VBox" spacing="10.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
 
-    <Label text="Gestión de Ingredientes" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>
+    <Label text="%ingredient.section.title" styleClass="section-header"/>
 
     <HBox spacing="10.0" alignment="CENTER_LEFT">
-        <ComboBox fx:id="ingredientComboBox" promptText="Seleccionar Ingrediente" prefWidth="200.0"/>
-        <ComboBox fx:id="unitComboBox" promptText="Unidad" prefWidth="100.0"/>
-        <TextField fx:id="quantityField" promptText="Cantidad" prefWidth="80.0"/>
+        <ComboBox fx:id="ingredientComboBox" promptText="%ingredient.field.name.prompt" prefWidth="200.0"/>
+        <ComboBox fx:id="unitComboBox" promptText="%ingredient.field.unit.prompt" prefWidth="100.0"/>
+        <TextField fx:id="quantityField" promptText="%ingredient.field.quantity.prompt" prefWidth="80.0"/>
 
-        <Button text="Añadir" onAction="#onAddClick" style="-fx-background-color: #4CAF50; -fx-text-fill: white;"/>
-        <Button text="Actualizar" onAction="#onUpdateClick" style="-fx-background-color: #2196F3; -fx-text-fill: white;"/>
-        <Button text="Eliminar" onAction="#onDeleteClick" style="-fx-background-color: #f44336; -fx-text-fill: white;"/>
+        <Button text="%button.add"    onAction="#onAddClick"    styleClass="button-add"/>
+        <Button text="%button.update" onAction="#onUpdateClick" styleClass="button-update"/>
+        <Button text="%button.delete" onAction="#onDeleteClick"  styleClass="danger-button"/>
     </HBox>
 
     <TableView fx:id="ingredientsTable" onMouseClicked="#onTableClick" VBox.vgrow="ALWAYS" prefHeight="200.0">
         <columns>
-            <TableColumn fx:id="colIngredientName" text="Ingrediente" prefWidth="200.0"/>
-            <TableColumn fx:id="colUnit" text="Unidad" prefWidth="100.0"/>
-            <TableColumn fx:id="colQuantity" text="Cantidad" prefWidth="100.0"/>
+            <TableColumn fx:id="colIngredientName" text="%column.ingredient" prefWidth="200.0"/>
+            <TableColumn fx:id="colUnit" text="%column.unit" prefWidth="100.0"/>
+            <TableColumn fx:id="colQuantity" text="%column.quantity" prefWidth="100.0"/>
         </columns>
     </TableView>
 </fx:root>

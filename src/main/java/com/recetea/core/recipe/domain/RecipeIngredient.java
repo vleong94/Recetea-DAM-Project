@@ -53,7 +53,7 @@ public class RecipeIngredient {
     public String getIngredientName() { return ingredientName; }
     public String getUnitAbbreviation() { return unitAbbreviation; }
 
-    public static class RecipeIngredientValidationException extends RuntimeException {
+    public static class RecipeIngredientValidationException extends InvalidIngredientException {
         public RecipeIngredientValidationException(String message) {
             super(message);
         }

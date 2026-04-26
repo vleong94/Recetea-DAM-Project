@@ -13,11 +13,11 @@
          xmlns="http://javafx.com/javafx/17"
          xmlns:fx="http://javafx.com/fxml/1">
 
-    <Label text="Imágenes de la Receta" styleClass="section-header" />
+    <Label text="%media.upload.section.title" styleClass="section-header" />
 
     <!-- Existing images (only visible in update mode) -->
     <VBox fx:id="existingSection" spacing="6.0" managed="false" visible="false">
-        <Label text="Imágenes guardadas:" styleClass="field-label" />
+        <Label text="%media.upload.existing.label" styleClass="field-label" />
         <ScrollPane fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
                     prefHeight="100.0" styleClass="gallery-strip-scroll">
             <FlowPane fx:id="existingContainer" hgap="8.0" vgap="8.0">
@@ -28,7 +28,7 @@
     </VBox>
 
     <!-- Pending uploads -->
-    <Label text="Añadir nuevas imágenes:" styleClass="field-label" />
+    <Label text="%media.upload.pending.label" styleClass="field-label" />
     <ScrollPane fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
                 prefHeight="100.0" styleClass="gallery-strip-scroll">
         <FlowPane fx:id="pendingContainer" hgap="8.0" vgap="8.0">
@@ -37,7 +37,7 @@
     </ScrollPane>
 
     <HBox spacing="12.0" alignment="CENTER_LEFT">
-        <Button text="Añadir Imagen" styleClass="secondary-button" onAction="#onAddImageClick" />
+        <Button text="%media.upload.button.add" styleClass="secondary-button" onAction="#onAddImageClick" />
         <Label fx:id="statusLabel" styleClass="error-label" />
     </HBox>
 

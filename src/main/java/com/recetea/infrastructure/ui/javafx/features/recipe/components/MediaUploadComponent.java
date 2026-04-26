@@ -2,6 +2,7 @@ package com.recetea.infrastructure.ui.javafx.features.recipe.components;
 
 import com.recetea.core.recipe.application.ports.in.dto.RecipeDetailResponse;
 import com.recetea.infrastructure.storage.StorageConfig;
+import com.recetea.infrastructure.ui.javafx.shared.i18n.I18n;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -38,6 +39,7 @@ public class MediaUploadComponent extends VBox {
                 "/com/recetea/infrastructure/ui/javafx/fxml/features/recipe/components/media_upload.fxml"));
         loader.setRoot(this);
         loader.setController(this);
+        loader.setResources(I18n.bundle());
         try {
             loader.load();
         } catch (IOException e) {
@@ -90,9 +92,9 @@ public class MediaUploadComponent extends VBox {
     @FXML
     private void onAddImageClick() {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Seleccionar imagen");
+        chooser.setTitle(I18n.get("dialog.selectImage.title"));
         chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Imágenes (JPG, PNG)", "*.jpg", "*.jpeg", "*.png"));
+                new FileChooser.ExtensionFilter(I18n.get("dialog.filter.images"), "*.jpg", "*.jpeg", "*.png"));
 
         File file = chooser.showOpenDialog(getScene().getWindow());
         if (file == null) return;
@@ -100,11 +102,11 @@ public class MediaUploadComponent extends VBox {
         // ── Validation (file-stat I/O, still fast) ──────────
         String lowerName = file.getName().toLowerCase();
         if (!lowerName.endsWith(".jpg") && !lowerName.endsWith(".jpeg") && !lowerName.endsWith(".png")) {
-            Platform.runLater(() -> statusLabel.setText("Solo se admiten archivos JPG o PNG."));
+            Platform.runLater(() -> statusLabel.setText(I18n.get("media.upload.error.invalidType")));
             return;
         }
         if (file.length() > MAX_BYTES) {
-            Platform.runLater(() -> statusLabel.setText("El archivo supera el límite de 5 MB."));
+            Platform.runLater(() -> statusLabel.setText(I18n.get("media.upload.error.tooLarge")));
             return;
         }
 
@@ -114,7 +116,7 @@ public class MediaUploadComponent extends VBox {
         Image preview = new Image(file.toURI().toString(), THUMB_SIZE, THUMB_SIZE, true, true, true);
         Platform.runLater(() -> {
             addPendingTile(file, preview);
-            statusLabel.setText(pendingFiles.size() + " imagen(es) pendiente(s).");
+            statusLabel.setText(I18n.format("media.upload.status.pending", pendingFiles.size()));
         });
     }
 
@@ -136,7 +138,7 @@ public class MediaUploadComponent extends VBox {
         removeBtn.setOnAction(e -> {
             pendingFiles.remove(file);
             pendingContainer.getChildren().remove(tile);
-            statusLabel.setText(pendingFiles.isEmpty() ? "" : pendingFiles.size() + " imagen(es) pendiente(s).");
+            statusLabel.setText(pendingFiles.isEmpty() ? "" : I18n.format("media.upload.status.pending", pendingFiles.size()));
         });
 
         pendingContainer.getChildren().add(tile);

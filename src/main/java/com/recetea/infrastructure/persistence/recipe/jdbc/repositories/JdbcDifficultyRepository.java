@@ -8,12 +8,13 @@ import com.recetea.infrastructure.persistence.recipe.jdbc.mappers.DifficultyMapp
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class JdbcDifficultyRepository extends BaseJdbcRepository implements IDifficultyRepository {
 
     private static final String SELECT_ALL = "SELECT id_difficulty, level_name FROM difficulties ORDER BY id_difficulty ASC";
-    private static final String SELECT_BY_ID = "SELECT id_difficulty, level_name FROM difficulties WHERE id_difficulty = ?";
     private final DifficultyMapper mapper = new DifficultyMapper();
+    private final AtomicReference<List<Difficulty>> cache = new AtomicReference<>();
 
     public JdbcDifficultyRepository(JdbcTransactionManager transactionManager) {
         super(transactionManager);
@@ -21,11 +22,17 @@ public class JdbcDifficultyRepository extends BaseJdbcRepository implements IDif
 
     @Override
     public List<Difficulty> findAll() {
-        return queryForList(SELECT_ALL, mapper);
+        List<Difficulty> cached = cache.get();
+        if (cached != null) return cached;
+        List<Difficulty> loaded = queryForList(SELECT_ALL, mapper);
+        cache.compareAndSet(null, List.copyOf(loaded));
+        return cache.get();
     }
 
     @Override
     public Optional<Difficulty> findById(DifficultyId id) {
-        return queryForObject(SELECT_BY_ID, mapper, id.value());
+        return findAll().stream()
+                .filter(d -> d.getId().value() == id.value())
+                .findFirst();
     }
 }

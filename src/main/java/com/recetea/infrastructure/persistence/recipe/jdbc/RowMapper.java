@@ -4,19 +4,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
- * Interfaz funcional que define el contrato para la transformación de una fila de un ResultSet
- * hacia un objeto de tipo T. Permite desacoplar la lógica de extracción de datos de la
- * estructura de control de las consultas JDBC.
+ * Functional interface for transforming a single {@link ResultSet} row into a domain object.
+ * Decouples row-extraction logic from the query-control flow in {@code BaseJdbcRepository}.
  *
- * @param <T> Tipo del objeto de destino.
+ * @param <T> The target object type.
  */
 @FunctionalInterface
 public interface RowMapper<T> {
+
     /**
-     * Mapea la fila actual del ResultSet a una instancia de T.
-     * @param rs ResultSet posicionado en la fila a procesar.
-     * @return Instancia del objeto mapeado.
-     * @throws SQLException Si ocurre un error de acceso a las columnas de la base de datos.
+     * Maps the current row of the given {@link ResultSet} to an instance of {@code T}.
+     *
+     * @param rs ResultSet positioned at the row to process.
+     * @return The mapped object.
+     * @throws SQLException if a column cannot be read.
      */
     T map(ResultSet rs) throws SQLException;
 }

@@ -9,24 +9,19 @@ import java.io.InputStream;
 import java.util.Properties;
 
 /**
- * Singleton de infraestructura que gestiona la provisión de conexiones a la base de datos.
- * Implementa una estrategia de carga dinámica de propiedades para alternar entre
- * entornos de desarrollo y test.
- * Utiliza HikariCP como Connection Pool para optimizar el ciclo de vida de las conexiones.
+ * Infrastructure singleton that manages the HikariCP connection pool.
+ * Resolves the properties file from the classpath using the {@code env} system property
+ * (defaults to {@code "local"}, producing {@code application-local.properties}).
  */
 public class DatabaseConfig {
 
     private static volatile DataSource dataSource;
 
-    private DatabaseConfig() {
-        // Evita la instanciación para mantener el patrón Singleton.
-    }
+    private DatabaseConfig() {}
 
     /**
-     * Provee acceso al DataSource mediante Lazy Initialization y un bloque
-     * Thread-Safe con Double-Checked Locking para evitar Race Conditions
-     * en entornos concurrentes.
-     * * @return DataSource configurado con el Connection Pool activo.
+     * Returns the shared {@link DataSource}, initialising it on first access
+     * via double-checked locking.
      */
     public static DataSource getDataSource() {
         if (dataSource == null) {
@@ -39,14 +34,6 @@ public class DatabaseConfig {
         return dataSource;
     }
 
-    /**
-     * Inicializa el Connection Pool leyendo el archivo de propiedades del Classpath.
-     * El archivo se determina dinámicamente mediante la variable de entorno 'env'
-     * ('application-local.properties' por defecto).
-     * Aplica el patrón Fail-Fast interrumpiendo la ejecución inmediatamente si
-     * la configuración no existe o es defectuosa.
-     * * @return Instancia de HikariDataSource lista para despachar conexiones.
-     */
     private static DataSource buildDataSource() {
         Properties properties = new Properties();
         String env = System.getProperty("env", "local");
@@ -54,7 +41,7 @@ public class DatabaseConfig {
 
         try (InputStream input = DatabaseConfig.class.getClassLoader().getResourceAsStream(fileName)) {
             if (input == null) {
-                throw new IllegalStateException("Fallo en el Classpath: No se encontró el archivo de configuración " + fileName);
+                throw new IllegalStateException("Config file not found on classpath: " + fileName);
             }
             properties.load(input);
 
@@ -63,7 +50,7 @@ public class DatabaseConfig {
             config.setUsername(properties.getProperty("db.user"));
             config.setPassword(properties.getProperty("db.password"));
 
-            // Configuraciones de resiliencia del Connection Pool
+            // Pool resilience settings
             config.setMaximumPoolSize(10);
             config.setMinimumIdle(2);
             config.setConnectionTimeout(30000);
@@ -73,7 +60,7 @@ public class DatabaseConfig {
             return new HikariDataSource(config);
 
         } catch (IOException e) {
-            throw new RuntimeException("Fallo crítico de I/O al cargar las propiedades de la base de datos.", e);
+            throw new RuntimeException("I/O failure loading database configuration.", e);
         }
     }
 }

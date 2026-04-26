@@ -57,9 +57,6 @@ INSERT INTO "steps" ("recipe_id", "step_order", "instruction") VALUES
 (3, 1, 'Lavar la lechuga.'), (3, 2, 'Poner en un bol.'),
 (4, 1, 'Verter leche en vaso.'), (4, 2, 'Calentar 1 minuto.');
 
-INSERT INTO "recipe_media" ("recipe_id", "url", "is_main", "sort_order") VALUES
-(1, 'assets/img/tarta_queso_final.jpg', TRUE, 1), (1, 'assets/img/tarta_queso_horno.jpg', FALSE, 2);
-
 INSERT INTO "recipe_ingredients" ("recipe_id", "ingredient_id", "unit_id", "quantity") VALUES
 (1, 1, 1, 600.00), (1, 2, 1, 150.50), (1, 6, 3, 4.00),
 (2, 9, 1, 800.00), (2, 7, 3, 2.00), (2, 8, 6, 3.00), (2, 10, 4, 4.00),
@@ -91,7 +88,7 @@ COMMIT;
 -- INSERT INTO "ratings" ("user_id", "recipe_id", "score") VALUES (2, 1, 7);
 
 -- TEST 3: Violación de PARTIAL INDEX (Dos fotos principales en una receta)
--- INSERT INTO "recipe_media" ("recipe_id", "url", "is_main") VALUES (1, 'error.jpg', TRUE);
+-- INSERT INTO "recipe_media" ("recipe_id", "storage_key", "storage_provider", "mime_type", "size_bytes", "is_main") VALUES (1, 'error.jpg', 'LOCAL', 'image/jpeg', 0, TRUE);
 
 -- TEST 4: Violación de FK RESTRICT (Borrar categoría en uso)
 -- DELETE FROM "categories" WHERE "id_category" = 1;

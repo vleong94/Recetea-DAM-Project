@@ -4,15 +4,18 @@ import com.recetea.core.recipe.domain.Category;
 import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.vo.CategoryId;
 import com.recetea.core.recipe.domain.vo.DifficultyId;
+import com.recetea.infrastructure.ui.javafx.shared.i18n.I18n;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.VBox;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 public class RecipeHeaderComponent extends VBox {
 
@@ -28,11 +31,26 @@ public class RecipeHeaderComponent extends VBox {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/recetea/infrastructure/ui/javafx/fxml/features/recipe/components/recipe_header.fxml"));
         loader.setRoot(this);
         loader.setController(this);
+        loader.setResources(I18n.bundle());
         try {
             loader.load();
         } catch (IOException e) {
             throw new RuntimeException("Infrastructure Failure: Imposible instanciar el componente visual RecipeHeaderComponent.", e);
         }
+    }
+
+    @FXML
+    private void initialize() {
+        UnaryOperator<TextFormatter.Change> positiveIntFilter = change -> {
+            String text = change.getControlNewText();
+            return (text.isEmpty() || text.matches("[1-9][0-9]*")) ? change : null;
+        };
+        prepTimeField.setTextFormatter(new TextFormatter<>(positiveIntFilter));
+        servingsField.setTextFormatter(new TextFormatter<>(positiveIntFilter));
+    }
+
+    public void requestTitleFocus() {
+        titleField.requestFocus();
     }
 
     public void initTaxonomy(List<Category> categories, List<Difficulty> difficulties) {

@@ -3,6 +3,7 @@ package com.recetea.core.recipe.application.usecases.recipe;
 import com.recetea.core.recipe.application.ports.in.dto.AddRatingRequest;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
 import com.recetea.core.recipe.domain.AuthenticationRequiredException;
+import com.recetea.core.recipe.domain.RecipeNotFoundException;
 import com.recetea.core.recipe.domain.Category;
 import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Recipe;
@@ -89,8 +90,8 @@ class AddRatingUseCaseTest {
 
         AddRatingRequest request = new AddRatingRequest(RECIPE_ID, new Score(4), "Comentario");
 
-        assertThrows(IllegalArgumentException.class, () -> useCase.execute(request),
-                "Debe lanzar IllegalArgumentException cuando la receta no existe");
+        assertThrows(RecipeNotFoundException.class, () -> useCase.execute(request),
+                "Debe lanzar RecipeNotFoundException cuando la receta no existe");
 
         verify(recipeRepository, never()).update(any());
         verify(recipeRepository, never()).updateSocialMetrics(any(), any(), anyInt());

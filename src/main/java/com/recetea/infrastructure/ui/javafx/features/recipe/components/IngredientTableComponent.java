@@ -3,12 +3,18 @@ package com.recetea.infrastructure.ui.javafx.features.recipe.components;
 import com.recetea.core.recipe.application.ports.in.dto.IngredientResponse;
 import com.recetea.core.recipe.application.ports.in.dto.UnitResponse;
 import com.recetea.core.recipe.application.ports.in.dto.SaveRecipeRequest.IngredientRequest;
+import com.recetea.infrastructure.ui.javafx.shared.i18n.I18n;
+import com.recetea.infrastructure.ui.javafx.shared.notification.NotificationService;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.scene.control.*;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
@@ -45,6 +51,7 @@ public class IngredientTableComponent extends VBox {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/recetea/infrastructure/ui/javafx/fxml/features/recipe/components/ingredient_table.fxml"));
         loader.setRoot(this);
         loader.setController(this);
+        loader.setResources(I18n.bundle());
         try {
             loader.load();
             setupTable();
@@ -94,7 +101,7 @@ public class IngredientTableComponent extends VBox {
         UnitResponse unit = unitComboBox.getValue();
         String qtyText = quantityField.getText().trim();
         if (ing == null || unit == null || qtyText.isEmpty()) {
-            showError("Validación fallida", "Es necesario completar todos los campos del ingrediente.");
+            showError(I18n.get("ingredient.error.requiredFields"));
             return;
         }
         try {
@@ -103,7 +110,7 @@ public class IngredientTableComponent extends VBox {
             ingredientList.add(new IngredientRequest(ing.id(), unit.id(), qty, ing.name(), unit.name()));
             clearInputs();
         } catch (NumberFormatException e) {
-            showError("Formato inválido", "La cantidad debe ser un valor numérico superior a cero.");
+            showError(I18n.get("ingredient.error.invalidQuantity"));
         }
     }
 
@@ -111,14 +118,14 @@ public class IngredientTableComponent extends VBox {
     public void onUpdateClick() {
         int index = ingredientsTable.getSelectionModel().getSelectedIndex();
         if (index < 0) {
-            showError("Sin selección", "Seleccione un ingrediente de la tabla para actualizar.");
+            showError(I18n.get("ingredient.error.noSelection"));
             return;
         }
         IngredientResponse ing = ingredientComboBox.getValue();
         UnitResponse unit = unitComboBox.getValue();
         String qtyText = quantityField.getText().trim();
         if (ing == null || unit == null || qtyText.isEmpty()) {
-            showError("Validación fallida", "Es necesario completar todos los campos del ingrediente.");
+            showError(I18n.get("ingredient.error.requiredFields"));
             return;
         }
         try {
@@ -127,7 +134,7 @@ public class IngredientTableComponent extends VBox {
             ingredientList.set(index, new IngredientRequest(ing.id(), unit.id(), qty, ing.name(), unit.name()));
             clearInputs();
         } catch (NumberFormatException e) {
-            showError("Formato inválido", "La cantidad debe ser un valor numérico superior a cero.");
+            showError(I18n.get("ingredient.error.invalidQuantity"));
         }
     }
 
@@ -187,10 +194,7 @@ public class IngredientTableComponent extends VBox {
     /**
      * Presenta feedback visual ante errores de validación estructural.
      */
-    private void showError(String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
+    private void showError(String message) {
+        NotificationService.warning(this, message);
     }
 }

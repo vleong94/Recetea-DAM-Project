@@ -1,161 +1,160 @@
 package com.recetea.infrastructure.ui.javafx.features.recipe.controllers;
 
 import com.recetea.core.recipe.application.ports.in.dto.RecipeSummaryResponse;
-import com.recetea.core.recipe.domain.vo.RecipeId;
+import com.recetea.core.recipe.application.ports.in.dto.SearchCriteria;
 import com.recetea.core.shared.domain.PageRequest;
 import com.recetea.infrastructure.storage.StorageConfig;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandProvider;
 import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeQueryProvider;
-import com.recetea.infrastructure.ui.javafx.shared.components.ThumbnailTableCell;
+import com.recetea.infrastructure.ui.javafx.features.recipe.components.RecipeCardComponent;
+import com.recetea.infrastructure.ui.javafx.shared.i18n.I18n;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.ReadOnlyStringWrapper;
-import javafx.collections.FXCollections;
+import com.recetea.infrastructure.ui.javafx.shared.notification.NotificationService;
+import javafx.animation.PauseTransition;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.HBox;
+import javafx.scene.control.Button;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import javafx.util.Duration;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.concurrent.ExecutorService;
 
 public class RecipeDashboardController {
 
-    @FXML private TableView<RecipeSummaryResponse> recipeTable;
-    @FXML private TableColumn<RecipeSummaryResponse, String> photoColumn;
-    @FXML private TableColumn<RecipeSummaryResponse, String> idColumn;
-    @FXML private TableColumn<RecipeSummaryResponse, String> titleColumn;
-    @FXML private TableColumn<RecipeSummaryResponse, String> categoryColumn;
-    @FXML private TableColumn<RecipeSummaryResponse, String> difficultyColumn;
-    @FXML private TableColumn<RecipeSummaryResponse, Integer> prepColumn;
-    @FXML private TableColumn<RecipeSummaryResponse, Integer> servingsColumn;
-    @FXML private TableColumn<RecipeSummaryResponse, String> scoreColumn;
-    @FXML private TableColumn<RecipeSummaryResponse, Integer> ratingsColumn;
-    @FXML private TableColumn<RecipeSummaryResponse, Void> favoriteColumn;
-    @FXML private TableColumn<RecipeSummaryResponse, Void> actionsColumn;
+    // ── Search & filter controls ─────────────────────────────────────────────
+    @FXML private TextField  searchField;
+    @FXML private TitledPane filterPane;
+    @FXML private TextField  categoryFilter;
+    @FXML private TextField  difficultyFilter;
+    @FXML private TextField  ingredientFilter;
+    @FXML private TextField  authorFilter;
+    @FXML private VBox       emptyPlaceholder;
 
-    private RecipeQueryProvider queryProvider;
+    // ── Card gallery ─────────────────────────────────────────────────────────
+    @FXML private FlowPane recipeContainer;
+
+    // ── Action bar ───────────────────────────────────────────────────────────
+    @FXML private Button globalReportButton;
+
+    private RecipeQueryProvider   queryProvider;
     private RecipeCommandProvider commandProvider;
-    private NavigationService nav;
+    private NavigationService     nav;
+    private ExecutorService       executor;
 
-    // Snapshot of the user's favorite recipe IDs; rebuilt on every loadData() call.
-    private Set<RecipeId> favoriteIds = new HashSet<>();
+    private PauseTransition debounce;
 
     @FXML
     public void initialize() {
-        photoColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().mainMediaStorageKey()));
-        photoColumn.setCellFactory(col -> new ThumbnailTableCell(StorageConfig.getBasePath()));
+        debounce = new PauseTransition(Duration.millis(300));
+        debounce.setOnFinished(e -> executeSearch());
 
-        idColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(String.valueOf(cell.getValue().id().value())));
-        titleColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().title()));
-        categoryColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().categoryName()));
-        difficultyColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().difficultyName()));
-        prepColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().prepTimeMinutes()));
-        servingsColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().servings()));
-        scoreColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(
-                cell.getValue().averageScore().setScale(1, java.math.RoundingMode.HALF_UP) + " / 5"));
-        ratingsColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().totalRatings()));
+        searchField.textProperty().addListener((obs, o, n)      -> debounce.playFromStart());
+        categoryFilter.textProperty().addListener((obs, o, n)   -> debounce.playFromStart());
+        difficultyFilter.textProperty().addListener((obs, o, n) -> debounce.playFromStart());
+        ingredientFilter.textProperty().addListener((obs, o, n) -> debounce.playFromStart());
+        authorFilter.textProperty().addListener((obs, o, n)     -> debounce.playFromStart());
     }
 
-    public void init(RecipeQueryProvider queryProvider, RecipeCommandProvider commandProvider, NavigationService nav) {
-        this.queryProvider = queryProvider;
+    public void init(RecipeQueryProvider queryProvider, RecipeCommandProvider commandProvider,
+                     NavigationService nav, ExecutorService executor) {
+        this.queryProvider   = queryProvider;
         this.commandProvider = commandProvider;
-        this.nav = nav;
-        setupFavoriteColumn();
-        setupActionsColumn();
-        loadData();
+        this.nav             = nav;
+        this.executor        = executor;
+        executeSearch();
     }
 
-    private void setupFavoriteColumn() {
-        favoriteColumn.setCellFactory(col -> new TableCell<>() {
-            private final ToggleButton btn = new ToggleButton();
+    // ── Search & debounce ────────────────────────────────────────────────────
 
-            {
-                btn.setOnAction(e -> {
-                    RecipeSummaryResponse recipe = getTableView().getItems().get(getIndex());
-                    commandProvider.toggleFavorite().execute(recipe.id());
-                    loadData();
-                });
-            }
-
+    private void executeSearch() {
+        if (executor == null) return;
+        SearchCriteria criteria = buildCriteria();
+        Task<SearchResult> task = new Task<>() {
             @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
-                    setGraphic(null);
-                    return;
-                }
-                RecipeSummaryResponse recipe = getTableView().getItems().get(getIndex());
-                boolean isFav = favoriteIds.contains(recipe.id());
-                btn.setSelected(isFav);
-                btn.setText(isFav ? "★" : "☆");
-                setGraphic(btn);
+            protected SearchResult call() {
+                List<RecipeSummaryResponse> recipes = queryProvider.searchRecipes()
+                        .execute(criteria, new PageRequest(0, 200)).content();
+                boolean hasFavorites = !queryProvider.getUserFavorites().execute().isEmpty();
+                return new SearchResult(recipes, hasFavorites);
             }
+        };
+        task.setOnSucceeded(e -> {
+            SearchResult result = task.getValue();
+            displayResults(result.recipes());
+            globalReportButton.setDisable(!result.hasFavorites());
         });
+        task.setOnFailed(e -> Thread.getDefaultUncaughtExceptionHandler()
+                .uncaughtException(Thread.currentThread(), task.getException()));
+        executor.execute(task);
     }
 
-    private void setupActionsColumn() {
-        actionsColumn.setCellFactory(param -> new TableCell<>() {
-            private final Button editBtn = new Button("Editar");
-            private final Button deleteBtn = new Button("Borrar");
-            private final HBox container = new HBox(10, editBtn, deleteBtn);
-
-            {
-                editBtn.setOnAction(event -> {
-                    RecipeSummaryResponse recipe = getTableView().getItems().get(getIndex());
-                    handleEditAction(recipe);
-                });
-                deleteBtn.setOnAction(event -> {
-                    RecipeSummaryResponse recipe = getTableView().getItems().get(getIndex());
-                    handleDeleteAction(recipe);
-                });
-            }
-
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
-                    setGraphic(null);
-                    return;
-                }
-                RecipeSummaryResponse recipe = getTableView().getItems().get(getIndex());
-                boolean isOwner = commandProvider.sessionService().getCurrentUserId()
-                        .map(id -> id.equals(recipe.authorId())).orElse(false);
-                editBtn.setVisible(isOwner);
-                editBtn.setManaged(isOwner);
-                deleteBtn.setVisible(isOwner);
-                deleteBtn.setManaged(isOwner);
-                setGraphic(container);
-            }
-        });
-
-        recipeTable.setOnMouseClicked(this::handleTableDoubleClick);
+    private void displayResults(List<RecipeSummaryResponse> recipes) {
+        recipeContainer.getChildren().clear();
+        boolean empty = recipes.isEmpty();
+        recipeContainer.setVisible(!empty);
+        recipeContainer.setManaged(!empty);
+        emptyPlaceholder.setVisible(empty);
+        emptyPlaceholder.setManaged(empty);
+        for (RecipeSummaryResponse recipe : recipes) {
+            recipeContainer.getChildren().add(
+                    new RecipeCardComponent(recipe,
+                            id -> nav.toRecipeDetail(id),
+                            StorageConfig.getBasePath()));
+        }
     }
 
-    public void loadData() {
-        List<RecipeSummaryResponse> recipes = queryProvider.getAllRecipes().execute(new PageRequest(0, 20)).content();
-        favoriteIds = queryProvider.getUserFavorites().execute().stream()
-                .map(RecipeSummaryResponse::id)
-                .collect(Collectors.toCollection(HashSet::new));
-        recipeTable.setItems(FXCollections.observableArrayList(recipes));
-        recipeTable.refresh();
+    private SearchCriteria buildCriteria() {
+        return new SearchCriteria(
+                nullIfBlank(searchField.getText()),
+                null,
+                null,
+                nullIfBlank(categoryFilter.getText()),
+                nullIfBlank(difficultyFilter.getText()),
+                nullIfBlank(ingredientFilter.getText()),
+                nullIfBlank(authorFilter.getText()));
     }
+
+    private String nullIfBlank(String s) {
+        return (s == null || s.isBlank()) ? null : s.strip();
+    }
+
+    private void filterByAuthor(String username) {
+        authorFilter.setText(username);
+        if (!filterPane.isExpanded()) filterPane.setExpanded(true);
+    }
+
+    public void focusSearch() {
+        searchField.requestFocus();
+    }
+
+    @FXML
+    public void onClearSearch() {
+        searchField.clear();
+        categoryFilter.clear();
+        difficultyFilter.clear();
+        ingredientFilter.clear();
+        authorFilter.clear();
+        debounce.stop();
+        executeSearch();
+    }
+
+    // ── Action handlers ───────────────────────────────────────────────────────
 
     @FXML
     public void onGlobalReportButtonClick() {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Guardar informe global PDF");
-        chooser.setInitialFileName("inventario_recetas.pdf");
+        chooser.setTitle(I18n.get("dialog.exportFavoritesPdf.title"));
+        chooser.setInitialFileName(I18n.get("dialog.exportFavoritesPdf.filename"));
         chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Archivos PDF (*.pdf)", "*.pdf"));
-
-        File file = chooser.showSaveDialog(recipeTable.getScene().getWindow());
+                new FileChooser.ExtensionFilter(I18n.get("dialog.filter.pdf"), "*.pdf"));
+        File file = chooser.showSaveDialog(recipeContainer.getScene().getWindow());
         if (file == null) return;
 
         Task<Void> task = new Task<>() {
@@ -167,71 +166,31 @@ public class RecipeDashboardController {
                 return null;
             }
         };
-        task.setOnSucceeded(e -> {
-            Alert ok = new Alert(Alert.AlertType.INFORMATION);
-            ok.setTitle("Informe generado");
-            ok.setHeaderText(null);
-            ok.setContentText("El informe global se ha guardado en:\n" + file.getAbsolutePath());
-            ok.showAndWait();
-        });
+        task.setOnSucceeded(e ->
+                NotificationService.success(recipeContainer, I18n.format("dashboard.notification.favoritesExported", file.getName())));
         task.setOnFailed(e -> Thread.getDefaultUncaughtExceptionHandler()
                 .uncaughtException(Thread.currentThread(), task.getException()));
-        new Thread(task).start();
+        executor.execute(task);
     }
 
-    @FXML
-    public void onLogoutButtonClick() {
-        nav.logout();
-    }
-
-    @FXML
-    public void onCreateButtonClick() {
-        nav.toRecipeCreate();
-    }
+    @FXML public void onLogoutButtonClick()  { nav.logout(); }
+    @FXML public void onProfileButtonClick() { nav.toUserProfile(); }
+    @FXML public void onCreateButtonClick()  { nav.toRecipeCreate(); }
 
     @FXML
     public void onImportButtonClick() {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Importar receta desde XML");
+        chooser.setTitle(I18n.get("dialog.importXml.title"));
         chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Archivos XML (*.xml)", "*.xml"));
-
-        File file = chooser.showOpenDialog(recipeTable.getScene().getWindow());
+                new FileChooser.ExtensionFilter(I18n.get("dialog.filter.xml"), "*.xml"));
+        File file = chooser.showOpenDialog(recipeContainer.getScene().getWindow());
         if (file == null) return;
 
         commandProvider.importRecipe().execute(file);
-        loadData();
-
-        Alert ok = new Alert(Alert.AlertType.INFORMATION);
-        ok.setTitle("Importación completada");
-        ok.setHeaderText(null);
-        ok.setContentText("La receta se ha importado correctamente desde:\n" + file.getName());
-        ok.showAndWait();
+        executeSearch();
+        NotificationService.success(recipeContainer,
+                I18n.format("dashboard.notification.recipeImported", file.getName()));
     }
 
-    private void handleEditAction(RecipeSummaryResponse recipe) {
-        queryProvider.getRecipeById().execute(recipe.id()).ifPresent(nav::toRecipeUpdate);
-    }
-
-    private void handleDeleteAction(RecipeSummaryResponse recipe) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
-                "¿Estás seguro de que deseas eliminar la receta: " + recipe.title() + "?");
-        alert.setHeaderText("Confirm Delete");
-
-        alert.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                nav.deleteRecipe(recipe.id());
-                loadData();
-            }
-        });
-    }
-
-    private void handleTableDoubleClick(MouseEvent event) {
-        if (event.getClickCount() == 2) {
-            RecipeSummaryResponse selected = recipeTable.getSelectionModel().getSelectedItem();
-            if (selected != null) {
-                nav.toRecipeDetail(selected.id());
-            }
-        }
-    }
+    private record SearchResult(List<RecipeSummaryResponse> recipes, boolean hasFavorites) {}
 }

@@ -15,5 +15,6 @@ public record RecipeSummaryResponse(
         BigDecimal averageScore,
         int totalRatings,
         String mainMediaStorageKey,
-        UserId authorId
+        UserId authorId,
+        String authorUsername
 ) {}

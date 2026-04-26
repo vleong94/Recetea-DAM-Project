@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <property name="LOG_DIR"     value="logs"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n"/>
+
+    <!-- Console: coloured, concise — used in development and Docker stdout -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Rolling file: daily rotation, 10 MB cap per file, 30 days / 200 MB total -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/recetea.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/recetea.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ── Third-party noise reduction ───────────────────────────────── -->
+    <!-- HikariCP pool lifecycle: only warnings and above -->
+    <logger name="com.zaxxer.hikari" level="WARN"/>
+    <!-- PostgreSQL JDBC driver internals -->
+    <logger name="org.postgresql"    level="WARN"/>
+    <!-- JAXB: suppress INFO-level marshalling chatter -->
+    <logger name="com.sun.xml"       level="WARN"/>
+
+    <!-- ── Application loggers ────────────────────────────────────────── -->
+    <!-- Domain + use-cases: INFO so operational events are visible -->
+    <logger name="com.recetea.core"           level="INFO"/>
+    <!-- Infrastructure layer: WARN in prod, raise to DEBUG when diagnosing -->
+    <logger name="com.recetea.infrastructure" level="WARN"/>
+
+    <!-- Root: catch anything not matched above -->
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+
+</configuration>

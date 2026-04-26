@@ -3,8 +3,8 @@ package com.recetea.core.user.domain.vo;
 public record Username(String value) {
     public Username {
         if (value == null || value.isBlank())
-            throw new IllegalArgumentException("El nombre de usuario es obligatorio.");
+            throw new IllegalArgumentException("Username is required.");
         if (value.trim().length() < 3)
-            throw new IllegalArgumentException("El nombre de usuario debe tener al menos 3 caracteres.");
+            throw new IllegalArgumentException("Username must be at least 3 characters long.");
     }
 }

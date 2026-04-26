@@ -9,9 +9,11 @@ import com.recetea.infrastructure.ui.javafx.features.recipe.components.Ingredien
 import com.recetea.infrastructure.ui.javafx.features.recipe.components.MediaUploadComponent;
 import com.recetea.infrastructure.ui.javafx.features.recipe.components.RecipeHeaderComponent;
 import com.recetea.infrastructure.ui.javafx.features.recipe.components.StepTableComponent;
+import com.recetea.infrastructure.ui.javafx.shared.i18n.I18n;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
+import com.recetea.infrastructure.ui.javafx.shared.notification.NotificationService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -39,18 +41,19 @@ public abstract class BaseRecipeFormController {
         ingredientTableComponent.init(
                 context.getAllIngredients().execute(),
                 context.getAllUnits().execute());
+        Platform.runLater(headerComponent::requestTitleFocus);
     }
 
     @FXML
     public void onSaveButtonClick() {
         if (!headerComponent.isValid()) {
-            showError("Error de Validación", "Complete los campos obligatorios de la cabecera.");
+            showError(I18n.get("form.error.header.required"));
             return;
         }
 
         List<SaveRecipeRequest.IngredientRequest> ingredients = ingredientTableComponent.getIngredients();
         if (ingredients.isEmpty()) {
-            showError("Error de Validación", "La receta requiere al menos un ingrediente.");
+            showError(I18n.get("form.error.noIngredients"));
             return;
         }
 
@@ -59,7 +62,7 @@ public abstract class BaseRecipeFormController {
                 .collect(Collectors.toList());
 
         if (steps.isEmpty()) {
-            showError("Error de Validación", "Debe definir los pasos de preparación.");
+            showError(I18n.get("form.error.noSteps"));
             return;
         }
 
@@ -87,11 +90,8 @@ public abstract class BaseRecipeFormController {
         nav.toDashboard();
     }
 
-    protected void showError(String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
+    protected void showError(String message) {
+        NotificationService.warning(headerComponent, message);
     }
 
     // ── Private ───────────────────────────────────────────────
@@ -104,7 +104,7 @@ public abstract class BaseRecipeFormController {
                 context.attachMedia().execute(recipeId, fis, file.getName());
             } catch (IOException e) {
                 throw new RuntimeException(
-                        "Error al leer el archivo seleccionado: " + file.getName(), e);
+                        I18n.format("media.error.fileRead", file.getName()), e);
             }
         }
         mediaUploadComponent.clearPending();

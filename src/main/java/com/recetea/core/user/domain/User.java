@@ -11,10 +11,10 @@ public class User {
     private final Email email;
     private final PasswordHash passwordHash;
 
-    public User(String username, String email, String passwordHash) {
-        this.username = new Username(username);
-        this.email = new Email(email);
-        this.passwordHash = new PasswordHash(passwordHash);
+    public User(Username username, Email email, PasswordHash passwordHash) {
+        this.username = username;
+        this.email = email;
+        this.passwordHash = passwordHash;
     }
 
     public void setId(UserId id) { this.id = id; }
@@ -23,4 +23,10 @@ public class User {
     public String getUsername() { return username.value(); }
     public String getEmail() { return email.value(); }
     public String getPasswordHash() { return passwordHash.value(); }
+
+    /** passwordHash is intentionally excluded to prevent accidental logging of credential data. */
+    @Override
+    public String toString() {
+        return "User[id=" + id + ", username=" + username.value() + ", email=" + email + "]";
+    }
 }

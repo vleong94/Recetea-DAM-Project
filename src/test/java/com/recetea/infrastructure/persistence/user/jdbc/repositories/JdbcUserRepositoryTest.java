@@ -2,6 +2,9 @@ package com.recetea.infrastructure.persistence.user.jdbc.repositories;
 
 import com.recetea.core.user.domain.User;
 import com.recetea.core.user.domain.UserId;
+import com.recetea.core.user.domain.vo.Email;
+import com.recetea.core.user.domain.vo.PasswordHash;
+import com.recetea.core.user.domain.vo.Username;
 import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
 import com.recetea.infrastructure.persistence.recipe.jdbc.repositories.BaseRepositoryTest;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +30,7 @@ class JdbcUserRepositoryTest extends BaseRepositoryTest {
     @Test
     @DisplayName("save + findById deben hacer un roundtrip completo")
     void save_AndFindById_ShouldRoundtrip() {
-        User user = new User("victor", "victor@example.com", HASH_A);
+        User user = new User(new Username("victor"), new Email("victor@example.com"), new PasswordHash(HASH_A));
         repository.save(user);
 
         assertNotNull(user.getId(), "El id debe ser asignado tras el save");
@@ -43,7 +46,7 @@ class JdbcUserRepositoryTest extends BaseRepositoryTest {
     @Test
     @DisplayName("findByUsername debe resolver un usuario existente")
     void findByUsername_ShouldReturnUser_WhenExists() {
-        repository.save(new User("maria", "maria@example.com", HASH_B));
+        repository.save(new User(new Username("maria"), new Email("maria@example.com"), new PasswordHash(HASH_B)));
 
         Optional<User> found = repository.findByUsername("maria");
         assertTrue(found.isPresent());
@@ -60,7 +63,7 @@ class JdbcUserRepositoryTest extends BaseRepositoryTest {
     @Test
     @DisplayName("findByEmail debe resolver un usuario existente y preservar el hash")
     void findByEmail_ShouldReturnUser_AndPreservePasswordHash() {
-        repository.save(new User("ana", "ana@example.com", HASH_A));
+        repository.save(new User(new Username("ana"), new Email("ana@example.com"), new PasswordHash(HASH_A)));
 
         Optional<User> found = repository.findByEmail("ana@example.com");
         assertTrue(found.isPresent());

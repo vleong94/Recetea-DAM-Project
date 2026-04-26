@@ -8,13 +8,24 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
 import java.nio.file.Path;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class ThumbnailTableCell extends TableCell<RecipeSummaryResponse, String> {
 
-    // Shared across all cell instances; keyed by storageKey.
-    private static final ConcurrentHashMap<String, Image> CACHE = new ConcurrentHashMap<>();
+    private static final int MAX_CACHE_SIZE = 100;
     private static final int SIZE = 50;
+
+    // Bounded LRU: evicts the least-recently-accessed entry once the cap is reached.
+    private static final Map<String, Image> CACHE = Collections.synchronizedMap(
+            new LinkedHashMap<>(MAX_CACHE_SIZE + 1, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, Image> eldest) {
+                    return size() > MAX_CACHE_SIZE;
+                }
+            }
+    );
 
     private final ImageView imageView;
     private final Rectangle placeholder;

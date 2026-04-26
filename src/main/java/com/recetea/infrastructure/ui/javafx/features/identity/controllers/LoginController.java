@@ -3,7 +3,9 @@ package com.recetea.infrastructure.ui.javafx.features.identity.controllers;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.user.application.ports.in.ILoginUseCase;
 import com.recetea.core.user.application.ports.in.dto.LoginRequest;
+import com.recetea.infrastructure.ui.javafx.shared.i18n.I18n;
 import com.recetea.infrastructure.ui.javafx.shared.navigation.NavigationService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -19,6 +21,11 @@ public class LoginController {
     private IUserSessionService sessionService;
     private NavigationService nav;
 
+    @FXML
+    public void initialize() {
+        Platform.runLater(usernameOrEmailField::requestFocus);
+    }
+
     public void init(ILoginUseCase loginUseCase, IUserSessionService sessionService, NavigationService nav) {
         this.loginUseCase = loginUseCase;
         this.sessionService = sessionService;
@@ -31,7 +38,7 @@ public class LoginController {
         String password = passwordField.getText();
 
         if (identifier.isEmpty() || password.isEmpty()) {
-            errorLabel.setText("Por favor, completa todos los campos.");
+            errorLabel.setText(I18n.get("error.requiredFields"));
             return;
         }
 
@@ -42,7 +49,7 @@ public class LoginController {
                             nav.toDashboard();
                         },
                         () -> {
-                            errorLabel.setText("Credenciales inválidas.");
+                            errorLabel.setText(I18n.get("login.error.invalidCredentials"));
                             passwordField.clear();
                         }
                 );

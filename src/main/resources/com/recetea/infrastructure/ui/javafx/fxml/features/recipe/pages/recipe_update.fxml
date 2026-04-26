@@ -11,14 +11,15 @@
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.MediaUploadComponent?>
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.StepTableComponent?>
 
-<VBox spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+<VBox spacing="20.0" maxWidth="Infinity" maxHeight="Infinity"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeUpdateController">
 
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
     </padding>
 
-    <Label text="Modificar Receta" styleClass="header-label" />
+    <Label text="%recipe.update.title" styleClass="header-label" />
 
     <RecipeHeaderComponent fx:id="headerComponent" />
 
@@ -29,11 +30,11 @@
     <MediaUploadComponent fx:id="mediaUploadComponent" />
 
     <HBox alignment="CENTER_RIGHT" spacing="15.0">
-        <Button text="Descartar Cambios"
+        <Button text="%form.button.discard"
                 styleClass="secondary-button"
                 onAction="#onBackButtonClick" />
 
-        <Button text="Actualizar Receta"
+        <Button text="%form.button.update"
                 styleClass="primary-button"
                 onAction="#onSaveButtonClick" />
     </HBox>

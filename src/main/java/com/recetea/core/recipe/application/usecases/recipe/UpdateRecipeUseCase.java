@@ -5,12 +5,14 @@ import com.recetea.core.recipe.application.ports.in.recipe.IUpdateRecipeUseCase;
 import com.recetea.core.recipe.application.ports.out.category.ICategoryRepository;
 import com.recetea.core.recipe.application.ports.out.difficulty.IDifficultyRepository;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
+import com.recetea.core.recipe.domain.AuthenticationRequiredException;
 import com.recetea.core.recipe.domain.Category;
 import com.recetea.core.recipe.domain.Difficulty;
+import com.recetea.core.recipe.domain.InvalidRecipeDataException;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
+import com.recetea.core.recipe.domain.RecipeNotFoundException;
 import com.recetea.core.recipe.domain.RecipeStep;
-import com.recetea.core.recipe.domain.AuthenticationRequiredException;
 import com.recetea.core.recipe.domain.UnauthorizedRecipeAccessException;
 import com.recetea.core.recipe.domain.vo.PreparationTime;
 import com.recetea.core.recipe.domain.vo.RecipeId;
@@ -18,8 +20,12 @@ import com.recetea.core.recipe.domain.vo.Servings;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
 import com.recetea.core.user.domain.UserId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
+
+    private static final Logger log = LoggerFactory.getLogger(UpdateRecipeUseCase.class);
 
     private final IRecipeRepository recipeRepository;
     private final ICategoryRepository categoryRepository;
@@ -41,21 +47,29 @@ public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
 
     @Override
     public void execute(RecipeId recipeId, SaveRecipeRequest request) {
+        var validation = request.validate();
+        if (!validation.isValid()) {
+            log.warn("Validation failed for recipe update (ID: {}): {}", recipeId.value(), validation.errors());
+        }
+        validation.getOrThrow(InvalidRecipeDataException::new);
+
+        log.info("Updating recipe: {}", recipeId.value());
+
         transactionManager.execute(() -> {
             Recipe recipe = recipeRepository.findById(recipeId)
-                    .orElseThrow(() -> new IllegalArgumentException("Receta no encontrada con ID: " + recipeId.value()));
+                    .orElseThrow(() -> new RecipeNotFoundException(recipeId.value()));
 
             UserId currentUser = sessionService.getCurrentUserId()
                     .orElseThrow(AuthenticationRequiredException::new);
             if (!recipe.getAuthorId().equals(currentUser)) {
                 throw new UnauthorizedRecipeAccessException(
-                        "El usuario " + currentUser.value() + " no tiene permiso para modificar esta receta.");
+                        "User " + currentUser.value() + " is not authorized to modify recipe " + recipeId.value() + ".");
             }
 
             Category category = categoryRepository.findById(request.categoryId())
-                    .orElseThrow(() -> new IllegalArgumentException("Categoría inválida."));
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid category ID: " + request.categoryId()));
             Difficulty difficulty = difficultyRepository.findById(request.difficultyId())
-                    .orElseThrow(() -> new IllegalArgumentException("Dificultad inválida."));
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid difficulty ID: " + request.difficultyId()));
 
             recipe.setTitle(request.title());
             recipe.setDescription(request.description());
@@ -79,5 +93,7 @@ public class UpdateRecipeUseCase implements IUpdateRecipeUseCase {
 
             recipeRepository.update(recipe);
         });
+
+        log.info("Recipe {} updated successfully.", recipeId.value());
     }
 }

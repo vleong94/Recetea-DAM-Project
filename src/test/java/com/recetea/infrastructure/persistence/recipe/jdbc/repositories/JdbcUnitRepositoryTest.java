@@ -36,7 +36,7 @@ class JdbcUnitRepositoryTest extends BaseRepositoryTest {
     }
 
     @Test
-    void findAll_DebeMapearCorrectamenteLasUnidades() {
+    void findAll_returnsMappedUnitsFromDatabase() {
         List<Unit> units = repository.findAll();
 
         assertEquals(2, units.size());

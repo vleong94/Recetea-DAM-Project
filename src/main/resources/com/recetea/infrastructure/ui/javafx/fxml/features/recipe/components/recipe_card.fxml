@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.layout.*?>
+
+<fx:root type="VBox" styleClass="recipe-card" prefWidth="240.0" spacing="0.0"
+         xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+
+    <!-- Image area: skeleton pulse while loading, then swapped for the ImageView -->
+    <StackPane fx:id="imagePane" styleClass="recipe-card-image-pane"
+               prefHeight="160.0" minHeight="160.0" maxHeight="160.0">
+        <Region fx:id="imageSkeleton" styleClass="skeleton-pulse"
+                minWidth="240.0" minHeight="160.0"/>
+        <ImageView fx:id="imageView" fitWidth="240.0" fitHeight="160.0"
+                   preserveRatio="true" visible="false"/>
+    </StackPane>
+
+    <!-- Text body -->
+    <VBox styleClass="recipe-card-body">
+        <Label fx:id="titleLabel"    styleClass="recipe-card-title"      maxWidth="220.0" wrapText="true"/>
+        <Label fx:id="categoryLabel" styleClass="recipe-card-category"/>
+        <HBox  spacing="10.0">
+            <Label fx:id="prepTimeLabel" styleClass="recipe-card-meta-label"/>
+            <Label fx:id="scoreLabel"    styleClass="recipe-card-meta-label"/>
+        </HBox>
+    </VBox>
+
+</fx:root>

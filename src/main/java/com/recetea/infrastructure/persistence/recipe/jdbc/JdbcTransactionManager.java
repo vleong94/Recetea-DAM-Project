@@ -6,6 +6,16 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.function.Supplier;
 
+/**
+ * Virtual-thread compatible: {@code ScopedValue} binds the {@link Connection} to the
+ * <em>virtual thread</em> that calls {@link #execute}, not to its carrier platform thread.
+ * The binding survives park/unmount cycles transparently, so JDBC calls that block (e.g.
+ * waiting for network I/O) correctly release the carrier without corrupting the scope.
+ *
+ * The nested-transaction guard ({@code CONNECTION.isBound()}) remains correct under
+ * virtual threads: each virtual thread has its own scope, so two concurrent transactions
+ * on different virtual threads do not interfere.
+ */
 public class JdbcTransactionManager implements ITransactionManager {
 
     public static final ScopedValue<Connection> CONNECTION = ScopedValue.newInstance();
@@ -32,7 +42,7 @@ public class JdbcTransactionManager implements ITransactionManager {
     @Override
     public <T> T execute(Supplier<T> action) {
         if (CONNECTION.isBound()) {
-            throw new IllegalStateException("Transacción anidada no permitida: ya existe una transacción activa en este hilo.");
+            throw new IllegalStateException("Nested transaction not allowed: a transaction is already active on this thread.");
         }
         try (Connection conn = dataSource.getConnection()) {
             conn.setAutoCommit(false);
@@ -43,12 +53,12 @@ public class JdbcTransactionManager implements ITransactionManager {
             } catch (Exception e) {
                 conn.rollback();
                 if (e instanceof RuntimeException re) throw re;
-                throw new InfrastructureException("Error no recuperable durante la ejecución transaccional.", e);
+                throw new InfrastructureException("Unrecoverable error during transactional execution.", e);
             }
         } catch (InfrastructureException | IllegalStateException e) {
             throw e;
         } catch (SQLException e) {
-            throw new InfrastructureException("Fallo crítico en el Transaction Bridge de JDBC.", e);
+            throw new InfrastructureException("Critical failure in the JDBC transaction bridge.", e);
         }
     }
 

@@ -1,106 +1,459 @@
-/* ── Base ────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   RECETEA — Gastronomic Vibe Premium
+   Design System: Tokens → Base → Typography → Components → Pages
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Design Tokens (JavaFX look-up colors) ─────────────────────── */
 .root {
+    /* Brand palette — Deep Terracotta */
+    app-primary:              #8E443D;
+    app-primary-dark:         derive(app-primary, -22%);
+    app-primary-light:        derive(app-primary, 80%);
+    app-primary-glow:         rgba(142, 68, 61, 0.35);
+    app-primary-glow-hover:   rgba(142, 68, 61, 0.50);
+
+    /* Botanical accent — Basil Green */
+    app-accent:               #2D5A27;
+    app-accent-dark:          derive(app-accent, -22%);
+    app-accent-light:         derive(app-accent, 80%);
+    app-accent-tint:          rgba(45, 90, 39, 0.18);
+    app-accent-tint-hover:    rgba(45, 90, 39, 0.28);
+
+    /* Glassmorphism surfaces */
+    app-card-bg:              rgba(255, 255, 255, 0.70);
+    app-card-bg-elevated:     rgba(255, 255, 255, 0.93);
+    app-bar-glass:            rgba(255, 255, 255, 0.25);
+    app-card-border:          rgba(213, 201, 184, 0.48);
+    app-card-border-elevated: rgba(213, 201, 184, 0.45);
+
+    /* Base surfaces — Parchment White */
+    app-bg:                   #FDFBF7;
+    app-surface:              #FFFFFF;
+    app-border:               #D5C9B8;
+    app-bg-tinted:            rgba(253, 251, 247, 0.95);
+    app-row-odd:              rgba(253, 251, 247, 0.32);
+    app-row-separator:        rgba(213, 201, 184, 0.35);
+    app-dialog-header:        rgba(253, 251, 247, 0.92);
+
+    /* Neutral controls */
+    app-neutral:              rgba(189, 195, 199, 0.52);
+    app-neutral-hover:        rgba(166, 172, 175, 0.72);
+    app-neutral-pressed:      rgba(140, 148, 152, 0.85);
+    app-neutral-border:       rgba(189, 195, 199, 0.80);
+
+    /* Interactive focus */
+    app-field-focus-shadow:   rgba(142, 68, 61, 0.18);
+
+    /* Scrollbar chrome */
+    app-scrollbar-thumb:      rgba(100, 100, 100, 0.28);
+    app-scrollbar-thumb-hover: rgba(100, 100, 100, 0.48);
+
+    /* Gallery dark surfaces */
+    app-gallery-bg:           #1c1c1c;
+    app-gallery-thumb:        #2c2c2c;
+    app-gallery-thumb-hover:  #3a3a3a;
+    app-gallery-text:         #888888;
+
+    /* Skeleton loader shimmer */
+    app-skeleton-base:        rgba(180, 173, 162, 0.55);
+    app-skeleton-highlight:   rgba(215, 209, 198, 0.75);
+
+    /* Semantic states */
+    app-success:              #1A7A43;
+    app-warning:              #B25918;
+    app-error:                #C0392B;
+    app-error-translucent:    rgba(192, 57, 43, 0.85);
+
+    /* Toast notification backgrounds (translucent, darker than their semantic counterparts) */
+    app-toast-success-bg:     rgba(26, 122, 67, 0.94);
+    app-toast-warning-bg:     rgba(160, 83, 15, 0.94);
+    app-toast-error-bg:       rgba(152, 40, 31, 0.94);
+    app-shadow-toast:         rgba(0, 0, 0, 0.28);
+
+    /* CRUD table action buttons (ingredient/step components) */
+    app-btn-add:              #4CAF50;
+    app-btn-update:           #2196F3;
+
+    /* Star rating */
+    app-star-empty:           #D1D1D1;
+    app-star-active:          #FFB400;
+    app-star-preview:         rgba(255, 180, 0, 0.50);
+
+    /* Recipe card — no-image placeholder background */
+    app-card-no-image:        rgba(213, 201, 184, 0.40);
+
+    /* Elevation shadows */
+    app-shadow-card:          rgba(0, 0, 0, 0.10);
+    app-shadow-lifted:        rgba(0, 0, 0, 0.15);
+    app-shadow-medium:        rgba(0, 0, 0, 0.14);
+    app-shadow-dialog:        rgba(0, 0, 0, 0.18);
+    app-shadow-gallery:       rgba(0, 0, 0, 0.24);
+    app-shadow-table:         rgba(0, 0, 0, 0.05);
+    app-shadow-popup:         rgba(0, 0, 0, 0.12);
+
+    /* Text */
+    app-text:                 #2C3E50;
+    app-text-muted:           #6B7280;
+
+    /* Spacing scale — documentation only; JavaFX CSS resolves look-up values
+       solely for paint/color properties, so these tokens cannot be referenced
+       in -fx-padding or -fx-spacing rules. Use the equivalent numeric literals
+       and annotate them with the token name (e.g. s=8) for traceability.
+       xs=4  s=8  m=16  l=24  xl=32 */
+    app-spacing-xs:           4px;
+    app-spacing-s:            8px;
+    app-spacing-m:            16px;
+    app-spacing-l:            24px;
+    app-spacing-xl:           32px;
+
+    /* Base */
     -fx-font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     -fx-font-size: 13px;
-    -fx-background-color: #f5f5f5;
+    -fx-background-color: linear-gradient(from 0% 0% to 0% 100%, app-bg 0%, app-primary-light 100%);
 }
 
-/* ── Typography ──────────────────────────────────────────── */
+/* ── 2. Typography Scale ──────────────────────────────────────────── */
 .header-label {
-    -fx-font-size: 22px;
+    -fx-font-family: "Georgia", "Palatino Linotype", "Book Antiqua", serif;
+    -fx-font-size: 26px;
     -fx-font-weight: bold;
-    -fx-text-fill: #2c3e50;
+    -fx-text-fill: app-text;
+    -fx-padding: 0 0 4 0;
 }
 
 .section-header {
     -fx-font-size: 15px;
     -fx-font-weight: bold;
-    -fx-text-fill: #34495e;
+    -fx-text-fill: app-text;
     -fx-padding: 4 0 2 0;
 }
 
 .field-label {
+    -fx-font-size: 12px;
     -fx-font-weight: bold;
-    -fx-text-fill: #555;
+    -fx-text-fill: app-text-muted;
 }
 
 .error-label {
-    -fx-text-fill: #c0392b;
+    -fx-text-fill: app-error;
     -fx-font-size: 12px;
     -fx-min-height: 16px;
 }
 
-/* ── Buttons ─────────────────────────────────────────────── */
+.text-caption {
+    -fx-font-size: 11px;
+    -fx-text-fill: app-text-muted;
+}
+
+/* ── 3. Glassmorphism Cards ───────────────────────────────────────── */
+
+/* Frosted-glass panel floating over the parchment background */
+.glass-card {
+    -fx-background-color: app-card-bg;
+    -fx-background-radius: 15;
+    -fx-border-color: app-card-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 15;
+    -fx-effect: dropshadow(gaussian, app-shadow-lifted, 20, 0, 0, 10);
+    -fx-padding: 18;
+}
+
+/* Elevated card for login/register forms */
+.auth-card {
+    -fx-background-color: app-card-bg-elevated;
+    -fx-background-radius: 14;
+    -fx-border-color: app-card-border-elevated;
+    -fx-border-width: 1;
+    -fx-border-radius: 14;
+    -fx-effect: dropshadow(gaussian, app-shadow-medium, 32, 0.04, 0, 8);
+    -fx-padding: 40;   /* xl=32 + s=8 */
+    -fx-spacing: 16;   /* m=16 */
+}
+
+/* ── 4. Buttons ───────────────────────────────────────────────────── */
 .primary-button {
-    -fx-background-color: #2980b9;
+    -fx-background-color: app-primary;
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-background-radius: 4;
-    -fx-padding: 8 18 8 18;
+    -fx-background-radius: 6;
+    -fx-padding: 9 22 9 22;
     -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, app-primary-glow, 8, 0, 0, 2);
 }
-
 .primary-button:hover {
-    -fx-background-color: #2471a3;
+    -fx-background-color: app-primary-dark;
+    -fx-effect: dropshadow(gaussian, app-primary-glow-hover, 10, 0, 0, 3);
 }
-
 .primary-button:pressed {
-    -fx-background-color: #1a5276;
+    -fx-background-color: derive(app-primary-dark, -10%);
+    -fx-effect: none;
+    -fx-translate-y: 1;
 }
 
 .secondary-button {
-    -fx-background-color: #bdc3c7;
-    -fx-text-fill: #2c3e50;
+    -fx-background-color: app-neutral;
+    -fx-text-fill: app-text;
     -fx-font-weight: bold;
-    -fx-background-radius: 4;
-    -fx-padding: 8 18 8 18;
+    -fx-background-radius: 6;
+    -fx-padding: 9 22 9 22;
+    -fx-cursor: hand;
+    -fx-border-color: app-neutral-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+}
+.secondary-button:hover {
+    -fx-background-color: app-neutral-hover;
+}
+.secondary-button:pressed {
+    -fx-background-color: app-neutral-pressed;
+    -fx-translate-y: 1;
+}
+
+/* Destructive actions (e.g. delete recipe) */
+.danger-button {
+    -fx-background-color: app-error;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6;
+    -fx-padding: 7 14 7 14;
     -fx-cursor: hand;
 }
-
-.secondary-button:hover {
-    -fx-background-color: #a6acaf;
+.danger-button:hover {
+    -fx-background-color: derive(app-error, -15%);
+}
+.danger-button:pressed {
+    -fx-background-color: derive(app-error, -25%);
+    -fx-translate-y: 1;
 }
 
-/* ── Form fields ─────────────────────────────────────────── */
-.text-field, .password-field, .text-area, .combo-box {
-    -fx-background-color: white;
-    -fx-border-color: #bdc3c7;
-    -fx-border-radius: 3;
-    -fx-background-radius: 3;
-    -fx-padding: 6 8 6 8;
+/* Inline CRUD buttons for ingredient/step table components */
+.button-add {
+    -fx-background-color: app-btn-add;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6;
+    -fx-padding: 7 14 7 14;
+    -fx-cursor: hand;
 }
+.button-add:hover    { -fx-background-color: derive(app-btn-add, -12%); }
+.button-add:pressed  { -fx-background-color: derive(app-btn-add, -22%); -fx-translate-y: 1; }
 
+.button-update {
+    -fx-background-color: app-btn-update;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6;
+    -fx-padding: 7 14 7 14;
+    -fx-cursor: hand;
+}
+.button-update:hover   { -fx-background-color: derive(app-btn-update, -12%); }
+.button-update:pressed { -fx-background-color: derive(app-btn-update, -22%); -fx-translate-y: 1; }
+
+/* ── 5. Form Fields ───────────────────────────────────────────────── */
+.text-field, .password-field, .text-area {
+    -fx-background-color: app-surface;
+    -fx-border-color: app-border;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 8 10 8 10;
+    -fx-text-fill: app-text;
+    -fx-prompt-text-fill: app-text-muted;
+}
 .text-field:focused, .password-field:focused, .text-area:focused {
-    -fx-border-color: #2980b9;
+    -fx-border-color: app-primary;
+    -fx-border-width: 1.5;
+    -fx-effect: dropshadow(gaussian, app-field-focus-shadow, 8, 0, 0, 0);
 }
 
-/* ── Table ───────────────────────────────────────────────── */
+.combo-box {
+    -fx-background-color: app-surface;
+    -fx-border-color: app-border;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 3 6 3 6;
+    -fx-cursor: hand;
+}
+.combo-box:focused,
+.combo-box:showing {
+    -fx-border-color: app-primary;
+}
+.combo-box .list-cell {
+    -fx-text-fill: app-text;
+    -fx-background-color: transparent;
+}
+.combo-box-popup .list-view {
+    -fx-background-color: app-surface;
+    -fx-border-color: app-border;
+    -fx-border-radius: 6;
+    -fx-effect: dropshadow(gaussian, app-shadow-popup, 12, 0, 0, 3);
+}
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: app-primary-light;
+}
+
+/* ── 6. Tables ────────────────────────────────────────────────────── */
 .table-view {
-    -fx-background-color: white;
-    -fx-border-color: #dde;
+    -fx-background-color: app-surface;
+    -fx-border-color: app-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, app-shadow-table, 10, 0, 0, 2);
+}
+
+.table-view .column-header-background {
+    -fx-background-color: app-bg-tinted;
+    -fx-background-radius: 8 8 0 0;
 }
 
 .table-view .column-header {
-    -fx-background-color: #ecf0f1;
+    -fx-background-color: transparent;
+    -fx-font-weight: bold;
+    -fx-text-fill: app-text;
+    -fx-padding: 10 8 10 8;
+}
+
+.table-view .filler {
+    -fx-background-color: transparent;
+}
+
+.table-row-cell {
+    -fx-cell-size: 36px;
+    -fx-background-color: app-surface;
+    -fx-border-color: transparent transparent app-row-separator transparent;
+    -fx-border-width: 0 0 0.5 0;
+    -fx-text-fill: app-text;
+}
+.table-row-cell:odd {
+    -fx-background-color: app-row-odd;
+}
+.table-row-cell:hover {
+    -fx-background-color: derive(app-primary, 88%);
+}
+.table-row-cell:selected {
+    -fx-background-color: app-primary-light;
+    -fx-text-fill: app-text;
+}
+.table-row-cell:selected .text {
+    -fx-fill: app-text;
+}
+
+/* ── 7. Scrollbars ────────────────────────────────────────────────── */
+.scroll-bar {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+.scroll-bar .thumb {
+    -fx-background-color: app-scrollbar-thumb;
+    -fx-background-radius: 4;
+}
+.scroll-bar .thumb:hover {
+    -fx-background-color: app-scrollbar-thumb-hover;
+}
+.scroll-bar .track {
+    -fx-background-color: transparent;
+}
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 2;
+}
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow {
+    -fx-background-color: app-text-muted;
+    -fx-padding: 2;
+}
+
+/* ── 8. Separator ─────────────────────────────────────────────────── */
+.separator .line {
+    -fx-border-color: app-border;
+    -fx-border-width: 0.5;
+}
+
+/* Extra breathing room between major sections (e.g. Steps → Rating) */
+.section-spacer {
+    -fx-padding: 8 0 8 0;
+}
+
+/* ── 9. Hyperlink ─────────────────────────────────────────────────── */
+.hyperlink {
+    -fx-text-fill: app-primary;
+    -fx-border-color: transparent;
+    -fx-font-size: 12px;
+}
+.hyperlink:hover {
+    -fx-text-fill: app-primary-dark;
+    -fx-underline: true;
+}
+.hyperlink:visited {
+    -fx-text-fill: app-primary;
+}
+
+/* ── 10. ToggleButton (favorites) ─────────────────────────────────── */
+.toggle-button {
+    -fx-background-color: app-neutral;
+    -fx-text-fill: app-text;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6;
+    -fx-padding: 9 22 9 22;
+    -fx-cursor: hand;
+    -fx-border-color: app-neutral-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+}
+.toggle-button:selected {
+    -fx-background-color: app-accent-tint;
+    -fx-text-fill: app-accent-dark;
+    -fx-border-color: app-accent;
+}
+.toggle-button:hover {
+    -fx-background-color: app-neutral-hover;
+}
+.toggle-button:selected:hover {
+    -fx-background-color: app-accent-tint-hover;
+}
+
+/* ── 11. Alert / Dialog Pane ──────────────────────────────────────── */
+.dialog-pane {
+    -fx-background-color: app-surface;
+    -fx-border-color: app-border;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(gaussian, app-shadow-dialog, 28, 0.04, 0, 6);
+    -fx-padding: 0;
+}
+.dialog-pane > .header-panel {
+    -fx-background-color: app-dialog-header;
+    -fx-background-radius: 10 10 0 0;
+    -fx-padding: 16 20 16 20;
+}
+.dialog-pane > .content.label {
+    -fx-padding: 16 20 10 20;
+    -fx-font-size: 13px;
+    -fx-text-fill: app-text;
+    -fx-wrap-text: true;
+}
+.dialog-pane > .button-bar {
+    -fx-padding: 10 16 16 16;
+}
+.dialog-pane > .button-bar > .container > .button {
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+    -fx-padding: 8 18 8 18;
     -fx-font-weight: bold;
 }
 
-.table-row-cell:selected {
-    -fx-background-color: #d6eaf8;
-    -fx-text-fill: #2c3e50;
-}
-
-/* ── Media Gallery ───────────────────────────────────────── */
+/* ── 12. Gallery (dark theme preserved) ──────────────────────────── */
 .gallery-main-container {
-    -fx-background-color: #1c1c1c;
+    -fx-background-color: app-gallery-bg;
     -fx-min-height: 300px;
     -fx-alignment: center;
-    -fx-border-radius: 6;
-    -fx-background-radius: 6;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, app-shadow-gallery, 16, 0, 0, 4);
 }
 
 .gallery-no-media {
-    -fx-text-fill: #888888;
+    -fx-text-fill: app-gallery-text;
     -fx-font-size: 14px;
 }
 
@@ -111,31 +464,33 @@
     -fx-border-radius: 4;
     -fx-background-radius: 4;
     -fx-padding: 2;
-    -fx-background-color: #2c2c2c;
+    -fx-background-color: app-gallery-thumb;
 }
-
 .gallery-thumbnail:hover {
-    -fx-border-color: #2980b9;
-    -fx-background-color: #3a3a3a;
+    -fx-border-color: app-primary;
+    -fx-background-color: app-gallery-thumb-hover;
 }
-
 .gallery-thumbnail-selected {
-    -fx-border-color: #e74c3c;
-    -fx-background-color: #3a3a3a;
+    -fx-border-color: app-accent;
+    -fx-background-color: app-gallery-thumb-hover;
 }
-
 .gallery-strip-scroll {
     -fx-background-color: transparent;
     -fx-padding: 4 0 4 0;
 }
-
 .gallery-strip-scroll > .viewport {
     -fx-background-color: transparent;
 }
 
-/* ── Media Upload ────────────────────────────────────────── */
+/* ── 13. Skeleton Loader ──────────────────────────────────────────── */
+.skeleton-pulse {
+    -fx-background-color: linear-gradient(to right, app-skeleton-base, app-skeleton-highlight, app-skeleton-base);
+    -fx-background-radius: 4;
+}
+
+/* ── 14. Media Upload ─────────────────────────────────────────────── */
 .media-remove-btn {
-    -fx-background-color: rgba(231,76,60,0.85);
+    -fx-background-color: app-error-translucent;
     -fx-text-fill: white;
     -fx-font-weight: bold;
     -fx-font-size: 11px;
@@ -145,17 +500,251 @@
     -fx-min-width: 18px;
     -fx-min-height: 18px;
 }
-
 .media-remove-btn:hover {
-    -fx-background-color: #c0392b;
+    -fx-background-color: app-error;
 }
 
-/* ── Hyperlink ───────────────────────────────────────────── */
-.hyperlink {
-    -fx-text-fill: #2980b9;
+/* ── 15. Tab Pane ─────────────────────────────────────────────────── */
+.tab-pane {
+    -fx-background-color: transparent;
+    -fx-tab-min-width: 80px;
+}
+.tab-pane > .tab-header-area {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+.tab-pane > .tab-header-area > .tab-header-background {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent app-border transparent;
+    -fx-border-width: 0 0 1 0;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 8 16 8 16;
+    -fx-cursor: hand;
+    -fx-background-radius: 0;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab .tab-label {
+    -fx-text-fill: app-text-muted;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent app-primary transparent;
+    -fx-border-width: 0 0 2.5 0;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab:selected .tab-label {
+    -fx-text-fill: app-primary;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab:hover:!selected .tab-label {
+    -fx-text-fill: app-text;
+}
+.tab-pane > .tab-content-area {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+/* ── 16. Filter Drawer (TitledPane) ──────────────────────────────── */
+.filter-drawer {
+    -fx-background-color: transparent;
+}
+.filter-drawer > .title {
+    -fx-background-color: transparent;
+    -fx-padding: 6 0 6 0;
     -fx-border-color: transparent;
 }
+.filter-drawer > .title .text {
+    -fx-text-fill: app-text-muted;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+.filter-drawer > .title > .arrow-button {
+    -fx-background-color: transparent;
+}
+.filter-drawer > .title > .arrow-button > .arrow {
+    -fx-background-color: app-text-muted;
+}
+.filter-drawer > .content {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
 
-.hyperlink:hover {
-    -fx-text-fill: #1a5276;
+/* ── 17. Scroll Pane ──────────────────────────────────────────────── */
+
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+}
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+.scroll-pane .corner {
+    -fx-background-color: transparent;
+}
+
+/* ── 18. Comment Item ─────────────────────────────────────────────── */
+.comment-item {
+    -fx-background-color: app-card-bg;
+    -fx-background-radius: 10;
+    -fx-border-color: app-card-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 10;
+    -fx-padding: 12 16 12 16;   /* s+xs=12  m=16 */
+    -fx-spacing: 8;             /* s=8 */
+}
+.comment-stars {
+    -fx-font-size: 14px;
+    -fx-text-fill: app-warning;
+}
+.comment-username {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: app-text;
+}
+.comment-date {
+    -fx-font-size: 11px;
+    -fx-text-fill: app-text-muted;
+}
+.comment-text {
+    -fx-font-size: 12px;
+    -fx-text-fill: app-text-muted;
+}
+
+/* ── 19. Recipe Cards ────────────────────────────────────────────── */
+
+.recipe-card {
+    -fx-background-color: app-card-bg;
+    -fx-background-radius: 12;
+    -fx-border-color: app-card-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+    -fx-effect: dropshadow(gaussian, app-shadow-lifted, 20, 0, 0, 10);
+    -fx-cursor: hand;
+}
+.recipe-card:hover {
+    -fx-scale-x: 1.04;
+    -fx-scale-y: 1.04;
+    -fx-background-color: app-card-bg-elevated;
+    -fx-effect: dropshadow(gaussian, app-shadow-dialog, 28, 0.04, 0, 14);
+}
+
+.recipe-card-image-pane {
+    -fx-background-color: app-card-no-image;
+    -fx-background-radius: 12 12 0 0;
+}
+.recipe-card-no-image {
+    -fx-background-color: app-card-no-image;
+    -fx-background-radius: 0;
+}
+
+.recipe-card-body {
+    -fx-padding: 8 12 12 12;   /* s=8  s+xs=12 */
+    -fx-spacing: 4;            /* xs=4 */
+}
+
+.recipe-card-title {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: app-text;
+}
+
+.recipe-card-category {
+    -fx-font-size: 11px;
+    -fx-text-fill: app-primary;
+    -fx-font-weight: bold;
+}
+
+.recipe-card-meta-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: app-text-muted;
+}
+
+/* ── 20. Empty-State Placeholder ─────────────────────────────────── */
+.empty-state-icon {
+    -fx-font-size: 52px;
+    -fx-text-fill: app-border;
+    -fx-padding: 0 0 6 0;
+    -fx-opacity: 0.75;
+}
+
+/* ── 21. Ingredient Chips ────────────────────────────────────────── */
+.ingredient-chip {
+    -fx-background-color: app-card-bg;
+    -fx-border-color: app-card-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-padding: 6 14 6 14;
+    -fx-font-size: 12px;
+    -fx-text-fill: app-text;
+    -fx-effect: dropshadow(gaussian, app-shadow-card, 6, 0, 0, 1);
+}
+
+/* ── 22. Step Detail Cards ───────────────────────────────────────── */
+.step-detail-card {
+    -fx-background-color: app-card-bg;
+    -fx-border-color: app-card-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 14 18 14 18;
+    -fx-effect: dropshadow(gaussian, app-shadow-card, 8, 0, 0, 2);
+}
+.step-detail-number {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: app-primary;
+    -fx-padding: 0 0 2 0;
+}
+.step-detail-instruction {
+    -fx-font-size: 13px;
+    -fx-text-fill: app-text;
+}
+
+/* ── 23. Detail Page — Sticky Action Bar ────────────────────────── */
+.detail-action-bar {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 20 40 30 40;
+    -fx-alignment: CENTER_RIGHT;
+    -fx-effect: null;
+}
+
+/* ── 24. Star Rating ─────────────────────────────────────────────── */
+.star-icon {
+    -fx-font-size: 28px;
+    -fx-text-fill: app-star-empty;
+    -fx-cursor: hand;
+}
+.star-icon:hover,
+.star-icon.active {
+    -fx-text-fill: app-star-active;
+}
+.star-icon.preview {
+    -fx-text-fill: app-star-preview;
+}
+
+/* ── 25. Toast Notifications ─────────────────────────────────────── */
+.toast {
+    -fx-background-radius: 8;
+    -fx-padding: 13 18 13 18;
+    -fx-effect: dropshadow(gaussian, app-shadow-toast, 18, 0.04, 0, 5);
+}
+.toast-success { -fx-background-color: app-toast-success-bg; }
+.toast-warning { -fx-background-color: app-toast-warning-bg; }
+.toast-error   { -fx-background-color: app-toast-error-bg; }
+.toast-label {
+    -fx-text-fill: white;
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+    -fx-font-size: 13px;
 }

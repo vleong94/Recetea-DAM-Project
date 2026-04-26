@@ -9,8 +9,16 @@ public record Email(String value) {
 
     public Email {
         if (value == null || value.isBlank())
-            throw new IllegalArgumentException("El email es obligatorio.");
+            throw new IllegalArgumentException("Email is required.");
         if (!EMAIL_PATTERN.matcher(value.trim()).matches())
-            throw new IllegalArgumentException("El email no tiene un formato válido: " + value);
+            throw new IllegalArgumentException("Invalid email format: " + value);
+    }
+
+    /** Shows only the domain part to prevent PII leakage in logs. */
+    @Override
+    public String toString() {
+        int at = value.indexOf('@');
+        String masked = at > 0 ? "***" + value.substring(at) : "***";
+        return "Email[value=" + masked + "]";
     }
 }

@@ -5,7 +5,7 @@
 
 <fx:root type="VBox" spacing="10.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
 
-    <Label text="Información General" styleClass="section-header" />
+    <Label text="%recipe.form.section.header" styleClass="section-header" />
 
     <GridPane hgap="10.0" vgap="10.0">
         <columnConstraints>
@@ -13,22 +13,22 @@
             <ColumnConstraints hgrow="ALWAYS" />
         </columnConstraints>
 
-        <Label text="Título de la Receta:" GridPane.rowIndex="0" GridPane.columnIndex="0" styleClass="field-label" />
-        <TextField fx:id="titleField" promptText="Ej: Risotto de Setas" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+        <Label text="%recipe.form.field.title" GridPane.rowIndex="0" GridPane.columnIndex="0" styleClass="field-label" />
+        <TextField fx:id="titleField" promptText="%recipe.form.field.title.prompt" GridPane.rowIndex="0" GridPane.columnIndex="1" />
 
-        <Label text="Tiempo Prep (min):" GridPane.rowIndex="1" GridPane.columnIndex="0" styleClass="field-label" />
-        <TextField fx:id="prepTimeField" promptText="45" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+        <Label text="%recipe.form.field.prepTime" GridPane.rowIndex="1" GridPane.columnIndex="0" styleClass="field-label" />
+        <TextField fx:id="prepTimeField" promptText="%recipe.form.field.prepTime.prompt" GridPane.rowIndex="1" GridPane.columnIndex="1" />
 
-        <Label text="Raciones:" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="field-label" />
-        <TextField fx:id="servingsField" promptText="4" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+        <Label text="%recipe.form.field.servings" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="field-label" />
+        <TextField fx:id="servingsField" promptText="%recipe.form.field.servings.prompt" GridPane.rowIndex="2" GridPane.columnIndex="1" />
 
-        <Label text="Categoría:" GridPane.rowIndex="3" GridPane.columnIndex="0" styleClass="field-label" />
+        <Label text="%field.label.category" GridPane.rowIndex="3" GridPane.columnIndex="0" styleClass="field-label" />
         <ComboBox fx:id="categoryComboBox" maxWidth="Infinity" GridPane.rowIndex="3" GridPane.columnIndex="1" />
 
-        <Label text="Dificultad:" GridPane.rowIndex="4" GridPane.columnIndex="0" styleClass="field-label" />
+        <Label text="%field.label.difficulty" GridPane.rowIndex="4" GridPane.columnIndex="0" styleClass="field-label" />
         <ComboBox fx:id="difficultyComboBox" maxWidth="Infinity" GridPane.rowIndex="4" GridPane.columnIndex="1" />
 
-        <Label text="Instrucciones:" GridPane.rowIndex="5" GridPane.columnIndex="0" styleClass="field-label" />
+        <Label text="%recipe.form.field.description" GridPane.rowIndex="5" GridPane.columnIndex="0" styleClass="field-label" />
         <TextArea fx:id="descriptionArea" prefHeight="100.0" wrapText="true" GridPane.rowIndex="5" GridPane.columnIndex="1" />
     </GridPane>
 </fx:root>

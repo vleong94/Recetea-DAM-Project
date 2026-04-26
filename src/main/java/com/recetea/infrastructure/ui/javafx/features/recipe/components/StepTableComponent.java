@@ -6,6 +6,7 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import com.recetea.infrastructure.ui.javafx.shared.i18n.I18n;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.TableColumn;
@@ -30,10 +31,11 @@ public class StepTableComponent extends VBox {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/recetea/infrastructure/ui/javafx/fxml/features/recipe/components/step_table.fxml"));
         loader.setRoot(this);
         loader.setController(this);
+        loader.setResources(I18n.bundle());
         try {
             loader.load();
         } catch (IOException e) {
-            throw new RuntimeException("Error al cargar StepTableComponent.", e);
+            throw new RuntimeException("Infrastructure Failure: Cannot instantiate StepTableComponent.", e);
         }
         setupTable();
     }

@@ -4,82 +4,107 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Separator?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.MediaGalleryComponent?>
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.RatingComponent?>
 
-<VBox spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+<VBox spacing="20.0" maxWidth="Infinity" maxHeight="Infinity"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeDetailController">
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
     </padding>
 
-    <Label fx:id="titleLabel" text="Cargando Receta..." styleClass="header-label" />
+    <!-- ── Header (sticky top) ───────────────────────────────────────────── -->
+    <HBox alignment="CENTER_LEFT" spacing="10.0">
+        <Label fx:id="titleLabel" text="%recipe.detail.loading" styleClass="header-label"
+               HBox.hgrow="ALWAYS" />
+        <Button text="%nav.back.toCatalog" styleClass="secondary-button"
+                onAction="#onBackButtonClick" />
+    </HBox>
 
-    <MediaGalleryComponent fx:id="mediaGallery" />
+    <!-- ── Single main scroll area ──────────────────────────────────────── -->
+    <ScrollPane fx:id="mainContentScroll" fitToWidth="true" VBox.vgrow="ALWAYS">
+        <VBox fx:id="scrollContainer" spacing="20.0">
+            <padding>
+                <Insets bottom="10.0" top="4.0" />
+            </padding>
 
-    <GridPane vgap="10.0" hgap="15.0">
-        <columnConstraints>
-            <ColumnConstraints minWidth="100.0" />
-            <ColumnConstraints hgrow="ALWAYS" />
-        </columnConstraints>
+            <MediaGalleryComponent fx:id="mediaGallery" />
 
-        <Label text="Tiempo de Prep:" GridPane.rowIndex="0" GridPane.columnIndex="0" styleClass="field-label" />
-        <Label fx:id="prepTimeLabel" text="-" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+            <GridPane vgap="10.0" hgap="15.0">
+                <columnConstraints>
+                    <ColumnConstraints minWidth="100.0" />
+                    <ColumnConstraints hgrow="ALWAYS" />
+                </columnConstraints>
 
-        <Label text="Raciones:" GridPane.rowIndex="1" GridPane.columnIndex="0" styleClass="field-label" />
-        <Label fx:id="servingsLabel" text="-" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+                <Label text="%recipe.detail.meta.prepTime" GridPane.rowIndex="0" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="prepTimeLabel" text="-" GridPane.rowIndex="0" GridPane.columnIndex="1" />
 
-        <Label text="Descripción:" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="field-label" />
-        <Label fx:id="descriptionLabel" text="-" wrapText="true" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+                <Label text="%recipe.detail.meta.servings" GridPane.rowIndex="1" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="servingsLabel" text="-" GridPane.rowIndex="1" GridPane.columnIndex="1" />
 
-        <Label text="Categoría:" GridPane.rowIndex="3" GridPane.columnIndex="0" styleClass="field-label" />
-        <Label fx:id="categoryLabel" text="-" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+                <Label text="%recipe.detail.meta.description" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="descriptionLabel" text="-" wrapText="true" GridPane.rowIndex="2" GridPane.columnIndex="1" />
 
-        <Label text="Dificultad:" GridPane.rowIndex="4" GridPane.columnIndex="0" styleClass="field-label" />
-        <Label fx:id="difficultyLabel" text="-" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+                <Label text="%recipe.detail.meta.category" GridPane.rowIndex="3" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="categoryLabel" text="-" GridPane.rowIndex="3" GridPane.columnIndex="1" />
 
-        <Label text="Valoración Media:" GridPane.rowIndex="5" GridPane.columnIndex="0" styleClass="field-label" />
-        <Label fx:id="scoreLabel" text="-" GridPane.rowIndex="5" GridPane.columnIndex="1" />
-    </GridPane>
+                <Label text="%recipe.detail.meta.difficulty" GridPane.rowIndex="4" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="difficultyLabel" text="-" GridPane.rowIndex="4" GridPane.columnIndex="1" />
 
-    <Separator />
+                <Label text="%recipe.detail.meta.avgScore" GridPane.rowIndex="5" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="scoreLabel" text="-" GridPane.rowIndex="5" GridPane.columnIndex="1" />
+            </GridPane>
 
-    <Label text="Ingredientes Necesarios" styleClass="section-header" />
+            <Separator />
 
-    <TableView fx:id="ingredientsTable" prefHeight="200.0" VBox.vgrow="ALWAYS">
-        <columns>
-            <TableColumn fx:id="colIngredientName" prefWidth="150.0" text="Ingrediente" />
-            <TableColumn fx:id="colUnit" prefWidth="100.0" text="Unidad" />
-            <TableColumn fx:id="colQuantity" prefWidth="100.0" text="Cantidad" />
-        </columns>
-    </TableView>
+            <!-- ── Ingredients ───────────────────────────────────────────────── -->
+            <Label text="%recipe.detail.section.ingredients" styleClass="section-header" />
 
-    <Separator />
+            <FlowPane fx:id="ingredientsContainer" hgap="10.0" vgap="10.0">
+                <padding>
+                    <Insets bottom="4.0" top="4.0" />
+                </padding>
+            </FlowPane>
 
-    <Label text="Pasos de Preparación" styleClass="section-header" />
+            <Separator />
 
-    <TableView fx:id="stepsTable" prefHeight="200.0" VBox.vgrow="ALWAYS">
-        <columns>
-            <TableColumn fx:id="colStepOrder" prefWidth="60.0" text="Paso" />
-            <TableColumn fx:id="colInstruction" prefWidth="390.0" text="Instrucción" />
-        </columns>
-    </TableView>
+            <!-- ── Steps ─────────────────────────────────────────────────────── -->
+            <Label text="%recipe.detail.section.steps" styleClass="section-header" />
 
-    <Separator />
+            <VBox fx:id="stepsContainer" spacing="15.0">
+                <padding>
+                    <Insets bottom="4.0" top="4.0" />
+                </padding>
+            </VBox>
 
-    <RatingComponent fx:id="ratingComponent" />
+            <Separator styleClass="section-spacer" />
 
-    <HBox alignment="CENTER_RIGHT" spacing="10.0">
-        <ToggleButton fx:id="favoriteButton" text="☆ Añadir a favoritos" styleClass="secondary-button" />
-        <Button text="Exportar a XML" styleClass="secondary-button" onAction="#onExportButtonClick" />
-        <Button text="Generar PDF" styleClass="secondary-button" onAction="#onGeneratePdfClick" />
-        <Button text="Volver al Catálogo" styleClass="secondary-button" onAction="#onBackButtonClick" />
+            <RatingComponent fx:id="ratingComponent" />
+
+            <Separator />
+
+            <Label text="%recipe.detail.section.reviews" styleClass="section-header" />
+
+            <VBox fx:id="reviewsList" spacing="15.0">
+                <padding>
+                    <Insets bottom="4.0" top="4.0" />
+                </padding>
+            </VBox>
+        </VBox>
+    </ScrollPane>
+
+    <!-- ── Action buttons (sticky bottom) ───────────────────────────────── -->
+    <HBox alignment="CENTER_RIGHT" spacing="10.0" styleClass="detail-action-bar">
+        <ToggleButton fx:id="favoriteButton" text="%recipe.detail.button.addFavorite" styleClass="secondary-button" />
+        <Button text="%recipe.detail.button.exportXml" styleClass="secondary-button" onAction="#onExportButtonClick" />
+        <Button text="%recipe.detail.button.generatePdf" styleClass="secondary-button" onAction="#onGeneratePdfClick" />
     </HBox>
 </VBox>

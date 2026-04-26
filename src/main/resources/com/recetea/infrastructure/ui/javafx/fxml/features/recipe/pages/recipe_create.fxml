@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
@@ -11,7 +9,8 @@
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.MediaUploadComponent?>
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.StepTableComponent?>
 
-<VBox spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+<VBox spacing="20.0" maxWidth="Infinity" maxHeight="Infinity"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeCreateController">
 
     <RecipeHeaderComponent fx:id="headerComponent" />
@@ -23,7 +22,7 @@
     <MediaUploadComponent fx:id="mediaUploadComponent" />
 
     <HBox alignment="CENTER_RIGHT" spacing="15.0">
-        <Button text="Cancelar / Volver" styleClass="secondary-button" onAction="#onBackButtonClick" />
-        <Button text="Guardar Receta" styleClass="primary-button" onAction="#onSaveButtonClick" />
+        <Button text="%form.button.cancel" styleClass="secondary-button" onAction="#onBackButtonClick" />
+        <Button text="%form.button.save" styleClass="primary-button" onAction="#onSaveButtonClick" />
     </HBox>
 </VBox>

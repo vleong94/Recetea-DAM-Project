@@ -3,11 +3,12 @@ package com.recetea.core.recipe.application.usecases.recipe;
 import com.recetea.core.recipe.application.ports.in.dto.SaveRecipeRequest;
 import com.recetea.core.recipe.application.ports.in.recipe.ICreateRecipeUseCase;
 import com.recetea.core.recipe.application.ports.out.category.ICategoryRepository;
-import com.recetea.core.recipe.domain.AuthenticationRequiredException;
 import com.recetea.core.recipe.application.ports.out.difficulty.IDifficultyRepository;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
+import com.recetea.core.recipe.domain.AuthenticationRequiredException;
 import com.recetea.core.recipe.domain.Category;
 import com.recetea.core.recipe.domain.Difficulty;
+import com.recetea.core.recipe.domain.InvalidRecipeDataException;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.RecipeIngredient;
 import com.recetea.core.recipe.domain.RecipeStep;
@@ -16,8 +17,12 @@ import com.recetea.core.recipe.domain.vo.RecipeId;
 import com.recetea.core.recipe.domain.vo.Servings;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CreateRecipeUseCase implements ICreateRecipeUseCase {
+
+    private static final Logger log = LoggerFactory.getLogger(CreateRecipeUseCase.class);
 
     private final IRecipeRepository recipeRepository;
     private final ICategoryRepository categoryRepository;
@@ -39,11 +44,19 @@ public class CreateRecipeUseCase implements ICreateRecipeUseCase {
 
     @Override
     public RecipeId execute(SaveRecipeRequest request) {
-        return transactionManager.execute(() -> {
+        var validation = request.validate();
+        if (!validation.isValid()) {
+            log.warn("Validation failed for recipe creation: {}", validation.errors());
+        }
+        validation.getOrThrow(InvalidRecipeDataException::new);
+
+        log.info("Creating recipe: '{}'", request.title());
+
+        RecipeId newId = transactionManager.execute(() -> {
             Category category = categoryRepository.findById(request.categoryId())
-                    .orElseThrow(() -> new IllegalArgumentException("Categoría inválida."));
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid category ID: " + request.categoryId()));
             Difficulty difficulty = difficultyRepository.findById(request.difficultyId())
-                    .orElseThrow(() -> new IllegalArgumentException("Dificultad inválida."));
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid difficulty ID: " + request.difficultyId()));
 
             Recipe recipe = new Recipe(
                     sessionService.getCurrentUserId()
@@ -72,5 +85,8 @@ public class CreateRecipeUseCase implements ICreateRecipeUseCase {
             recipeRepository.save(recipe);
             return recipe.getId();
         });
+
+        log.info("Recipe created successfully. ID: {}", newId.value());
+        return newId;
     }
 }

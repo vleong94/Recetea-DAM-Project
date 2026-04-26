@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<fx:root type="VBox" styleClass="comment-item"
+         xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+
+    <HBox spacing="12.0" alignment="CENTER_LEFT">
+        <Label fx:id="starsLabel" styleClass="comment-stars" />
+        <Label fx:id="usernameLabel" styleClass="comment-username" HBox.hgrow="ALWAYS" />
+        <Label fx:id="dateLabel" styleClass="comment-date" />
+    </HBox>
+
+    <Label fx:id="commentLabel" styleClass="comment-text" wrapText="true" />
+
+</fx:root>

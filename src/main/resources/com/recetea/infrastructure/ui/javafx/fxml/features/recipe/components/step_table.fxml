@@ -5,26 +5,26 @@
 
 <fx:root type="VBox" spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
 
-    <Label text="Pasos de Preparación" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>
+    <Label text="%recipe.form.section.steps" styleClass="section-header"/>
 
     <VBox spacing="10.0">
         <TextArea fx:id="instructionArea"
-                  promptText="Escriba aquí el detalle de la instrucción..."
+                  promptText="%step.field.instruction.prompt"
                   prefHeight="80.0"
                   wrapText="true"/>
 
         <HBox spacing="10.0" alignment="CENTER_LEFT">
-            <Button text="Añadir Paso"
+            <Button text="%step.button.add"
                     onAction="#onAddStepClick"
-                    style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-cursor: hand;"/>
+                    styleClass="button-add"/>
 
-            <Button text="Actualizar"
+            <Button text="%button.update"
                     onAction="#onUpdateStepClick"
-                    style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-cursor: hand;"/>
+                    styleClass="button-update"/>
 
-            <Button text="Eliminar"
+            <Button text="%button.delete"
                     onAction="#onDeleteStepClick"
-                    style="-fx-background-color: #f44336; -fx-text-fill: white; -fx-cursor: hand;"/>
+                    styleClass="danger-button"/>
         </HBox>
     </VBox>
 
@@ -33,13 +33,13 @@
                VBox.vgrow="ALWAYS"
                prefHeight="250.0">
         <columns>
-            <TableColumn fx:id="colOrder" text="Nº" prefWidth="50.0" resizable="false" />
+            <TableColumn fx:id="colOrder" text="%column.stepNumber" prefWidth="50.0" resizable="false" />
 
-            <TableColumn fx:id="colInstruction" text="Instrucción" prefWidth="450.0" />
+            <TableColumn fx:id="colInstruction" text="%column.instruction" prefWidth="450.0" />
         </columns>
 
         <placeholder>
-            <Label text="No se han definido pasos para esta receta." />
+            <Label text="%step.table.placeholder" />
         </placeholder>
     </TableView>
 

@@ -19,9 +19,10 @@ import java.awt.Color;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.List;
 
 public class OpenPdfStatsAdapter implements IStatsReportPort {
+
+    private static final int FLUSH_EVERY = 50;
 
     private static final Color ACCENT     = new Color(0, 121, 107);
     private static final Color LIGHT_GRAY = new Color(245, 245, 245);
@@ -34,15 +35,53 @@ public class OpenPdfStatsAdapter implements IStatsReportPort {
     private static final Font FONT_TOTAL   = new Font(Font.HELVETICA, 11, Font.BOLD,   new Color(0, 121, 107));
 
     @Override
-    public void generateGlobalInventoryReport(List<RecipeSummaryResponse> summaries, OutputStream outputStream) {
+    public void generateGlobalInventoryReport(Iterable<RecipeSummaryResponse> summaries, OutputStream outputStream) {
         Document doc = new Document(PageSize.A4.rotate(), 36, 36, 50, 50);
         try {
             PdfWriter.getInstance(doc, outputStream);
             doc.open();
 
             addReportTitle(doc);
-            addCatalogueTable(doc, summaries);
-            addAggregateSection(doc, summaries);
+
+            // Streaming table: rows are flushed to the OutputStream every FLUSH_EVERY records
+            // to avoid loading the entire dataset into heap at once.
+            PdfPTable table = buildCatalogueTableHeader();
+            table.setComplete(false);
+            doc.add(table);
+
+            int total     = 0;
+            int batchRows = 0;
+            BigDecimal scoreSum = BigDecimal.ZERO;
+            boolean alt = false;
+
+            for (RecipeSummaryResponse r : summaries) {
+                total++;
+                if (r.averageScore() != null) scoreSum = scoreSum.add(r.averageScore());
+
+                Color rowBg = alt ? LIGHT_GRAY : Color.WHITE;
+                String avg  = r.averageScore() != null
+                        ? r.averageScore().setScale(1, RoundingMode.HALF_UP).toPlainString()
+                        : "—";
+
+                table.addCell(bodyCell(r.title(),                           rowBg, Element.ALIGN_LEFT));
+                table.addCell(bodyCell(r.categoryName(),                    rowBg, Element.ALIGN_LEFT));
+                table.addCell(bodyCell(r.difficultyName(),                  rowBg, Element.ALIGN_LEFT));
+                table.addCell(bodyCell(String.valueOf(r.prepTimeMinutes()), rowBg, Element.ALIGN_CENTER));
+                table.addCell(bodyCell(avg,                                 rowBg, Element.ALIGN_CENTER));
+                table.addCell(bodyCell(String.valueOf(r.totalRatings()),    rowBg, Element.ALIGN_CENTER));
+                alt = !alt;
+                batchRows++;
+
+                if (batchRows == FLUSH_EVERY) {
+                    doc.add(table);
+                    batchRows = 0;
+                }
+            }
+
+            table.setComplete(true);
+            doc.add(table);
+
+            addAggregateSection(doc, total, scoreSum);
 
         } catch (DocumentException e) {
             throw new InfrastructureException("Error al generar el informe de inventario global PDF", e);
@@ -54,54 +93,31 @@ public class OpenPdfStatsAdapter implements IStatsReportPort {
     // ── Sections ──────────────────────────────────────────────────────────────
 
     private void addReportTitle(Document doc) throws DocumentException {
-        Paragraph title = new Paragraph("Inventario Global de Recetas", FONT_TITLE);
+        Paragraph title = new Paragraph("Mis Recetas Favoritas", FONT_TITLE);
         title.setAlignment(Element.ALIGN_CENTER);
         title.setSpacingAfter(4);
         doc.add(title);
 
-        Paragraph subtitle = new Paragraph("Catálogo completo con métricas sociales", FONT_SMALL);
+        Paragraph subtitle = new Paragraph("Selección personal con métricas sociales", FONT_SMALL);
         subtitle.setAlignment(Element.ALIGN_CENTER);
         subtitle.setSpacingAfter(18);
         doc.add(subtitle);
     }
 
-    private void addCatalogueTable(Document doc, List<RecipeSummaryResponse> summaries)
-            throws DocumentException {
-
+    private PdfPTable buildCatalogueTableHeader() throws DocumentException {
         PdfPTable table = new PdfPTable(6);
         table.setWidthPercentage(100);
         table.setWidths(new float[]{5f, 3f, 3f, 2f, 2f, 2f});
         table.setSpacingAfter(16);
-
         addAccentHeader(table, "Título", "Categoría", "Dificultad", "Tiempo (min)", "Puntuación", "Votos");
-
-        boolean alt = false;
-        for (RecipeSummaryResponse r : summaries) {
-            Color rowBg = alt ? LIGHT_GRAY : Color.WHITE;
-            String avg  = r.averageScore() != null
-                    ? r.averageScore().setScale(1, RoundingMode.HALF_UP).toPlainString()
-                    : "—";
-
-            table.addCell(bodyCell(r.title(),                                 rowBg, Element.ALIGN_LEFT));
-            table.addCell(bodyCell(r.categoryName(),                          rowBg, Element.ALIGN_LEFT));
-            table.addCell(bodyCell(r.difficultyName(),                        rowBg, Element.ALIGN_LEFT));
-            table.addCell(bodyCell(String.valueOf(r.prepTimeMinutes()),       rowBg, Element.ALIGN_CENTER));
-            table.addCell(bodyCell(avg,                                       rowBg, Element.ALIGN_CENTER));
-            table.addCell(bodyCell(String.valueOf(r.totalRatings()),          rowBg, Element.ALIGN_CENTER));
-            alt = !alt;
-        }
-        doc.add(table);
+        return table;
     }
 
-    private void addAggregateSection(Document doc, List<RecipeSummaryResponse> summaries)
+    private void addAggregateSection(Document doc, int total, BigDecimal scoreSum)
             throws DocumentException {
 
-        int total = summaries.size();
-        BigDecimal globalAvg = summaries.stream()
-                .map(RecipeSummaryResponse::averageScore)
-                .filter(s -> s != null)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(total == 0 ? BigDecimal.ONE : BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
+        BigDecimal globalAvg = scoreSum.divide(
+                total == 0 ? BigDecimal.ONE : BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
 
         Paragraph section = new Paragraph("Resumen Agregado", FONT_SECTION);
         section.setSpacingBefore(4);

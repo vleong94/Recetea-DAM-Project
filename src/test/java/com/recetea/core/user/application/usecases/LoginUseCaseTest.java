@@ -6,6 +6,9 @@ import com.recetea.core.user.application.ports.out.IPasswordEncoder;
 import com.recetea.core.user.application.ports.out.IUserRepository;
 import com.recetea.core.user.domain.User;
 import com.recetea.core.user.domain.UserId;
+import com.recetea.core.user.domain.vo.Email;
+import com.recetea.core.user.domain.vo.PasswordHash;
+import com.recetea.core.user.domain.vo.Username;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,7 +38,11 @@ class LoginUseCaseTest {
     }
 
     private User buildUser() {
-        User user = new User("victor", "victor@example.com", VALID_HASH);
+        User user = new User(
+                new Username("victor"),
+                new Email("victor@example.com"),
+                new PasswordHash(VALID_HASH)
+        );
         user.setId(new UserId(1));
         return user;
     }

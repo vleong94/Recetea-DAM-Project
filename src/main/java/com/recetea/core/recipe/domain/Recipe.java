@@ -179,7 +179,4 @@ public class Recipe {
         public RecipeValidationException(String message) { super(message); }
     }
 
-    public static class InvalidRecipeMetricException extends RecipeValidationException {
-        public InvalidRecipeMetricException(String message) { super(message); }
-    }
 }

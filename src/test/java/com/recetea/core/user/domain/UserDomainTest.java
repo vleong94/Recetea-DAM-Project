@@ -1,5 +1,8 @@
 package com.recetea.core.user.domain;
 
+import com.recetea.core.user.domain.vo.Email;
+import com.recetea.core.user.domain.vo.PasswordHash;
+import com.recetea.core.user.domain.vo.Username;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,7 +15,11 @@ class UserDomainTest {
     @Test
     @DisplayName("Debe crear un usuario válido con todos sus campos")
     void shouldCreateValidUser() {
-        User user = new User("victor", "victor@example.com", VALID_HASH);
+        User user = new User(
+                new Username("victor"),
+                new Email("victor@example.com"),
+                new PasswordHash(VALID_HASH)
+        );
         user.setId(new UserId(1));
 
         assertEquals(1, user.getId().value());
@@ -29,47 +36,45 @@ class UserDomainTest {
     }
 
     @Test
-    @DisplayName("Debe rechazar User con username nulo o vacío")
+    @DisplayName("Username debe rechazar valor nulo o vacío")
     void shouldRejectBlankUsername() {
-        assertThrows(IllegalArgumentException.class, () -> new User(null, "email@example.com", VALID_HASH));
-        assertThrows(IllegalArgumentException.class, () -> new User("  ", "email@example.com", VALID_HASH));
+        assertThrows(IllegalArgumentException.class, () -> new Username(null));
+        assertThrows(IllegalArgumentException.class, () -> new Username("  "));
     }
 
     @Test
-    @DisplayName("Debe rechazar User con username de menos de 3 caracteres")
+    @DisplayName("Username debe rechazar menos de 3 caracteres")
     void shouldRejectUsernameShorterThanThreeChars() {
-        assertThrows(IllegalArgumentException.class, () -> new User("ab", "email@example.com", VALID_HASH));
-        assertThrows(IllegalArgumentException.class, () -> new User("x", "email@example.com", VALID_HASH));
+        assertThrows(IllegalArgumentException.class, () -> new Username("ab"));
+        assertThrows(IllegalArgumentException.class, () -> new Username("x"));
     }
 
     @Test
-    @DisplayName("Debe rechazar User con email nulo o vacío")
+    @DisplayName("Email debe rechazar valor nulo o vacío")
     void shouldRejectBlankEmail() {
-        assertThrows(IllegalArgumentException.class, () -> new User("victor", null, VALID_HASH));
-        assertThrows(IllegalArgumentException.class, () -> new User("victor", "", VALID_HASH));
+        assertThrows(IllegalArgumentException.class, () -> new Email(null));
+        assertThrows(IllegalArgumentException.class, () -> new Email(""));
     }
 
     @Test
-    @DisplayName("Debe rechazar User con email sin formato válido")
+    @DisplayName("Email debe rechazar formatos inválidos")
     void shouldRejectInvalidEmailFormat() {
-        assertThrows(IllegalArgumentException.class, () -> new User("victor", "not-an-email", VALID_HASH));
-        assertThrows(IllegalArgumentException.class, () -> new User("victor", "missing@tld", VALID_HASH));
-        assertThrows(IllegalArgumentException.class, () -> new User("victor", "@nodomain.com", VALID_HASH));
+        assertThrows(IllegalArgumentException.class, () -> new Email("not-an-email"));
+        assertThrows(IllegalArgumentException.class, () -> new Email("missing@tld"));
+        assertThrows(IllegalArgumentException.class, () -> new Email("@nodomain.com"));
     }
 
     @Test
-    @DisplayName("Debe rechazar User con passwordHash nulo o vacío")
+    @DisplayName("PasswordHash debe rechazar valor nulo o vacío")
     void shouldRejectBlankPasswordHash() {
-        assertThrows(IllegalArgumentException.class, () -> new User("victor", "email@example.com", null));
-        assertThrows(IllegalArgumentException.class, () -> new User("victor", "email@example.com", "  "));
+        assertThrows(IllegalArgumentException.class, () -> new PasswordHash(null));
+        assertThrows(IllegalArgumentException.class, () -> new PasswordHash("  "));
     }
 
     @Test
-    @DisplayName("Debe rechazar User con passwordHash que no sea un hash BCrypt")
+    @DisplayName("PasswordHash debe rechazar hashes que no sean BCrypt")
     void shouldRejectNonBcryptPasswordHash() {
-        assertThrows(IllegalArgumentException.class,
-                () -> new User("victor", "email@example.com", "plaintext_password"));
-        assertThrows(IllegalArgumentException.class,
-                () -> new User("victor", "email@example.com", "md5hashvalue"));
+        assertThrows(IllegalArgumentException.class, () -> new PasswordHash("plaintext_password"));
+        assertThrows(IllegalArgumentException.class, () -> new PasswordHash("md5hashvalue"));
     }
 }

@@ -7,6 +7,7 @@ import com.recetea.core.recipe.domain.vo.RecipeMediaId;
 import com.recetea.core.user.domain.UserId;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record RecipeDetailResponse(
@@ -25,7 +26,8 @@ public record RecipeDetailResponse(
         BigDecimal averageScore,
         int totalRatings,
         List<RecipeMediaResponse> media,
-        boolean alreadyRatedByCurrentUser
+        boolean alreadyRatedByCurrentUser,
+        List<RatingDetail> ratings
 ) {
     public record RecipeStepResponse(
             int stepOrder,
@@ -40,5 +42,14 @@ public record RecipeDetailResponse(
             long sizeBytes,
             boolean isMain,
             int sortOrder
+    ) {}
+
+    /** Projection of a single rating for social display. username may be null if the voter
+     *  account has been deleted since the rating was cast. */
+    public record RatingDetail(
+            String username,
+            int score,
+            String comment,
+            LocalDateTime date
     ) {}
 }

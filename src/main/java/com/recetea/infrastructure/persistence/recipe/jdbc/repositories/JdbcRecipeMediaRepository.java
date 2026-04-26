@@ -6,12 +6,15 @@ import com.recetea.core.recipe.domain.vo.RecipeId;
 import com.recetea.core.recipe.domain.vo.RecipeMediaId;
 import com.recetea.infrastructure.persistence.recipe.jdbc.InfrastructureException;
 import com.recetea.infrastructure.persistence.recipe.jdbc.JdbcTransactionManager;
+import com.recetea.infrastructure.persistence.recipe.jdbc.mappers.RecipeMediaMapper;
 
 import java.sql.*;
 import java.util.List;
 import java.util.Optional;
 
 public class JdbcRecipeMediaRepository extends BaseJdbcRepository implements IRecipeMediaRepository {
+
+    private final RecipeMediaMapper mapper = new RecipeMediaMapper();
 
     private static final String INSERT =
             "INSERT INTO recipe_media (recipe_id, storage_key, storage_provider, mime_type, size_bytes, is_main, sort_order) " +
@@ -57,9 +60,9 @@ public class JdbcRecipeMediaRepository extends BaseJdbcRepository implements IRe
                     }
                 }
             }
-            throw new InfrastructureException("No se generó clave para recipe_media.", null);
+            throw new InfrastructureException("No generated key returned for recipe_media insert.", null);
         } catch (SQLException e) {
-            throw new InfrastructureException("Error al guardar el recurso multimedia de la receta.", e);
+            throw new InfrastructureException("Failed to persist recipe media.", e);
         } finally {
             closeIfNonTransactional(conn, INSERT);
         }
@@ -67,12 +70,12 @@ public class JdbcRecipeMediaRepository extends BaseJdbcRepository implements IRe
 
     @Override
     public Optional<RecipeMedia> findById(RecipeMediaId id) {
-        return queryForObject(SELECT_BY_ID, rs -> mapRow(rs), id.value());
+        return queryForObject(SELECT_BY_ID, mapper, id.value());
     }
 
     @Override
     public List<RecipeMedia> findByRecipeId(RecipeId recipeId) {
-        return queryForList(SELECT_BY_RECIPE, rs -> mapRow(rs), recipeId.value());
+        return queryForList(SELECT_BY_RECIPE, mapper, recipeId.value());
     }
 
     @Override
@@ -85,21 +88,10 @@ public class JdbcRecipeMediaRepository extends BaseJdbcRepository implements IRe
                 ps.executeUpdate();
             }
         } catch (SQLException e) {
-            throw new InfrastructureException("Error al eliminar el recurso multimedia ID: " + id.value(), e);
+            throw new InfrastructureException("Failed to delete media item ID: " + id.value(), e);
         } finally {
             closeIfNonTransactional(conn, DELETE);
         }
     }
 
-    private RecipeMedia mapRow(ResultSet rs) throws SQLException {
-        return new RecipeMedia(
-                new RecipeMediaId(rs.getInt("id_media")),
-                new RecipeId(rs.getInt("recipe_id")),
-                rs.getString("storage_key"),
-                rs.getString("storage_provider"),
-                rs.getString("mime_type"),
-                rs.getLong("size_bytes"),
-                rs.getBoolean("is_main"),
-                rs.getInt("sort_order"));
-    }
 }

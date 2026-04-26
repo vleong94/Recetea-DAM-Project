@@ -133,16 +133,16 @@ class OpenPdfAdapterTest {
         return List.of(
                 new RecipeSummaryResponse(
                         new RecipeId(1), "Tarta de Manzana", "Postres",   "Fácil",  45, 6,
-                        new BigDecimal("4.5"), 12, null, new UserId(1)),
+                        new BigDecimal("4.5"), 12, null, new UserId(1), "chef_maria"),
                 new RecipeSummaryResponse(
                         new RecipeId(2), "Gazpacho",         "Sopas",     "Fácil",  15, 4,
-                        new BigDecimal("4.2"),  8, null, new UserId(2)),
+                        new BigDecimal("4.2"),  8, null, new UserId(2), "cocina_pablo"),
                 new RecipeSummaryResponse(
                         new RecipeId(3), "Paella Valenciana","Arroces",   "Media",  60, 4,
-                        new BigDecimal("4.8"), 25, null, new UserId(1)),
+                        new BigDecimal("4.8"), 25, null, new UserId(1), "chef_maria"),
                 new RecipeSummaryResponse(
                         new RecipeId(4), "Tortilla Española","Huevos",    "Fácil",  20, 4,
-                        BigDecimal.ZERO,       0,  null, new UserId(3))
+                        BigDecimal.ZERO,       0,  null, new UserId(3), null)
         );
     }
 
