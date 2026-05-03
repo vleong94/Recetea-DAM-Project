@@ -47,9 +47,15 @@ desktop.ini
 # --- Security, Secrets & Local Config ---
 **/src/main/resources/application-local.properties
 **/src/main/resources/application-local.yml
+**/src/main/resources/application-test.properties
+**/src/main/resources/application-test.yml
+**/src/main/resources/application-prod.properties
+**/src/main/resources/application-prod.yml
 .env
 .env.local
 config/local.properties
+config/test.properties
+config/prod.properties
 
 # --- Local Data, Logs & Backups ---
 docs/backups/

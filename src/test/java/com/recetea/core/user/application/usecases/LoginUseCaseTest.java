@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("LoginUseCase — Autenticación y prevención de account harvesting")
+@DisplayName("LoginUseCase — Authentication and account harvesting prevention")
 class LoginUseCaseTest {
 
     @Mock private IUserRepository userRepository;
@@ -38,17 +38,16 @@ class LoginUseCaseTest {
     }
 
     private User buildUser() {
-        User user = new User(
+        return new User(
+                new UserId(1),
                 new Username("victor"),
                 new Email("victor@example.com"),
                 new PasswordHash(VALID_HASH)
         );
-        user.setId(new UserId(1));
-        return user;
     }
 
     @Test
-    @DisplayName("execute: login exitoso por username")
+    @DisplayName("execute: successful login by username")
     void execute_ShouldReturnUserResponse_WhenUsernameAndPasswordMatch() {
         User user = buildUser();
         when(userRepository.findByUsername("victor")).thenReturn(Optional.of(user));
@@ -64,7 +63,7 @@ class LoginUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: login exitoso por email cuando el username no coincide")
+    @DisplayName("execute: successful login by email when username is not found")
     void execute_ShouldFallbackToEmail_WhenUsernameNotFound() {
         User user = buildUser();
         when(userRepository.findByUsername("victor@example.com")).thenReturn(Optional.empty());
@@ -78,7 +77,7 @@ class LoginUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: retorna Optional.empty si la contraseña es incorrecta")
+    @DisplayName("execute: returns Optional.empty when password does not match")
     void execute_ShouldReturnEmpty_WhenPasswordDoesNotMatch() {
         User user = buildUser();
         when(userRepository.findByUsername("victor")).thenReturn(Optional.of(user));
@@ -90,7 +89,7 @@ class LoginUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: retorna Optional.empty si el usuario no existe (sin distinguir de contraseña incorrecta)")
+    @DisplayName("execute: returns Optional.empty when user does not exist (without distinguishing from wrong password)")
     void execute_ShouldReturnEmpty_WhenUserDoesNotExist() {
         when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("ghost")).thenReturn(Optional.empty());
@@ -102,7 +101,7 @@ class LoginUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: no invoca al encoder si el usuario no existe (evita timing attacks superfluos)")
+    @DisplayName("execute: does not invoke the encoder when the user does not exist (avoids superfluous timing attacks)")
     void execute_ShouldNotCallEncoder_WhenUserNotFound() {
         when(userRepository.findByUsername(any())).thenReturn(Optional.empty());
         when(userRepository.findByEmail(any())).thenReturn(Optional.empty());

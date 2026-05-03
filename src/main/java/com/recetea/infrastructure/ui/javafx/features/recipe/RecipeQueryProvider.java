@@ -1,15 +1,15 @@
 package com.recetea.infrastructure.ui.javafx.features.recipe;
 
-import com.recetea.core.recipe.application.ports.in.recipe.IGetAllRecipesUseCase;
-import com.recetea.core.recipe.application.ports.in.recipe.IGetRecipeByIdUseCase;
-import com.recetea.core.recipe.application.ports.in.recipe.IGetRecipesByAuthorUseCase;
-import com.recetea.core.recipe.application.ports.in.recipe.ISearchRecipesUseCase;
-import com.recetea.core.social.application.ports.in.IGetUserFavoritesUseCase;
-
-public interface RecipeQueryProvider {
-    IGetAllRecipesUseCase getAllRecipes();
-    IGetRecipeByIdUseCase getRecipeById();
-    ISearchRecipesUseCase searchRecipes();
-    IGetUserFavoritesUseCase getUserFavorites();
-    IGetRecipesByAuthorUseCase getRecipesByAuthor();
+/**
+ * Read-side provider for the recipe aggregate. Currently inherits only
+ * {@link IRecipeReadProvider}; declares no methods of its own.
+ *
+ * <p>Catalogue reads ({@link ITaxonomyQueryProvider},
+ * {@link IIngredientQueryProvider}) are reachable through
+ * {@link RecipeCommandProvider} because the recipe-form controllers
+ * (which need both writes AND catalogue reads to populate ComboBoxes)
+ * receive a single command-side context. New code that wants catalogue
+ * reads in isolation should depend on those granular interfaces directly.
+ */
+public interface RecipeQueryProvider extends IRecipeReadProvider {
 }

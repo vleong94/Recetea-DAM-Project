@@ -1,26 +1,11 @@
 package com.recetea.core.recipe.application.usecases.interop;
 
 import com.recetea.core.recipe.application.ports.in.interop.IImportRecipeUseCase;
-import com.recetea.core.recipe.application.ports.out.category.ICategoryRepository;
-import com.recetea.core.recipe.application.ports.out.difficulty.IDifficultyRepository;
-import com.recetea.core.recipe.application.ports.out.ingredient.IIngredientRepository;
 import com.recetea.core.recipe.application.ports.out.interop.IRecipeInteropPort;
-import com.recetea.core.recipe.application.ports.out.interop.dto.XmlIngredientDto;
-import com.recetea.core.recipe.application.ports.out.interop.dto.XmlRecipeDto;
 import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
-import com.recetea.core.recipe.application.ports.out.unit.IUnitRepository;
 import com.recetea.core.recipe.domain.AuthenticationRequiredException;
-import com.recetea.core.recipe.domain.Category;
-import com.recetea.core.recipe.domain.Difficulty;
-import com.recetea.core.recipe.domain.Ingredient;
-import com.recetea.core.recipe.domain.InvalidIngredientException;
 import com.recetea.core.recipe.domain.Recipe;
-import com.recetea.core.recipe.domain.RecipeIngredient;
-import com.recetea.core.recipe.domain.RecipeStep;
-import com.recetea.core.recipe.domain.Unit;
-import com.recetea.core.recipe.domain.vo.PreparationTime;
 import com.recetea.core.recipe.domain.vo.RecipeId;
-import com.recetea.core.recipe.domain.vo.Servings;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
 import com.recetea.core.user.domain.UserId;
@@ -28,40 +13,62 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
+/**
+ * Reads an XML file via {@code IRecipeInteropPort} and persists the
+ * resulting domain Recipe under the current user as author. Critical
+ * security property: the {@code authorId} is sourced from the active
+ * session, <em>not</em> from anything in the XML payload — an XML file
+ * exported by user A and imported by user B becomes user B's recipe.
+ *
+ * <p>The unmarshalling step ({@code interopPort.importFromSource}) runs
+ * outside the transaction because XML parsing + XSD validation + catalogue
+ * resolution can throw without touching the DB; only the final
+ * {@code save(recipe)} is wrapped in {@code transactionManager.execute}.
+ *
+ * <p>Catalogue mismatches (a category / unit / ingredient name in the XML
+ * that doesn't resolve in the local catalogue) bubble up as
+ * {@code InvalidIngredientException} from the adapter — that's a domain
+ * exception with code {@code VALIDATION_ERROR}, so the global handler
+ * surfaces it as a WARNING to the user.
+ *
+ * <p><b>ES — </b>Lee un archivo XML vía {@code IRecipeInteropPort} y
+ * persiste la Recipe del dominio resultante con el usuario actual
+ * como autor. Propiedad de seguridad crítica: el {@code authorId} se
+ * obtiene de la sesión activa, <em>no</em> de nada del payload XML —
+ * un archivo XML exportado por el usuario A e importado por el
+ * usuario B se convierte en una receta del usuario B.
+ *
+ * <p>El paso de unmarshalling
+ * ({@code interopPort.importFromSource}) se ejecuta fuera de la
+ * transacción porque el parseo XML + validación XSD + resolución de
+ * catálogo pueden lanzar excepción sin tocar la BD; sólo el
+ * {@code save(recipe)} final se envuelve en
+ * {@code transactionManager.execute}.
+ *
+ * <p>Las discrepancias de catálogo (un nombre de categoría / unidad /
+ * ingrediente en el XML que no resuelve en el catálogo local) afloran
+ * como {@code InvalidIngredientException} desde el adaptador — es una
+ * excepción de dominio con código {@code VALIDATION_ERROR}, así que
+ * el handler global la muestra al usuario como WARNING.
+ */
 public class ImportRecipeUseCase implements IImportRecipeUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(ImportRecipeUseCase.class);
 
     private final IRecipeRepository recipeRepository;
-    private final ICategoryRepository categoryRepository;
-    private final IDifficultyRepository difficultyRepository;
-    private final IIngredientRepository ingredientRepository;
-    private final IUnitRepository unitRepository;
     private final ITransactionManager transactionManager;
     private final IUserSessionService sessionService;
     private final IRecipeInteropPort interopPort;
 
     public ImportRecipeUseCase(IRecipeRepository recipeRepository,
-                               ICategoryRepository categoryRepository,
-                               IDifficultyRepository difficultyRepository,
-                               IIngredientRepository ingredientRepository,
-                               IUnitRepository unitRepository,
                                ITransactionManager transactionManager,
                                IUserSessionService sessionService,
                                IRecipeInteropPort interopPort) {
-        this.recipeRepository    = recipeRepository;
-        this.categoryRepository  = categoryRepository;
-        this.difficultyRepository = difficultyRepository;
-        this.ingredientRepository = ingredientRepository;
-        this.unitRepository      = unitRepository;
-        this.transactionManager  = transactionManager;
-        this.sessionService      = sessionService;
-        this.interopPort         = interopPort;
+        this.recipeRepository = recipeRepository;
+        this.transactionManager = transactionManager;
+        this.sessionService     = sessionService;
+        this.interopPort        = interopPort;
     }
 
     @Override
@@ -71,70 +78,11 @@ public class ImportRecipeUseCase implements IImportRecipeUseCase {
 
         log.info("Importing recipe from '{}' for user: {}", source.getName(), currentUser.value());
 
-        XmlRecipeDto dto = interopPort.readFromSource(source);
-        Recipe recipe = toDomain(dto, currentUser);
+        Recipe recipe = interopPort.importFromSource(source, currentUser);
 
-        RecipeId newId = transactionManager.execute(() -> {
-            recipeRepository.save(recipe);
-            return recipe.getId();
-        });
+        RecipeId newId = transactionManager.execute(() -> recipeRepository.save(recipe));
 
         log.info("Recipe imported successfully. ID: {}", newId.value());
         return newId;
-    }
-
-    private Recipe toDomain(XmlRecipeDto dto, UserId authorId) {
-        Category category = categoryRepository.findAll().stream()
-                .filter(c -> c.getName().equalsIgnoreCase(dto.getCategoryName()))
-                .findFirst()
-                .orElseThrow(() -> new InvalidIngredientException(
-                        "Category not found in catalogue: '" + dto.getCategoryName() + "'."));
-
-        Difficulty difficulty = difficultyRepository.findAll().stream()
-                .filter(d -> d.getName().equalsIgnoreCase(dto.getDifficultyName()))
-                .findFirst()
-                .orElseThrow(() -> new InvalidIngredientException(
-                        "Difficulty not found in catalogue: '" + dto.getDifficultyName() + "'."));
-
-        Recipe recipe = new Recipe(
-                authorId, category, difficulty,
-                dto.getTitle(), dto.getDescription(),
-                new PreparationTime(dto.getPreparationTimeMinutes()),
-                new Servings(dto.getServings()));
-
-        Map<String, Ingredient> ingredientsByName = ingredientRepository.findAll().stream()
-                .collect(Collectors.toMap(i -> i.getName().toLowerCase(), Function.identity()));
-        Map<String, Unit> unitsByAbbreviation = unitRepository.findAll().stream()
-                .collect(Collectors.toMap(u -> u.getAbbreviation().toLowerCase(), Function.identity()));
-
-        List<RecipeIngredient> domainIngredients = dto.getIngredients().stream()
-                .map(xmlIng -> resolveIngredient(xmlIng, ingredientsByName, unitsByAbbreviation))
-                .toList();
-        recipe.syncIngredients(domainIngredients);
-
-        List<RecipeStep> domainSteps = dto.getSteps().stream()
-                .map(s -> new RecipeStep(s.getOrder(), s.getInstruction()))
-                .toList();
-        recipe.syncSteps(domainSteps);
-
-        return recipe;
-    }
-
-    private RecipeIngredient resolveIngredient(XmlIngredientDto xmlIng,
-                                               Map<String, Ingredient> ingredientsByName,
-                                               Map<String, Unit> unitsByAbbreviation) {
-        Ingredient ingredient = ingredientsByName.get(xmlIng.getName().toLowerCase());
-        if (ingredient == null) {
-            throw new InvalidIngredientException(
-                    "Ingredient not found in catalogue: '" + xmlIng.getName() + "'.");
-        }
-        Unit unit = unitsByAbbreviation.get(xmlIng.getUnit().toLowerCase());
-        if (unit == null) {
-            throw new InvalidIngredientException(
-                    "Unit of measure not found by abbreviation: '" + xmlIng.getUnit() + "'.");
-        }
-        return new RecipeIngredient(
-                ingredient.getId(), unit.getId(), xmlIng.getQuantity(),
-                ingredient.getName(), unit.getAbbreviation());
     }
 }

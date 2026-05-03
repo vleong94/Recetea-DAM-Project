@@ -3,33 +3,35 @@ package com.recetea.core.recipe.domain;
 import com.recetea.core.recipe.domain.vo.CategoryId;
 import com.recetea.core.recipe.domain.vo.IngredientId;
 
-public class Ingredient {
+/**
+ * Catalogue entity — one row in {@code ingredients}. Carries an
+ * {@code ingredient_category_id} for grouped picker UIs but is otherwise
+ * the same shape as {@link Category} / {@link Difficulty}.
+ *
+ * <p>The seed ingredient set is curated and stable — IDs of the original
+ * 85 rows are frozen for backwards compatibility with hard-coded recipe
+ * references in test fixtures (see {@code CLAUDE.md}, "Database Setup").
+ *
+ * <p><b>ES — </b>Entidad de catálogo — una fila en {@code ingredients}.
+ * Lleva un {@code ingredient_category_id} para los selectores agrupados en
+ * la UI, pero por lo demás tiene la misma forma que {@link Category} /
+ * {@link Difficulty}.
+ *
+ * <p>El conjunto de ingredientes semilla está curado y es estable — los IDs
+ * de las 85 filas originales están congelados por compatibilidad con
+ * referencias a recetas hard-codeadas en los fixtures de tests (véase
+ * {@code CLAUDE.md}, sección "Database Setup").
+ */
+public record Ingredient(IngredientId id, CategoryId categoryId, String name) {
 
-    private final IngredientId id;
-    private final CategoryId categoryId;
-    private final String name;
-
-    public Ingredient(IngredientId id, CategoryId categoryId, String name) {
+    public Ingredient {
         if (name == null || name.trim().isEmpty()) {
-            throw new IngredientValidationException("El nombre del ingrediente es un campo obligatorio.");
+            throw new IngredientValidationException("Ingredient name is required.");
         }
-        this.id = id;
-        this.categoryId = categoryId;
-        this.name = name.trim();
+        name = name.trim();
     }
 
-    public IngredientId getId() {
-        return id;
-    }
-
-    public CategoryId getCategoryId() {
-        return categoryId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
+    /** ComboBox display: show only the name, not the auto-generated record toString. */
     @Override
     public String toString() {
         return name;

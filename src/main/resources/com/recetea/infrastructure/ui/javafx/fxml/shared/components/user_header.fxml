@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.SVGPath?>
+
+<HBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.recetea.infrastructure.ui.javafx.shared.components.UserHeaderController"
+      alignment="CENTER_RIGHT">
+
+    <MenuButton styleClass="hamburger-button">
+        <graphic>
+            <SVGPath styleClass="hamburger-icon"
+                     content="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
+        </graphic>
+        <items>
+            <!-- ID matches usernameMenuItem in the Controller. -->
+            <MenuItem fx:id="usernameMenuItem" disable="true" styleClass="username-header" />
+            <SeparatorMenuItem />
+            <!-- ID + onAction match profileMenuItem / onProfileClick. -->
+            <MenuItem fx:id="profileMenuItem" text="%nav.profile" onAction="#onProfileClick" />
+            <!-- ID + onAction match catalogMenuItem / onCatalogClick. -->
+            <MenuItem fx:id="catalogMenuItem" text="%nav.catalog" onAction="#onCatalogClick" />
+            <SeparatorMenuItem />
+            <!-- ID + onAction match logoutMenuItem / onLogoutClick. -->
+            <MenuItem fx:id="logoutMenuItem" text="%nav.logout" onAction="#onLogoutClick" styleClass="menu-item-danger" />
+        </items>
+    </MenuButton>
+</HBox>

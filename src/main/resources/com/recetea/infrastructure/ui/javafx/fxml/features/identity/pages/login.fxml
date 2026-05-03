@@ -4,30 +4,52 @@
 <?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
+<!-- Outer StackPane is the SCENE ROOT — JavaFX applies the .root style class
+     here, which paints the cream→primary vertical gradient declared in app.css.
+     A transparent ScrollPane nested inside provides scroll for very-short
+     windows without erasing the gradient. -->
 <StackPane alignment="CENTER" maxWidth="Infinity" maxHeight="Infinity"
            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="com.recetea.infrastructure.ui.javafx.features.identity.controllers.LoginController">
 
-    <VBox styleClass="auth-card" alignment="CENTER" maxWidth="360.0">
+    <ScrollPane fitToWidth="true" fitToHeight="true"
+                hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
+                styleClass="edge-to-edge">
 
-        <Label text="%app.name" styleClass="header-label" />
+        <StackPane alignment="CENTER">
 
-        <TextField fx:id="usernameOrEmailField" promptText="%login.field.identifier.prompt" maxWidth="Infinity" />
+            <VBox styleClass="auth-card" alignment="CENTER" maxWidth="360.0">
 
-        <PasswordField fx:id="passwordField" promptText="%login.field.password.prompt" maxWidth="Infinity"
-                      onAction="#onLoginButtonClick" />
+                <Label text="%app.name" styleClass="header-label" />
 
-        <Label fx:id="errorLabel" text="" styleClass="error-label" maxWidth="Infinity" wrapText="true" />
+                <TextField fx:id="usernameOrEmailField" promptText="%login.field.identifier.prompt" maxWidth="Infinity" />
 
-        <Button text="%login.button.submit" styleClass="primary-button" maxWidth="Infinity"
-                defaultButton="true" onAction="#onLoginButtonClick" />
+                <PasswordField fx:id="passwordField" promptText="%login.field.password.prompt" maxWidth="Infinity"
+                              onAction="#onLoginButtonClick" />
 
-        <Hyperlink text="%login.link.register" onAction="#onRegisterLinkClick" />
+                <!-- Single global error label, sits directly above the submit
+                     button. visible/managed=false by default so it occupies ZERO
+                     vertical space when empty (no layout jump on initial render).
+                     Controller flips both flags together when an error needs to
+                     surface and back to false on field edit. -->
+                <Label fx:id="lblGlobalError" text="" styleClass="error-label"
+                       maxWidth="Infinity" wrapText="true"
+                       visible="false" managed="false" />
 
-    </VBox>
+                <Button text="%login.button.submit" styleClass="primary-button" maxWidth="Infinity"
+                        defaultButton="true" onAction="#onLoginButtonClick" />
+
+                <Hyperlink text="%login.link.register" onAction="#onRegisterLinkClick" />
+
+            </VBox>
+
+        </StackPane>
+
+    </ScrollPane>
 
 </StackPane>

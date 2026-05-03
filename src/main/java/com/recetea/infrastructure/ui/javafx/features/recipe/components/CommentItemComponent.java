@@ -1,6 +1,8 @@
 package com.recetea.infrastructure.ui.javafx.features.recipe.components;
 
 import com.recetea.core.recipe.application.ports.in.dto.RecipeDetailResponse;
+import com.recetea.core.shared.domain.utils.RelativeTimeFormatter;
+import com.recetea.infrastructure.ui.javafx.shared.i18n.I18n;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Label;
@@ -8,8 +10,30 @@ import javafx.scene.layout.VBox;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 
+/**
+ * Renders one row in the rating-comment list on the recipe-detail page.
+ * Shows the voter's username, score (as a star string), the comment
+ * body, and a relative-time label.
+ *
+ * <p>Time formatting goes through {@link RelativeTimeFormatter} with
+ * {@code I18n::get} / {@code I18n::format} as the lookup functions —
+ * the formatter itself stays in {@code core.shared.domain.utils} (no
+ * UI dependency). Null username (account deleted post-rating) renders
+ * as a localised placeholder rather than blank.
+ *
+ * <p><b>ES — </b>Renderiza una fila en la lista de comentarios de
+ * valoración en la página de detalle de receta. Muestra el
+ * username del votante, la puntuación (como cadena de estrellas),
+ * el cuerpo del comentario y una etiqueta de tiempo relativo.
+ *
+ * <p>El formato de tiempo pasa por {@link RelativeTimeFormatter}
+ * con {@code I18n::get} / {@code I18n::format} como funciones de
+ * búsqueda — el propio formateador queda en
+ * {@code core.shared.domain.utils} (sin dependencia de UI). El
+ * username nulo (cuenta eliminada tras la valoración) se renderiza
+ * como un placeholder localizado en lugar de en blanco.
+ */
 public class CommentItemComponent extends VBox {
 
     @FXML private Label starsLabel;
@@ -22,11 +46,11 @@ public class CommentItemComponent extends VBox {
                 "/com/recetea/infrastructure/ui/javafx/fxml/features/recipe/components/comment_item.fxml"));
         loader.setRoot(this);
         loader.setController(this);
+        loader.setResources(I18n.bundle());
         try {
             loader.load();
         } catch (IOException e) {
-            throw new RuntimeException(
-                    "Infrastructure Failure: Imposible instanciar el componente visual CommentItemComponent.", e);
+            throw new RuntimeException("Infrastructure failure: could not instantiate CommentItemComponent.", e);
         }
         populate(rating);
     }
@@ -34,23 +58,8 @@ public class CommentItemComponent extends VBox {
     private void populate(RecipeDetailResponse.RatingDetail rating) {
         int score = rating.score();
         starsLabel.setText("★".repeat(score) + "☆".repeat(5 - score));
-        usernameLabel.setText(rating.username() != null ? rating.username() : "Usuario eliminado");
+        usernameLabel.setText(rating.username() != null ? rating.username() : I18n.get("comment.user.deleted"));
         commentLabel.setText(rating.comment() != null ? rating.comment() : "");
-        dateLabel.setText(relativeTime(rating.date()));
-    }
-
-    private static String relativeTime(LocalDateTime date) {
-        if (date == null) return "";
-        long minutes = ChronoUnit.MINUTES.between(date, LocalDateTime.now());
-        if (minutes < 1)  return "ahora mismo";
-        if (minutes < 60) return "hace " + minutes + " min";
-        long hours = minutes / 60;
-        if (hours < 24)   return "hace " + hours + " " + (hours == 1 ? "hora" : "horas");
-        long days = hours / 24;
-        if (days < 30)    return "hace " + days + " " + (days == 1 ? "día" : "días");
-        long months = days / 30;
-        if (months < 12)  return "hace " + months + " " + (months == 1 ? "mes" : "meses");
-        long years = months / 12;
-        return "hace " + years + " " + (years == 1 ? "año" : "años");
+        dateLabel.setText(RelativeTimeFormatter.format(rating.date(), I18n::get, (k, n) -> I18n.format(k, n)));
     }
 }

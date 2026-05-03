@@ -3,7 +3,7 @@ package com.recetea.infrastructure.ui.javafx.features.recipe.components;
 import com.recetea.core.recipe.application.ports.in.dto.AddRatingRequest;
 import com.recetea.core.recipe.domain.vo.RecipeId;
 import com.recetea.core.recipe.domain.vo.Score;
-import com.recetea.infrastructure.ui.javafx.features.recipe.RecipeCommandProvider;
+import com.recetea.infrastructure.ui.javafx.features.recipe.IRatingWriteProvider;
 import com.recetea.infrastructure.ui.javafx.shared.i18n.I18n;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -15,6 +15,43 @@ import javafx.scene.layout.VBox;
 
 import java.io.IOException;
 
+/**
+ * Recipe-detail sub-component for casting a single rating. Five-star
+ * row (click to select) plus a {@link TextArea} for the comment and a
+ * submit button.
+ *
+ * <p><b>ISP-narrowed dependency.</b> The component takes
+ * {@link IRatingWriteProvider} — not the umbrella
+ * {@code RecipeCommandProvider} — because rating-write is the only
+ * use case it touches. Keeps the surface area minimum and makes the
+ * component trivially testable.
+ *
+ * <p><b>Self-rating + duplicate-vote</b> are both rejected at the
+ * domain layer ({@code Recipe.addRating}); the controller wires this
+ * component to be disabled when {@code alreadyRatedByCurrentUser}
+ * is true on the response, so users see the disabled state rather
+ * than triggering a {@link com.recetea.core.shared.domain.DomainException}.
+ *
+ * <p><b>ES — </b>Sub-componente del detalle de receta para emitir
+ * una valoración. Fila de cinco estrellas (click para seleccionar)
+ * más una {@link TextArea} para el comentario y un botón de
+ * submit.
+ *
+ * <p><b>Dependencia estrechada por ISP.</b> El componente recibe
+ * {@link IRatingWriteProvider} — no el umbrella
+ * {@code RecipeCommandProvider} — porque la escritura de
+ * valoración es el único caso de uso que toca. Mantiene la
+ * superficie al mínimo y hace al componente trivialmente
+ * testeable.
+ *
+ * <p><b>Auto-valoración + voto duplicado</b> los rechaza la capa
+ * de dominio ({@code Recipe.addRating}); el controlador cablea
+ * este componente para que esté deshabilitado cuando
+ * {@code alreadyRatedByCurrentUser} sea true en la respuesta, de
+ * modo que los usuarios vean el estado deshabilitado en lugar de
+ * disparar una
+ * {@link com.recetea.core.shared.domain.DomainException}.
+ */
 public class RatingComponent extends VBox {
 
     @FXML private HBox     starContainer;
@@ -24,9 +61,15 @@ public class RatingComponent extends VBox {
 
     private int selectedScore = 0;
 
-    private RecipeCommandProvider commandProvider;
-    private RecipeId              recipeId;
-    private Runnable              onSuccess;
+    /**
+     * ISP-narrowed: the component only writes ratings, so the granular
+     * {@link IRatingWriteProvider} is enough — the umbrella {@code RecipeCommandProvider}
+     * exposed dozens of unrelated use cases (recipe CRUD, media attach, interop, reports)
+     * that this component had no business seeing.
+     */
+    private IRatingWriteProvider ratingProvider;
+    private RecipeId             recipeId;
+    private Runnable             onSuccess;
 
     public RatingComponent() {
         FXMLLoader loader = new FXMLLoader(getClass().getResource(
@@ -37,7 +80,7 @@ public class RatingComponent extends VBox {
         try {
             loader.load();
         } catch (IOException e) {
-            throw new RuntimeException("Infrastructure Failure: Imposible instanciar RatingComponent.", e);
+            throw new RuntimeException("Infrastructure failure: could not instantiate RatingComponent.", e);
         }
     }
 
@@ -57,11 +100,11 @@ public class RatingComponent extends VBox {
         }
     }
 
-    public void setRecipeContext(RecipeCommandProvider commandProvider, RecipeId recipeId, Runnable onSuccess) {
+    public void setRecipeContext(IRatingWriteProvider ratingProvider, RecipeId recipeId, Runnable onSuccess) {
         boolean isNewRecipe = !recipeId.equals(this.recipeId);
-        this.commandProvider = commandProvider;
-        this.recipeId        = recipeId;
-        this.onSuccess       = onSuccess;
+        this.ratingProvider = ratingProvider;
+        this.recipeId       = recipeId;
+        this.onSuccess      = onSuccess;
         if (isNewRecipe) reset();
     }
 
@@ -107,7 +150,7 @@ public class RatingComponent extends VBox {
         }
         String comment = commentArea.getText() != null ? commentArea.getText().trim() : "";
         AddRatingRequest request = new AddRatingRequest(recipeId, new Score(selectedScore), comment);
-        commandProvider.addRating().execute(request);
+        ratingProvider.addRating().execute(request);
         disableWithStatus(I18n.get("rating.notification.submitted"));
         if (onSuccess != null) onSuccess.run();
     }

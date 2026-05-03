@@ -17,11 +17,17 @@
         <postgresql.version>42.7.10</postgresql.version>
         <javafx.version>26.0.1</javafx.version>
         <hikaricp.version>7.0.2</hikaricp.version>
-        <jbcrypt.version>0.4</jbcrypt.version>
+        <bcrypt.version>0.10.2</bcrypt.version>
         <jaxb.api.version>4.0.2</jaxb.api.version>
         <jaxb.runtime.version>4.0.5</jaxb.runtime.version>
         <jakarta.activation.version>2.1.3</jakarta.activation.version>
         <openpdf.version>3.0.3</openpdf.version>
+        <okhttp.version>5.3.2</okhttp.version>
+        <!-- okio version is pinned to the artifact transitively pulled by okhttp-jvm.
+             Bumping okhttp.version may require updating this — Moditect's outputDirectory
+             must match the exact version on disk. -->
+        <okio.version>3.16.4</okio.version>
+        <atlantafx.version>2.0.1</atlantafx.version>
         <slf4j.version>2.0.17</slf4j.version>
         <logback.version>1.5.32</logback.version>
         <json.version>20251224</json.version>
@@ -36,6 +42,23 @@
         <!-- Plugin versions -->
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <maven.surefire.plugin.version>3.5.5</maven.surefire.plugin.version>
+        <moditect.plugin.version>1.2.2.Final</moditect.plugin.version>
+
+        <!-- Moditect bootstrap is one-shot. Once the local m2 cache holds the
+             modular versions of bcrypt + bytes, the plugin must NOT re-run
+             (it errors with "already modular"). Default = skip. To re-patch on
+             a fresh m2 cache, run once with -Dmoditect.skip=false. The package
+             scripts (package.ps1 / package.sh) auto-detect and bootstrap. -->
+        <moditect.skip>true</moditect.skip>
+
+        <!-- okhttp-jvm 5.3.2 already ships a real MR-jar module-info under
+             META-INF/versions/9/. Moditect's add-module-info goal refuses to
+             overwrite already-modular jars, so this execution is gated on its
+             own toggle (default true). The shipped descriptor already declares
+             module=okhttp3, exports=okhttp3, requires=okio/kotlin.stdlib/java.logging
+             — sufficient for jlink. Flip to false on an okhttp downgrade or if
+             a future release drops the module descriptor. -->
+        <moditect.skipOkhttp>true</moditect.skipOkhttp>
     </properties>
 
     <!--
@@ -146,11 +169,21 @@
             <artifactId>javafx-fxml</artifactId>
         </dependency>
 
-        <!-- Security -->
+        <!-- AtlantaFX — modern user-agent stylesheet (PrimerLight / NordDark / etc).
+             Theming-only; no new components, no JPMS internal-package access needed.
+             Module name: atlantafx.base. -->
         <dependency>
-            <groupId>org.mindrot</groupId>
-            <artifactId>jbcrypt</artifactId>
-            <version>${jbcrypt.version}</version>
+            <groupId>io.github.mkpaz</groupId>
+            <artifactId>atlantafx-base</artifactId>
+            <version>${atlantafx.version}</version>
+        </dependency>
+
+        <!-- Security — explicit JPMS module (module name: at.favre.lib.bcrypt).
+             Wire-compatible with $2a$ hashes seeded by jbcrypt. Required for jlink. -->
+        <dependency>
+            <groupId>at.favre.lib</groupId>
+            <artifactId>bcrypt</artifactId>
+            <version>${bcrypt.version}</version>
         </dependency>
 
         <!-- XML Interoperability – versions resolved from dependencyManagement above -->
@@ -168,6 +201,16 @@
             <groupId>com.github.librepdf</groupId>
             <artifactId>openpdf</artifactId>
             <version>${openpdf.version}</version>
+        </dependency>
+
+        <!-- HTTP client for cloud storage (Supabase), used by SupabaseMediaStorage adapter.
+             OkHttp 5.x is a Kotlin Multiplatform publication: the {@code okhttp} artifact
+             is an empty umbrella, so we must depend on {@code okhttp-jvm} explicitly to
+             get the JVM bytecode. Brings transitive: kotlin-stdlib, okio, okio-jvm. -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp-jvm</artifactId>
+            <version>${okhttp.version}</version>
         </dependency>
 
         <!-- JSON parsing for JSONB aggregate hydration -->
@@ -216,10 +259,267 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- MockWebServer for SupabaseMediaStorage integration tests. The legacy artifact
+             (package okhttp3.mockwebserver) is still maintained alongside okhttp3 5.x and
+             is what the project's task spec requires. Test-scope only: never reaches the
+             jlink runtime image. -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>mockwebserver</artifactId>
+            <version>${okhttp.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
         <plugins>
+
+            <!--
+              Moditect — injects an explicit module-info into automatic-module
+              dependencies so jlink will accept them. Six jars need patching:
+                • at.favre.lib:bcrypt              (BCrypt password hashing)
+                • at.favre.lib:bytes               (transitive of bcrypt)
+                • org.postgresql:postgresql        (JDBC driver)
+                • com.github.librepdf:openpdf      (PDF report engine)
+                • com.squareup.okio:okio-jvm       (HTTP transitive, fully automatic)
+                • com.squareup.okhttp3:okhttp-jvm  (Supabase HTTP client; the shipped
+                  module-info exports only okhttp3 — we re-emit it to additionally
+                  export okhttp3.internal for adapter-side reflection)
+
+              Without these patches, 'mvn javafx:jlink' fails with
+              "automatic module cannot be used with jlink".
+
+              Each execution writes the patched jar directly over the local
+              Maven cache copy. The operation is one-shot per cache entry —
+              re-running Moditect against an already-modular jar errors out.
+              That is why every execution is gated on '-Dmoditect.skip=false'.
+
+              Bootstrap (one-time per fresh m2 cache):
+                  mvn -Dmoditect.skip=false generate-resources
+
+              Subsequent builds (default skip=true) reuse the patched jars.
+              The package scripts auto-detect a stale cache and re-bootstrap.
+            -->
+            <plugin>
+                <groupId>org.moditect</groupId>
+                <artifactId>moditect-maven-plugin</artifactId>
+                <version>${moditect.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>patch-bytes</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>add-module-info</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${moditect.skip}</skip>
+                            <outputDirectory>${settings.localRepository}/at/favre/lib/bytes/1.5.0</outputDirectory>
+                            <overwriteExistingFiles>true</overwriteExistingFiles>
+                            <modules>
+                                <module>
+                                    <artifact>
+                                        <groupId>at.favre.lib</groupId>
+                                        <artifactId>bytes</artifactId>
+                                    </artifact>
+                                    <moduleInfoSource>
+                                        module at.favre.lib.bytes {
+                                            exports at.favre.lib.bytes;
+                                        }
+                                    </moduleInfoSource>
+                                </module>
+                            </modules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>patch-bcrypt</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>add-module-info</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${moditect.skip}</skip>
+                            <outputDirectory>${settings.localRepository}/at/favre/lib/bcrypt/0.10.2</outputDirectory>
+                            <overwriteExistingFiles>true</overwriteExistingFiles>
+                            <modules>
+                                <module>
+                                    <artifact>
+                                        <groupId>at.favre.lib</groupId>
+                                        <artifactId>bcrypt</artifactId>
+                                    </artifact>
+                                    <moduleInfoSource>
+                                        module at.favre.lib.bcrypt {
+                                            requires at.favre.lib.bytes;
+                                            exports at.favre.lib.crypto.bcrypt;
+                                        }
+                                    </moduleInfoSource>
+                                </module>
+                            </modules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>patch-postgresql</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>add-module-info</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${moditect.skip}</skip>
+                            <outputDirectory>${settings.localRepository}/org/postgresql/postgresql/42.7.10</outputDirectory>
+                            <overwriteExistingFiles>true</overwriteExistingFiles>
+                            <modules>
+                                <module>
+                                    <artifact>
+                                        <groupId>org.postgresql</groupId>
+                                        <artifactId>postgresql</artifactId>
+                                    </artifact>
+                                    <!-- Explicit source: postgresql-42.7.x is a multi-release jar
+                                         and jdeps auto-mode requires extra plumbing for those.
+                                         Hand-written exports cover the JDBC public API plus the
+                                         Driver SPI registration. -->
+                                    <moduleInfoSource>
+                                        module org.postgresql.jdbc {
+                                            requires transitive java.sql;
+                                            requires java.naming;
+                                            requires java.management;
+                                            requires static java.transaction.xa;
+                                            requires static java.security.jgss;
+                                            requires static org.checkerframework.checker.qual;
+
+                                            exports org.postgresql;
+                                            exports org.postgresql.copy;
+                                            exports org.postgresql.core;
+                                            exports org.postgresql.ds;
+                                            exports org.postgresql.fastpath;
+                                            exports org.postgresql.geometric;
+                                            exports org.postgresql.hostchooser;
+                                            exports org.postgresql.jdbc;
+                                            exports org.postgresql.jdbcurlresolver;
+                                            exports org.postgresql.largeobject;
+                                            exports org.postgresql.plugin;
+                                            exports org.postgresql.replication;
+                                            exports org.postgresql.ssl;
+                                            exports org.postgresql.util;
+                                            exports org.postgresql.xa;
+                                            exports org.postgresql.xml;
+
+                                            provides java.sql.Driver with org.postgresql.Driver;
+                                        }
+                                    </moduleInfoSource>
+                                </module>
+                            </modules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>patch-openpdf</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>add-module-info</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${moditect.skip}</skip>
+                            <outputDirectory>${settings.localRepository}/com/github/librepdf/openpdf/3.0.3</outputDirectory>
+                            <overwriteExistingFiles>true</overwriteExistingFiles>
+                            <modules>
+                                <module>
+                                    <artifact>
+                                        <groupId>com.github.librepdf</groupId>
+                                        <artifactId>openpdf</artifactId>
+                                    </artifact>
+                                    <!-- Explicit source: openpdf 3.0.3 is multi-release and bundles
+                                         a relocated bouncycastle. Two top-level package roots are
+                                         exported; the bundled bouncycastle sub-tree stays internal. -->
+                                    <moduleInfoSource>
+                                        module com.github.librepdf.openpdf {
+                                            requires transitive java.desktop;
+                                            requires java.logging;
+
+                                            // The app only consumes org.openpdf.text and
+                                            // org.openpdf.text.pdf; intra-module references to
+                                            // alignment/utils/internal/etc. resolve without
+                                            // explicit exports. The bundled relocated
+                                            // bouncycastle stays internal.
+                                            exports org.openpdf.text;
+                                            exports org.openpdf.text.pdf;
+                                        }
+                                    </moduleInfoSource>
+                                </module>
+                            </modules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>patch-okio</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>add-module-info</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${moditect.skip}</skip>
+                            <outputDirectory>${settings.localRepository}/com/squareup/okio/okio-jvm/${okio.version}</outputDirectory>
+                            <overwriteExistingFiles>true</overwriteExistingFiles>
+                            <modules>
+                                <module>
+                                    <artifact>
+                                        <groupId>com.squareup.okio</groupId>
+                                        <artifactId>okio-jvm</artifactId>
+                                    </artifact>
+                                    <!-- okio-jvm 3.x is a Kotlin Multiplatform jar that ships
+                                         only Automatic-Module-Name=okio in its MANIFEST. jlink
+                                         rejects automatic modules, so we promote it to a real
+                                         named module. kotlin-stdlib 2.x is itself a real module
+                                         (kotlin.stdlib) so the requires here resolves cleanly. -->
+                                    <!-- NOTE: 'requires java.base' is intentionally omitted.
+                                         java.base is implicitly required by every module per
+                                         JLS §7.7.1; declaring it explicitly produces an invalid
+                                         module descriptor (InvalidModuleDescriptorException:
+                                         "Dependence upon java.base already declared"). -->
+                                    <moduleInfoSource>
+                                        module okio {
+                                            requires kotlin.stdlib;
+                                            exports okio;
+                                        }
+                                    </moduleInfoSource>
+                                </module>
+                            </modules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>patch-okhttp</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>add-module-info</goal>
+                        </goals>
+                        <configuration>
+                            <!-- See <moditect.skipOkhttp> in <properties> for rationale.
+                                 Effective skip = (moditect.skip OR moditect.skipOkhttp). -->
+                            <skip>${moditect.skipOkhttp}</skip>
+                            <outputDirectory>${settings.localRepository}/com/squareup/okhttp3/okhttp-jvm/${okhttp.version}</outputDirectory>
+                            <overwriteExistingFiles>true</overwriteExistingFiles>
+                            <modules>
+                                <module>
+                                    <artifact>
+                                        <groupId>com.squareup.okhttp3</groupId>
+                                        <artifactId>okhttp-jvm</artifactId>
+                                    </artifact>
+                                    <!-- okhttp-jvm 5.x already ships an MR-jar module-info
+                                         exporting only okhttp3. We re-emit it to additionally
+                                         export okhttp3.internal so the Supabase adapter can use
+                                         internals-aware reflection paths if ever needed. -->
+                                    <moduleInfoSource>
+                                        module okhttp3 {
+                                            requires okio;
+                                            requires kotlin.stdlib;
+                                            requires java.logging;
+                                            exports okhttp3;
+                                            exports okhttp3.internal;
+                                        }
+                                    </moduleInfoSource>
+                                </module>
+                            </modules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -245,20 +545,34 @@
                 <version>${maven.surefire.plugin.version}</version>
                 <configuration>
                     <!-- Classes compiled with preview features require the same flag at runtime. -->
-                    <argLine>--enable-preview</argLine>
+                    <!-- BaseRepositoryTest is in a named-module package; cross-package subclasses
+                         (e.g. XmlInteropIntegrationTest) need this open so JUnit can invoke @BeforeAll. -->
+                    <!-- jdk.tracePinnedThreads=full prints a stack trace whenever a virtual thread
+                         pins its carrier — the modern, supported equivalent of the early
+                         -XX:+TracePinnedVirtualThreads experimental flag. Used by
+                         VirtualThreadPinningTest to surface any synchronized blocks or native
+                         calls that prevent virtual-thread unmounting under JDBC load. -->
+                    <!-- okhttp3 5.x exports only the public okhttp3 package; MockWebServer
+                         (delegates to mockwebserver3 since 5.x) reaches into okhttp3.internal.*
+                         for connection-pool plumbing. The Surefire add-exports flags surface
+                         those packages to the unnamed module so the integration suite compiles
+                         and runs at test time only. Production jlink runtime never bundles
+                         mockwebserver, so these flags are strictly a test-time concession. -->
+                    <argLine>--enable-preview --add-opens com.recetea/com.recetea.infrastructure.persistence.recipe.jdbc.repositories=ALL-UNNAMED -Djdk.tracePinnedThreads=full --add-modules jdk.jfr --add-exports okhttp3/okhttp3.internal=ALL-UNNAMED --add-exports okhttp3/okhttp3.internal.concurrent=ALL-UNNAMED --add-exports okhttp3/okhttp3.internal.connection=ALL-UNNAMED --add-exports okhttp3/okhttp3.internal.http=ALL-UNNAMED --add-exports okhttp3/okhttp3.internal.http2=ALL-UNNAMED --add-exports okhttp3/okhttp3.internal.platform=ALL-UNNAMED --add-exports okhttp3/okhttp3.internal.tls=ALL-UNNAMED --add-exports okhttp3/okhttp3.internal.ws=ALL-UNNAMED</argLine>
                 </configuration>
             </plugin>
 
             <!--
-              JavaFX Maven Plugin – three goals, none bound to the default lifecycle:
-                mvn javafx:run      → launch the app from source (dev workflow)
-                mvn javafx:jlink    → build an optimised JRE image under target/recetea-runtime/
-                mvn javafx:jpackage → wrap the jlink image in a platform installer (target/installer/)
+              JavaFX Maven Plugin – two goals, none bound to the default lifecycle:
+                mvn javafx:run    → launch the app from source (dev workflow)
+                mvn javafx:jlink  → build a self-contained runtime image under
+                                    target/recetea-runtime/ (this image already runs
+                                    the app via bin/recetea[.bat] — it IS portable).
 
-              Prerequisites for jpackage:
-                Windows: WiX Toolset 3.x on PATH  (produces .msi)
-                Linux  : rpm-build or dpkg-deb     (produces .rpm/.deb)
-                macOS  : Xcode CLI tools            (produces .dmg/.pkg)
+              jpackage (separate JDK tool) wraps the jlink image in a canonical
+              app-image folder layout (bin/Recetea.exe + runtime/ + app/Recetea.cfg).
+              Invoked directly by the package scripts via $JAVA_HOME/bin/jpackage —
+              this Maven plugin (v0.0.8) does not expose a jpackage goal.
             -->
             <plugin>
                 <groupId>org.pitest</groupId>
@@ -313,9 +627,14 @@
                     <!-- Modular main class: module/class -->
                     <mainClass>com.recetea/com.recetea.Main</mainClass>
 
-                    <!-- JVM flags forwarded to the launcher (run + jlink-generated script) -->
+                    <!-- JVM flags forwarded to the launcher (mvn javafx:run + jlink launcher).
+                         enable-native-access=javafx.graphics silences the Java 24 restricted-
+                         method warning emitted by Glass / Prism native pipelines. The same flag
+                         is independently injected by jpackage in package.ps1; declaring it here
+                         covers `mvn javafx:run` and IntelliJ Maven-goal run configurations. -->
                     <options>
                         <option>--enable-preview</option>
+                        <option>--enable-native-access=javafx.graphics</option>
                     </options>
 
                     <!-- jlink: stripped JRE image for Corretto 24 -->
@@ -325,11 +644,11 @@
                     <noHeaderFiles>true</noHeaderFiles>
                     <noManPages>true</noManPages>
                     <stripDebug>true</stripDebug>
-
-                    <!-- jpackage: platform-specific installer -->
-                    <jpackageName>Recetea</jpackageName>
-                    <jpackageAppVersion>1.0.0</jpackageAppVersion>
-                    <jpackageType>msi</jpackageType>
+                    <!-- Required because Moditect adds module-info.class to signed
+                         third-party jars (e.g. at.favre.lib:bytes), invalidating the
+                         original signatures. The fully-built portable folder is
+                         self-contained, so the signature value is moot. -->
+                    <ignoreSigningInformation>true</ignoreSigningInformation>
                 </configuration>
             </plugin>
 

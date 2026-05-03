@@ -10,36 +10,36 @@ class PasswordHasherTest {
     private final PasswordHasher hasher = new PasswordHasher();
 
     @Test
-    @DisplayName("Un hash verificado con la contraseña original debe retornar true")
+    @DisplayName("hash: Should produce a hash that verifies against the original password")
     void hash_ShouldProduceVerifiableHash() {
-        String hash = hasher.hash("miContraseña123");
-        assertTrue(hasher.verify("miContraseña123", hash));
+        String hash = hasher.hash("myPassword123");
+        assertTrue(hasher.verify("myPassword123", hash));
     }
 
     @Test
-    @DisplayName("La verificación debe fallar con una contraseña incorrecta")
+    @DisplayName("verify: Should return false when the password does not match")
     void verify_ShouldReturnFalse_WhenPasswordDoesNotMatch() {
-        String hash = hasher.hash("contraseñaCorrecta");
-        assertFalse(hasher.verify("contraseñaIncorrecta", hash));
+        String hash = hasher.hash("correctPassword");
+        assertFalse(hasher.verify("wrongPassword", hash));
     }
 
     @Test
-    @DisplayName("Dos hashes de la misma contraseña deben ser distintos por el salt aleatorio")
+    @DisplayName("hash: Should produce different hashes for the same password due to random salt")
     void hash_ShouldProduceDifferentHashesForSamePassword() {
-        String hash1 = hasher.hash("mismaContraseña");
-        String hash2 = hasher.hash("mismaContraseña");
-        assertNotEquals(hash1, hash2, "BCrypt debe generar salts distintos en cada llamada");
+        String hash1 = hasher.hash("samePassword");
+        String hash2 = hasher.hash("samePassword");
+        assertNotEquals(hash1, hash2, "BCrypt must generate different salts on each call");
     }
 
     @Test
-    @DisplayName("hash debe lanzar excepción si la contraseña es nula o vacía")
+    @DisplayName("hash: Should throw an exception when the password is null or blank")
     void hash_ShouldThrow_WhenPasswordIsBlank() {
         assertThrows(IllegalArgumentException.class, () -> hasher.hash(null));
         assertThrows(IllegalArgumentException.class, () -> hasher.hash(""));
     }
 
     @Test
-    @DisplayName("verify debe retornar false si alguno de los argumentos es nulo")
+    @DisplayName("verify: Should return false when any argument is null")
     void verify_ShouldReturnFalse_WhenArgumentsAreNull() {
         assertFalse(hasher.verify(null, "$2a$12$validhash"));
         assertFalse(hasher.verify("password", null));

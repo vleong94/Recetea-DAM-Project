@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -48,8 +49,8 @@ class UpdateRecipeUseCaseTest {
 
     private static final UserId     OWNER      = new UserId(1);
     private static final RecipeId   RECIPE_ID  = new RecipeId(10);
-    private static final Category   CATEGORY   = new Category(new CategoryId(1), "Postres");
-    private static final Difficulty DIFFICULTY = new Difficulty(new DifficultyId(1), "Fácil");
+    private static final Category   CATEGORY   = new Category(new CategoryId(1), "Desserts");
+    private static final Difficulty DIFFICULTY = new Difficulty(new DifficultyId(1), "Easy");
 
     @BeforeEach
     void setUp() {
@@ -68,22 +69,23 @@ class UpdateRecipeUseCaseTest {
     // -------------------------------------------------------------------------
 
     private Recipe buildOwnerRecipe() {
-        Recipe recipe = new Recipe(
-                OWNER, CATEGORY, DIFFICULTY,
-                "Receta Original", "Descripción original",
-                new PreparationTime(30), new Servings(4));
-        recipe.setId(RECIPE_ID);
-        return recipe;
+        return new Recipe(
+                RECIPE_ID, OWNER, CATEGORY, DIFFICULTY,
+                "Original Recipe", "Original description",
+                new PreparationTime(30), new Servings(4),
+                java.math.BigDecimal.ZERO, 0);
     }
 
     private SaveRecipeRequest validRequest() {
+        // Request values are intentionally different from the original recipe so
+        // mutation testing can observe whether each setter was actually invoked.
         return new SaveRecipeRequest(
-                new CategoryId(1), new DifficultyId(1),
-                "Título Actualizado", "Nueva descripción válida",
-                60, 4,
+                new CategoryId(2), new DifficultyId(2),
+                "Updated Title", "New valid description",
+                60, 8,
                 List.of(new SaveRecipeRequest.IngredientRequest(
-                        new IngredientId(1), new UnitId(1), BigDecimal.TEN, "Harina", "g")),
-                List.of(new SaveRecipeRequest.StepRequest(1, "Mezclar todo bien.")));
+                        new IngredientId(1), new UnitId(1), BigDecimal.TEN, "Flour", "g")),
+                List.of(new SaveRecipeRequest.StepRequest(1, "Mix everything well.")));
     }
 
     // -------------------------------------------------------------------------
@@ -95,16 +97,16 @@ class UpdateRecipeUseCaseTest {
     void execute_ShouldThrow_WhenTitleIsBlank() {
         SaveRecipeRequest request = new SaveRecipeRequest(
                 new CategoryId(1), new DifficultyId(1),
-                "   ", "Descripción válida", 30, 4,
+                "   ", "Valid description", 30, 4,
                 List.of(new SaveRecipeRequest.IngredientRequest(
-                        new IngredientId(1), new UnitId(1), BigDecimal.ONE, "Sal", "g")),
-                List.of(new SaveRecipeRequest.StepRequest(1, "Paso único")));
+                        new IngredientId(1), new UnitId(1), BigDecimal.ONE, "Salt", "g")),
+                List.of(new SaveRecipeRequest.StepRequest(1, "Single step")));
 
         InvalidRecipeDataException ex = assertThrows(InvalidRecipeDataException.class,
                 () -> useCase.execute(RECIPE_ID, request));
 
         assertFalse(ex.getErrors().isEmpty(), "Expected at least one validation error");
-        assertTrue(ex.getErrors().stream().anyMatch(e -> e.contains("título")),
+        assertTrue(ex.getErrors().stream().anyMatch(e -> e.contains("Title")),
                 "Error message must mention the title field");
         // Validation fires before any repository or transaction involvement
         verify(transactionManager, never()).execute(any(Runnable.class));
@@ -147,16 +149,30 @@ class UpdateRecipeUseCaseTest {
     void execute_ShouldUpdateRecipe_WhenRequestIsValid() {
         stubTransaction();
         Recipe recipe = buildOwnerRecipe();
+        // Distinct instances so an assertSame failure proves the setter was invoked
+        Category   updatedCategory   = new Category(new CategoryId(2), "Salads");
+        Difficulty updatedDifficulty = new Difficulty(new DifficultyId(2), "Hard");
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(recipe));
         when(sessionService.getCurrentUserId()).thenReturn(Optional.of(OWNER));
-        when(categoryRepository.findById(new CategoryId(1))).thenReturn(Optional.of(CATEGORY));
-        when(difficultyRepository.findById(new DifficultyId(1))).thenReturn(Optional.of(DIFFICULTY));
+        when(categoryRepository.findById(new CategoryId(2))).thenReturn(Optional.of(updatedCategory));
+        when(difficultyRepository.findById(new DifficultyId(2))).thenReturn(Optional.of(updatedDifficulty));
 
         assertDoesNotThrow(() -> useCase.execute(RECIPE_ID, validRequest()));
 
-        verify(recipeRepository).update(recipe);
-        assertEquals("Título Actualizado", recipe.getTitle());
-        assertEquals(60, recipe.getPreparationTimeMinutes().value());
+        // Recipe is now an immutable record — UpdateRecipeUseCase chains withers/syncs
+        // off the loaded aggregate and persists the resulting new instance. Capture
+        // it from the mock so the assertions inspect the post-update state.
+        ArgumentCaptor<Recipe> captor = ArgumentCaptor.forClass(Recipe.class);
+        verify(recipeRepository).update(captor.capture());
+        Recipe updated = captor.getValue();
+        assertEquals("Updated Title", updated.getTitle());
+        assertEquals("New valid description", updated.getDescription());
+        assertEquals(60, updated.getPreparationTimeMinutes().value());
+        assertEquals(8, updated.getServings().value());
+        assertSame(updatedCategory, updated.getCategory());
+        assertSame(updatedDifficulty, updated.getDifficulty());
+        assertEquals(1, updated.getIngredients().size());
+        assertEquals(1, updated.getSteps().size());
     }
 
     @Test
@@ -164,15 +180,15 @@ class UpdateRecipeUseCaseTest {
     void execute_ShouldThrow_WhenStepInstructionIsBlank() {
         SaveRecipeRequest request = new SaveRecipeRequest(
                 new CategoryId(1), new DifficultyId(1),
-                "Título válido", "Descripción válida", 30, 4,
+                "Valid title", "Valid description", 30, 4,
                 List.of(new SaveRecipeRequest.IngredientRequest(
-                        new IngredientId(1), new UnitId(1), BigDecimal.ONE, "Sal", "g")),
+                        new IngredientId(1), new UnitId(1), BigDecimal.ONE, "Salt", "g")),
                 List.of(new SaveRecipeRequest.StepRequest(1, "  ")));
 
         InvalidRecipeDataException ex = assertThrows(InvalidRecipeDataException.class,
                 () -> useCase.execute(RECIPE_ID, request));
 
-        assertTrue(ex.getErrors().stream().anyMatch(e -> e.contains("instrucción") || e.contains("paso")),
+        assertTrue(ex.getErrors().stream().anyMatch(e -> e.contains("instruction") || e.contains("Step")),
                 "Error message must mention the step or its instruction");
     }
 }

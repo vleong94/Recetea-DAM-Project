@@ -21,13 +21,13 @@ class JdbcCategoryRepositoryTest extends BaseRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        repository = new JdbcCategoryRepository(new JdbcTransactionManager(dataSource));
+        repository = new JdbcCategoryRepository(new JdbcTransactionManager(dataSource), metricsPort);
         seedDatabase();
     }
 
     private void seedDatabase() {
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "INSERT INTO categories (name) VALUES ('Postres'), ('Sopas')";
+            String sql = "INSERT INTO categories (name) VALUES ('Desserts'), ('Soups')";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.executeUpdate();
             }
@@ -39,7 +39,7 @@ class JdbcCategoryRepositoryTest extends BaseRepositoryTest {
     private int firstCategoryId() {
         try (Connection conn = dataSource.getConnection()) {
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT id_category FROM categories ORDER BY id_category LIMIT 1");
+                    "SELECT category_id FROM categories ORDER BY category_id LIMIT 1");
                  ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return rs.getInt(1);
             }
@@ -54,8 +54,8 @@ class JdbcCategoryRepositoryTest extends BaseRepositoryTest {
         List<Category> categories = repository.findAll();
 
         assertEquals(2, categories.size());
-        assertTrue(categories.stream().anyMatch(c -> c.getName().equals("Postres")));
-        assertTrue(categories.stream().anyMatch(c -> c.getName().equals("Sopas")));
+        assertTrue(categories.stream().anyMatch(c -> c.name().equals("Desserts")));
+        assertTrue(categories.stream().anyMatch(c -> c.name().equals("Soups")));
     }
 
     @Test
@@ -72,7 +72,7 @@ class JdbcCategoryRepositoryTest extends BaseRepositoryTest {
         Optional<Category> result = repository.findById(new CategoryId(id));
 
         assertTrue(result.isPresent());
-        assertEquals(id, result.get().getId().value());
+        assertEquals(id, result.get().id().value());
     }
 
     @Test

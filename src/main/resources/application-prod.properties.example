@@ -1,0 +1,12 @@
+# Database (Supabase pooled connection)
+db.url=jdbc:postgresql://<tu-host-de-supabase>:5432/postgres
+db.user=tu_usuario_aqui
+db.password=password
+db.maxPoolSize=10
+db.connectionTimeout=30000
+
+# Media storage (Supabase public bucket, kebab-case key — see AppConfig#load)
+storage.base-path=tu_bucket_supabase
+
+# Supabase service-role JWT (camelCase key — see AppConfig#load)
+supabase.serviceKey=tu_secret_key

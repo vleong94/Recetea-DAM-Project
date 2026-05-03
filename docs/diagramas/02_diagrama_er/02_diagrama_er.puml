@@ -1,0 +1,89 @@
+@startchen
+' ENTIDADES (Rectángulos)
+entity usuarios {
+  id_usuario <<key>>
+  nombre_usuario
+  email
+  hash_contrasena
+  creado_en
+}
+
+entity recetas {
+  id_receta <<key>>
+  titulo
+  descripcion
+  tiempo_prep_min
+  porciones
+  puntuacion_promedio
+  total_valoraciones
+}
+
+entity ingredientes {
+  id_ingrediente <<key>>
+  nombre
+}
+
+entity categorias {
+  id_categoria <<key>>
+  nombre
+}
+
+entity dificultades {
+  id_dificultad <<key>>
+  nivel_dificultad
+}
+
+entity pasos {
+  id_paso <<key>>
+  orden_paso
+  instruccion
+}
+
+entity multimedia_receta {
+  id_media <<key>>
+  clave_almacenamiento
+  proveedor_almacenamiento
+  tipo_mime
+  tamano_bytes
+}
+
+' RELACIONES (Rombos)
+relationship publica {
+}
+
+relationship clasifica {
+}
+
+relationship define_nivel {
+}
+
+relationship contiene {
+}
+
+relationship tiene_multimedia {
+}
+
+relationship ingredientes_receta {
+  cantidad
+}
+
+' CONEXIONES
+usuarios -1- publica
+publica -N- recetas
+
+categorias -1- clasifica
+clasifica -N- recetas
+
+dificultades -1- define_nivel
+define_nivel -N- recetas
+
+recetas -1- contiene
+contiene -N- pasos
+
+recetas -1- tiene_multimedia
+tiene_multimedia -N- multimedia_receta
+
+recetas -N- ingredientes_receta
+ingredientes_receta -N- ingredientes
+
+@endchen

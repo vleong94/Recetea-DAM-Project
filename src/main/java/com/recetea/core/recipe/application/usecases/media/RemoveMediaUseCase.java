@@ -13,6 +13,32 @@ import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
 import com.recetea.core.user.domain.UserId;
 
+/**
+ * Removes a media item from a recipe — DB delete first, file delete
+ * second. The inverse ordering of {@code AttachMediaUseCase}: the DB is
+ * the authority on whether the file is referenced, so removing the row
+ * first means a mid-flight failure leaves an orphan file (cheap to clean
+ * up) rather than a row pointing at missing bytes (corrupt state).
+ *
+ * <p>The storage key needed for the file delete is captured from inside
+ * the transactional block and used after commit — the
+ * {@code transactionManager.execute} return value carries it across the
+ * boundary so the file-delete call doesn't need to re-load the recipe.
+ *
+ * <p><b>ES — </b>Elimina un elemento multimedia de una receta —
+ * primero el delete de BD, después el del archivo. El orden inverso
+ * al de {@code AttachMediaUseCase}: la BD es la autoridad sobre si
+ * el archivo está referenciado, así que eliminar la fila primero
+ * implica que un fallo a mitad de operación deja un archivo
+ * huérfano (barato de limpiar) en lugar de una fila apuntando a
+ * bytes inexistentes (estado corrupto).
+ *
+ * <p>La storage key necesaria para borrar el archivo se captura
+ * dentro del bloque transaccional y se usa tras el commit — el
+ * valor de retorno de {@code transactionManager.execute} la lleva a
+ * través de la frontera para que la llamada de borrado de archivo
+ * no necesite volver a cargar la receta.
+ */
 public class RemoveMediaUseCase implements IRemoveMediaUseCase {
 
     private final IRecipeRepository recipeRepository;
@@ -38,13 +64,13 @@ public class RemoveMediaUseCase implements IRemoveMediaUseCase {
         String storageKey = transactionManager.execute(() -> {
             Recipe recipe = recipeRepository.findById(recipeId)
                     .orElseThrow(() -> new IllegalArgumentException(
-                            "Receta no encontrada con ID: " + recipeId.value()));
+                            "Recipe not found with ID: " + recipeId.value()));
 
             UserId currentUser = sessionService.getCurrentUserId()
                     .orElseThrow(AuthenticationRequiredException::new);
             if (!recipe.getAuthorId().equals(currentUser)) {
                 throw new UnauthorizedRecipeAccessException(
-                        "El usuario " + currentUser.value() + " no tiene permiso para modificar esta receta.");
+                        "User " + currentUser.value() + " is not authorized to modify this recipe.");
             }
 
             String key = recipe.getMediaItems().stream()
@@ -52,10 +78,9 @@ public class RemoveMediaUseCase implements IRemoveMediaUseCase {
                     .map(RecipeMedia::storageKey)
                     .findFirst()
                     .orElseThrow(() -> new IllegalArgumentException(
-                            "Elemento multimedia no encontrado con ID: " + mediaId.value()));
+                            "Media item not found with ID: " + mediaId.value()));
 
-            recipe.removeMedia(mediaId);
-            recipeRepository.update(recipe);
+            recipeRepository.update(recipe.removeMedia(mediaId));
             return key;
         });
 

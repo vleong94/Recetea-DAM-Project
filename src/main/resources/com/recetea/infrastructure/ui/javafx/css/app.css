@@ -64,11 +64,12 @@
     app-error:                #C0392B;
     app-error-translucent:    rgba(192, 57, 43, 0.85);
 
-    /* Toast notification backgrounds (translucent, darker than their semantic counterparts) */
+    /* Toast notification backgrounds (translucent, darker than their semantic counterparts).
+       The toast dropshadow itself shares app-shadow-lifted with .glass-card so both surfaces
+       look like members of the same design system — no toast-specific shadow token needed. */
     app-toast-success-bg:     rgba(26, 122, 67, 0.94);
     app-toast-warning-bg:     rgba(160, 83, 15, 0.94);
     app-toast-error-bg:       rgba(152, 40, 31, 0.94);
-    app-shadow-toast:         rgba(0, 0, 0, 0.28);
 
     /* CRUD table action buttons (ingredient/step components) */
     app-btn-add:              #4CAF50;
@@ -94,6 +95,7 @@
     /* Text */
     app-text:                 #2C3E50;
     app-text-muted:           #6B7280;
+    app-text-inverse:         white;
 
     /* Spacing scale — documentation only; JavaFX CSS resolves look-up values
        solely for paint/color properties, so these tokens cannot be referenced
@@ -173,7 +175,7 @@
 /* ── 4. Buttons ───────────────────────────────────────────────────── */
 .primary-button {
     -fx-background-color: app-primary;
-    -fx-text-fill: white;
+    -fx-text-fill: app-text-inverse;
     -fx-font-weight: bold;
     -fx-background-radius: 6;
     -fx-padding: 9 22 9 22;
@@ -212,7 +214,7 @@
 /* Destructive actions (e.g. delete recipe) */
 .danger-button {
     -fx-background-color: app-error;
-    -fx-text-fill: white;
+    -fx-text-fill: app-text-inverse;
     -fx-font-weight: bold;
     -fx-background-radius: 6;
     -fx-padding: 7 14 7 14;
@@ -229,7 +231,7 @@
 /* Inline CRUD buttons for ingredient/step table components */
 .button-add {
     -fx-background-color: app-btn-add;
-    -fx-text-fill: white;
+    -fx-text-fill: app-text-inverse;
     -fx-font-weight: bold;
     -fx-background-radius: 6;
     -fx-padding: 7 14 7 14;
@@ -240,7 +242,7 @@
 
 .button-update {
     -fx-background-color: app-btn-update;
-    -fx-text-fill: white;
+    -fx-text-fill: app-text-inverse;
     -fx-font-weight: bold;
     -fx-background-radius: 6;
     -fx-padding: 7 14 7 14;
@@ -491,7 +493,7 @@
 /* ── 14. Media Upload ─────────────────────────────────────────────── */
 .media-remove-btn {
     -fx-background-color: app-error-translucent;
-    -fx-text-fill: white;
+    -fx-text-fill: app-text-inverse;
     -fx-font-weight: bold;
     -fx-font-size: 11px;
     -fx-padding: 1 4 1 4;
@@ -579,6 +581,11 @@
 
 .scroll-pane {
     -fx-background-color: transparent;
+    /* -fx-background is the AtlantaFX/Modena looked-up color that .viewport
+       inherits via -fx-background-color: -fx-background. Without this token
+       overridden, page-level ScrollPanes paint an opaque PrimerLight surface
+       that masks the scene/root background. */
+    -fx-background: transparent;
     -fx-border-color: transparent;
     -fx-padding: 0;
     -fx-background-insets: 0;
@@ -589,6 +596,19 @@
 }
 .scroll-pane .corner {
     -fx-background-color: transparent;
+}
+/* edge-to-edge: full-bleed page-level ScrollPanes (login, register, recipe form).
+   Suppresses the inner-shadow / border that AtlantaFX paints around content
+   ScrollPanes so the page background reaches the window edges. */
+.scroll-pane.edge-to-edge,
+.scroll-pane.edge-to-edge > .viewport {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-border-color: transparent;
+    -fx-border-insets: 0;
+    -fx-border-width: 0;
 }
 
 /* ── 18. Comment Item ─────────────────────────────────────────────── */
@@ -735,16 +755,131 @@
 }
 
 /* ── 25. Toast Notifications ─────────────────────────────────────── */
+/* Visual family with .glass-card: same lifted dropshadow (gaussian, 20, 0/0/10),
+   same 15px corner radius, same translucent border colour. The semantic background
+   stays distinct (success/warning/error tints) so the toast remains a recognisable
+   notification surface — but everything else lines up with the recipe-card aesthetic
+   so toasts read as members of the same design system, not foreign overlays. */
 .toast {
-    -fx-background-radius: 8;
+    -fx-background-radius: 15;
+    -fx-border-color: app-card-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 15;
     -fx-padding: 13 18 13 18;
-    -fx-effect: dropshadow(gaussian, app-shadow-toast, 18, 0.04, 0, 5);
+    -fx-effect: dropshadow(gaussian, app-shadow-lifted, 20, 0, 0, 10);
 }
 .toast-success { -fx-background-color: app-toast-success-bg; }
 .toast-warning { -fx-background-color: app-toast-warning-bg; }
 .toast-error   { -fx-background-color: app-toast-error-bg; }
 .toast-label {
-    -fx-text-fill: white;
+    -fx-text-fill: app-text-inverse;
     -fx-font-family: "Segoe UI", Arial, sans-serif;
     -fx-font-size: 13px;
+}
+
+/* ── Shared user-header hamburger menu ──────────────────────────────── */
+/* Icon-only MenuButton in the floating top-right overlay. Transparent base, soft hover,
+   subtle scale on :showing for menu-open feedback. The arrow indicator is hidden so the
+   SVG glyph stands alone. */
+.hamburger-button {
+    -fx-background-color: transparent;
+    -fx-padding: 6 8 6 8;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+.hamburger-button:hover {
+    -fx-background-color: app-neutral;
+}
+.hamburger-button:showing {
+    -fx-background-color: app-neutral-hover;
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+.hamburger-button > .arrow-button,
+.hamburger-button > .arrow-button > .arrow {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    visibility: hidden;
+}
+.hamburger-icon {
+    -fx-fill: app-text;
+}
+
+/* Disabled "logged-in as: <user>" header inside the menu (i18n key dashboard.menu.loggedInAs).
+   Reads as a secondary label rather than an actionable item: muted colour, italic, slightly smaller. */
+.username-header {
+    -fx-padding: 6 14 6 14;
+}
+.username-header .label {
+    -fx-text-fill: app-text-muted;
+    -fx-font-style: italic;
+    -fx-font-size: 0.92em;
+    -fx-opacity: 1.0;
+}
+
+/* Logout (and any future destructive menu item). Keeps the action visually distinct
+   from neutral navigation items above it. */
+.menu-item-danger .label {
+    -fx-text-fill: app-error;
+    -fx-font-weight: bold;
+}
+.menu-item-danger:focused .label,
+.menu-item-danger:hover   .label {
+    -fx-text-fill: app-text-inverse;
+}
+.menu-item-danger:focused,
+.menu-item-danger:hover {
+    -fx-background-color: app-error;
+}
+
+/* ── Ghost ToggleButton ─────────────────────────────────────────────────
+   Strict zero-chrome variant: no background, no border, no shadow in any
+   state. Used by the dashboard's "Filtrar" toggle so the chevron rotation
+   is the only visual feedback when the panel expands or collapses. */
+.ghost-toggle {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-effect: null;
+    -fx-padding: 6 12 6 12;
+    -fx-cursor: hand;
+    -fx-text-fill: -color-fg-default;
+}
+.ghost-toggle:hover,
+.ghost-toggle:focused,
+.ghost-toggle:focus-visible,
+.ghost-toggle:armed,
+.ghost-toggle:selected,
+.ghost-toggle:selected:hover,
+.ghost-toggle:selected:focused,
+.ghost-toggle:selected:armed {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-effect: null;
+    -fx-text-fill: -color-fg-default;
+}
+
+/* AtlantaFX warning palette on ToggleButton — overrides the project-wide
+   .toggle-button:selected rule (which paints accent-green) when the toggle
+   carries the .warning class. Specificity (0,2,1) beats (0,2,0). Used by
+   the recipe-detail favorite button to express "En favoritos" in yellow. */
+.toggle-button.warning:selected,
+.toggle-button.warning:selected:hover,
+.toggle-button.warning:selected:focused,
+.toggle-button.warning:selected:armed {
+    -fx-background-color: -color-warning-emphasis;
+    -fx-text-fill:        -color-fg-default;
+    -fx-border-color:     -color-warning-emphasis;
+}
+
+/* ── Elevated / Floating Button ──────────────────────────────────────────
+   Composable elevation hint. Pair with a palette class (primary-button,
+   success, etc.) to get a button that lifts off the surface via shadow.
+   Auto-sizes to its content — works for icon-only or icon+text buttons. */
+.fab {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.28), 10, 0.18, 0, 3);
+    -fx-cursor: hand;
+}
+.fab:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.34), 14, 0.20, 0, 4);
 }

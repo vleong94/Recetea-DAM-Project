@@ -1,6 +1,7 @@
 package com.recetea.core.recipe.domain;
 
 import com.recetea.core.recipe.domain.vo.*;
+import com.recetea.core.shared.domain.ErrorCode;
 import com.recetea.core.user.domain.UserId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,144 +17,170 @@ class RecipeTest {
     private Recipe createBaseRecipe() {
         return new Recipe(
                 new UserId(1),
-                new Category(new CategoryId(1), "Entrantes"),
-                new Difficulty(new DifficultyId(1), "Fácil"),
-                "Receta de Prueba",
-                "Descripción de prueba",
+                new Category(new CategoryId(1), "Appetizers"),
+                new Difficulty(new DifficultyId(1), "Easy"),
+                "Test Recipe",
+                "Test description",
                 new PreparationTime(20),
                 new Servings(2)
         );
     }
 
+    private Recipe createRecipeWithId() {
+        return new Recipe(
+                new RecipeId(1), new UserId(1),
+                new Category(new CategoryId(1), "Appetizers"),
+                new Difficulty(new DifficultyId(1), "Easy"),
+                "Test Recipe", "Test description",
+                new PreparationTime(20), new Servings(2),
+                BigDecimal.ZERO, 0);
+    }
+
     @Test
-    @DisplayName("Debe detectar y prohibir órdenes de pasos duplicados")
+    @DisplayName("Should detect and reject duplicate step orders")
     void shouldPreventDuplicateSteps() {
         Recipe recipe = createBaseRecipe();
 
         assertThrows(Recipe.RecipeValidationException.class, () ->
                 recipe.syncSteps(List.of(
-                        new RecipeStep(1, "Paso A"),
-                        new RecipeStep(1, "Paso B")
+                        new RecipeStep(1, "Step A"),
+                        new RecipeStep(1, "Step B")
                 ))
         );
     }
 
     @Test
-    @DisplayName("Debe permitir la adición de ingredientes y reflejar el conteo correcto")
+    @DisplayName("Should allow adding ingredients and reflect the correct count")
     void shouldAddIngredients() {
-        Recipe recipe = createBaseRecipe();
-        recipe.syncIngredients(List.of(
+        Recipe updated = createBaseRecipe().syncIngredients(List.of(
                 new RecipeIngredient(new IngredientId(1), new UnitId(1), BigDecimal.valueOf(100))
         ));
 
-        assertEquals(1, recipe.getIngredients().size());
+        assertEquals(1, updated.getIngredients().size());
     }
 
     @Test
-    @DisplayName("Debe rechazar lista de ingredientes nula")
+    @DisplayName("Should reject a null ingredient list")
     void shouldRejectNullIngredients() {
         Recipe recipe = createBaseRecipe();
         assertThrows(Recipe.RecipeValidationException.class, () -> recipe.syncIngredients(null));
     }
 
     @Test
-    @DisplayName("Debe rechazar lista de ingredientes vacía")
+    @DisplayName("Should reject an empty ingredient list")
     void shouldRejectEmptyIngredients() {
         Recipe recipe = createBaseRecipe();
         assertThrows(Recipe.RecipeValidationException.class, () -> recipe.syncIngredients(Collections.emptyList()));
     }
 
     @Test
-    @DisplayName("Debe rechazar lista de pasos nula")
+    @DisplayName("Should reject duplicate IngredientIds and leave the aggregate untouched")
+    void shouldRejectDuplicateIngredients() {
+        Recipe recipe = createBaseRecipe();
+        IngredientId duplicate = new IngredientId(7);
+
+        InvalidRecipeDataException ex = assertThrows(InvalidRecipeDataException.class, () ->
+                recipe.syncIngredients(List.of(
+                        new RecipeIngredient(duplicate,         new UnitId(1), BigDecimal.valueOf(100)),
+                        new RecipeIngredient(new IngredientId(8), new UnitId(1), BigDecimal.valueOf(50)),
+                        new RecipeIngredient(duplicate,         new UnitId(2), BigDecimal.valueOf(25))
+                ))
+        );
+
+        assertEquals(ErrorCode.VALIDATION_ERROR, ex.errorCode());
+        assertEquals(1, ex.errors().size(), "One duplicate should yield one accumulated error message");
+        assertTrue(ex.errors().get(0).contains("Duplicate ingredient"),
+                "Error message should mention the duplicate: " + ex.errors().get(0));
+        assertTrue(recipe.getIngredients().isEmpty(),
+                "Original aggregate must remain untouched (immutable record).");
+    }
+
+    @Test
+    @DisplayName("Should reject a null step list")
     void shouldRejectNullSteps() {
         Recipe recipe = createBaseRecipe();
         assertThrows(Recipe.RecipeValidationException.class, () -> recipe.syncSteps(null));
     }
 
     @Test
-    @DisplayName("Debe rechazar lista de pasos vacía")
+    @DisplayName("Should reject an empty step list")
     void shouldRejectEmptySteps() {
         Recipe recipe = createBaseRecipe();
         assertThrows(Recipe.RecipeValidationException.class, () -> recipe.syncSteps(Collections.emptyList()));
     }
 
     @Test
-    @DisplayName("Debe prohibir que el autor valore su propia receta")
+    @DisplayName("Should prevent the author from rating their own recipe")
     void shouldRejectSelfRating() {
         Recipe recipe = createBaseRecipe();
         UserId authorId = new UserId(1);
         assertThrows(Recipe.RecipeValidationException.class,
-                () -> recipe.addRating(authorId, new Score(5), "Excelente"));
+                () -> recipe.addRating(authorId, new Score(5), "Excellent"));
     }
 
     @Test
-    @DisplayName("Debe permitir que otro usuario valore la receta")
+    @DisplayName("Should allow a rating from another user")
     void shouldAllowRatingFromOtherUser() {
-        Recipe recipe = createBaseRecipe();
-        recipe.addRating(new UserId(2), new Score(4), "Muy buena");
-        assertEquals(1, recipe.getRatings().size());
+        Recipe rated = createBaseRecipe().addRating(new UserId(2), new Score(4), "Very good");
+        assertEquals(1, rated.getRatings().size());
     }
 
     @Test
-    @DisplayName("Debe rechazar una segunda valoración del mismo usuario")
+    @DisplayName("Should reject a duplicate rating from the same user")
     void shouldRejectDuplicateRatingFromSameUser() {
-        Recipe recipe = createBaseRecipe();
         UserId voter = new UserId(2);
-        recipe.addRating(voter, new Score(4), "Muy buena");
+        Recipe withRating = createBaseRecipe().addRating(voter, new Score(4), "Very good");
         assertThrows(Recipe.RecipeValidationException.class,
-                () -> recipe.addRating(voter, new Score(3), "Intentando de nuevo"));
+                () -> withRating.addRating(voter, new Score(3), "Trying again"));
     }
 
     @Test
-    @DisplayName("Debe actualizar las métricas internas al añadir valoraciones")
+    @DisplayName("Should update internal metrics when ratings are added")
     void shouldUpdateInternalMetricsWhenRatingIsAdded() {
-        Recipe recipe = createBaseRecipe();
+        Recipe rated = createBaseRecipe()
+                .addRating(new UserId(2), new Score(5), "Perfect")
+                .addRating(new UserId(3), new Score(4), "Very good")
+                .addRating(new UserId(4), new Score(3), "Decent");
 
-        recipe.addRating(new UserId(2), new Score(5), "Perfecta");
-        recipe.addRating(new UserId(3), new Score(4), "Muy buena");
-        recipe.addRating(new UserId(4), new Score(3), "Correcta");
-
-        assertEquals(3, recipe.getTotalRatings());
-        assertEquals(0, BigDecimal.valueOf(4.00).setScale(2).compareTo(recipe.getAverageScore()));
+        assertEquals(3, rated.getTotalRatings());
+        assertEquals(0, BigDecimal.valueOf(4.00).setScale(2).compareTo(rated.getAverageScore()));
     }
 
     @Test
-    @DisplayName("Las métricas sociales deben conservarse tras sincronizar los pasos")
+    @DisplayName("Social metrics should be preserved after syncing steps")
     void shouldMaintainMetricsAfterSyncSteps() {
-        Recipe recipe = createBaseRecipe();
-        recipe.addRating(new UserId(2), new Score(5), "Perfecta");
+        Recipe rated = createBaseRecipe().addRating(new UserId(2), new Score(5), "Perfect");
 
-        BigDecimal scoreBefore = recipe.getAverageScore();
-        int totalBefore = recipe.getTotalRatings();
+        BigDecimal scoreBefore = rated.getAverageScore();
+        int totalBefore = rated.getTotalRatings();
 
-        recipe.syncSteps(List.of(
-                new RecipeStep(1, "Paso nuevo"),
-                new RecipeStep(2, "Otro paso")
+        Recipe afterSync = rated.syncSteps(List.of(
+                new RecipeStep(1, "New step"),
+                new RecipeStep(2, "Another step")
         ));
 
-        assertEquals(totalBefore, recipe.getTotalRatings());
-        assertEquals(0, scoreBefore.compareTo(recipe.getAverageScore()));
+        assertEquals(totalBefore, afterSync.getTotalRatings());
+        assertEquals(0, scoreBefore.compareTo(afterSync.getAverageScore()));
     }
 
     @Test
-    @DisplayName("averageScore debe redondear correctamente a 2 decimales con HALF_UP")
+    @DisplayName("averageScore should round correctly to 2 decimal places with HALF_UP")
     void shouldRoundAverageScoreToTwoDecimalPlaces() {
-        Recipe recipe = createBaseRecipe();
-
         // 5 + 5 + 4 = 14 / 3 = 4.6666... → HALF_UP → 4.67
-        recipe.addRating(new UserId(2), new Score(5), "Excelente");
-        recipe.addRating(new UserId(3), new Score(5), "Perfecta");
-        recipe.addRating(new UserId(4), new Score(4), "Muy buena");
+        Recipe rated = createBaseRecipe()
+                .addRating(new UserId(2), new Score(5), "Excellent")
+                .addRating(new UserId(3), new Score(5), "Perfect")
+                .addRating(new UserId(4), new Score(4), "Very good");
 
-        assertEquals(3, recipe.getTotalRatings());
-        assertEquals(0, new BigDecimal("4.67").compareTo(recipe.getAverageScore()),
-                "14/3 redondeado a 2 decimales con HALF_UP debe ser 4.67");
-        assertEquals(2, recipe.getAverageScore().scale(),
-                "El campo averageScore debe tener siempre escala 2 para coherencia con el esquema DB");
+        assertEquals(3, rated.getTotalRatings());
+        assertEquals(0, new BigDecimal("4.67").compareTo(rated.getAverageScore()),
+                "14/3 rounded to 2 decimal places with HALF_UP should be 4.67");
+        assertEquals(2, rated.getAverageScore().scale(),
+                "averageScore should always have scale 2 for DB schema consistency");
     }
 
     @Test
-    @DisplayName("Debe lanzar excepción ante métricas de tiempo negativas")
+    @DisplayName("Should throw an exception for negative preparation time")
     void shouldValidatePreparationTime() {
         assertThrows(IllegalArgumentException.class, () ->
                 new Recipe(
@@ -168,78 +195,157 @@ class RecipeTest {
     }
 
     // -------------------------------------------------------------------------
+    // Compact-constructor + wither validation (replaces former setter validation —
+    // the immutable record routes every "field write" through the canonical
+    // constructor, so withX(null) and the constructor-with-null tests assert the
+    // same invariants the deleted setters used to.)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("withTitle(null) should throw RecipeValidationException via the compact constructor")
+    void withTitle_ShouldThrow_WhenNull() {
+        Recipe recipe = createBaseRecipe();
+        assertThrows(Recipe.RecipeValidationException.class, () -> recipe.withTitle(null));
+    }
+
+    @Test
+    @DisplayName("withTitle(blank) should throw RecipeValidationException via the compact constructor")
+    void withTitle_ShouldThrow_WhenBlank() {
+        Recipe recipe = createBaseRecipe();
+        assertThrows(Recipe.RecipeValidationException.class, () -> recipe.withTitle("   "));
+    }
+
+    @Test
+    @DisplayName("withDescription(null) should throw RecipeValidationException via the compact constructor")
+    void withDescription_ShouldThrow_WhenNull() {
+        Recipe recipe = createBaseRecipe();
+        assertThrows(Recipe.RecipeValidationException.class, () -> recipe.withDescription(null));
+    }
+
+    @Test
+    @DisplayName("withCategory(null) should throw RecipeValidationException via the compact constructor")
+    void withCategory_ShouldThrow_WhenNull() {
+        Recipe recipe = createBaseRecipe();
+        assertThrows(Recipe.RecipeValidationException.class, () -> recipe.withCategory(null));
+    }
+
+    @Test
+    @DisplayName("withDifficulty(null) should throw RecipeValidationException via the compact constructor")
+    void withDifficulty_ShouldThrow_WhenNull() {
+        Recipe recipe = createBaseRecipe();
+        assertThrows(Recipe.RecipeValidationException.class, () -> recipe.withDifficulty(null));
+    }
+
+    @Test
+    @DisplayName("Create-path constructor should throw RecipeValidationException when title is blank")
+    void constructor_ShouldThrow_WhenTitleIsBlank() {
+        assertThrows(Recipe.RecipeValidationException.class, () ->
+                new Recipe(new UserId(1),
+                        new Category(new CategoryId(1), "Appetizers"),
+                        new Difficulty(new DifficultyId(1), "Easy"),
+                        "   ", "Valid description",
+                        new PreparationTime(20), new Servings(2)));
+    }
+
+    @Test
+    @DisplayName("Create-path constructor should throw RecipeValidationException when category is null")
+    void constructor_ShouldThrow_WhenCategoryIsNull() {
+        assertThrows(Recipe.RecipeValidationException.class, () ->
+                new Recipe(new UserId(1),
+                        null,
+                        new Difficulty(new DifficultyId(1), "Easy"),
+                        "Valid title", "Valid description",
+                        new PreparationTime(20), new Servings(2)));
+    }
+
+    @Test
+    @DisplayName("Create-path constructor should throw RecipeValidationException when difficulty is null")
+    void constructor_ShouldThrow_WhenDifficultyIsNull() {
+        assertThrows(Recipe.RecipeValidationException.class, () ->
+                new Recipe(new UserId(1),
+                        new Category(new CategoryId(1), "Appetizers"),
+                        null,
+                        "Valid title", "Valid description",
+                        new PreparationTime(20), new Servings(2)));
+    }
+
+    @Test
+    @DisplayName("Create-path constructor should throw RecipeValidationException when description is null")
+    void constructor_ShouldThrow_WhenDescriptionIsNull() {
+        assertThrows(Recipe.RecipeValidationException.class, () ->
+                new Recipe(new UserId(1),
+                        new Category(new CategoryId(1), "Appetizers"),
+                        new Difficulty(new DifficultyId(1), "Easy"),
+                        "Valid title", null,
+                        new PreparationTime(20), new Servings(2)));
+    }
+
+    // -------------------------------------------------------------------------
     // Media management
     // -------------------------------------------------------------------------
 
-    private RecipeMedia buildMedia(RecipeId recipeId, boolean isMain) {
-        return new RecipeMedia(null, recipeId, "key/img.jpg", "LOCAL", "image/jpeg", 1024L, isMain, 0);
-    }
-
     @Test
-    @DisplayName("El primer elemento multimedia debe ser marcado como isMain automáticamente")
+    @DisplayName("First media item should be auto-promoted to isMain")
     void addMedia_ShouldAutoSetIsMain_WhenCollectionIsEmpty() {
-        Recipe recipe = createBaseRecipe();
-        recipe.setId(new RecipeId(1));
+        Recipe recipe = createRecipeWithId();
         RecipeMedia media = new RecipeMedia(null, recipe.getId(), "key/img.jpg", "LOCAL", "image/jpeg", 1024L, false, 0);
 
-        recipe.addMedia(media);
+        Recipe withMedia = recipe.addMedia(media);
 
-        assertEquals(1, recipe.getMediaItems().size());
-        assertTrue(recipe.getMediaItems().get(0).isMain(), "El primer elemento debe ser promovido a isMain=true");
+        assertEquals(1, withMedia.getMediaItems().size());
+        assertTrue(withMedia.getMediaItems().get(0).isMain(), "First item should be promoted to isMain=true");
     }
 
     @Test
-    @DisplayName("Añadir un segundo elemento no-main no debe cambiar el isMain existente")
+    @DisplayName("Adding a second non-main item should not change the existing isMain")
     void addMedia_ShouldNotChangeExistingMain_WhenNewMediaIsNotMain() {
-        Recipe recipe = createBaseRecipe();
-        recipe.setId(new RecipeId(1));
-        recipe.addMedia(new RecipeMedia(null, recipe.getId(), "key/a.jpg", "LOCAL", "image/jpeg", 512L, false, 0));
-        recipe.addMedia(new RecipeMedia(null, recipe.getId(), "key/b.jpg", "LOCAL", "image/jpeg", 512L, false, 1));
+        Recipe recipe = createRecipeWithId()
+                .addMedia(new RecipeMedia(null, new RecipeId(1), "key/a.jpg", "LOCAL", "image/jpeg", 512L, false, 0))
+                .addMedia(new RecipeMedia(null, new RecipeId(1), "key/b.jpg", "LOCAL", "image/jpeg", 512L, false, 1));
 
-        assertTrue(recipe.getMediaItems().get(0).isMain(), "El primero sigue siendo main");
-        assertFalse(recipe.getMediaItems().get(1).isMain(), "El segundo no debe ser main");
+        assertTrue(recipe.getMediaItems().get(0).isMain(), "First item should remain main");
+        assertFalse(recipe.getMediaItems().get(1).isMain(), "Second item should not be main");
     }
 
     @Test
-    @DisplayName("setMainMedia debe transferir isMain al elemento indicado y limpiar el anterior")
+    @DisplayName("setMainMedia should atomically transfer isMain and clear the previous flag")
     void setMainMedia_ShouldTransferIsMain_AtomicallyAndClearPrevious() {
-        Recipe recipe = createBaseRecipe();
-        recipe.setId(new RecipeId(1));
         RecipeMediaId idA = new RecipeMediaId(10);
         RecipeMediaId idB = new RecipeMediaId(20);
-        recipe.hydrateMedia(new RecipeMedia(idA, recipe.getId(), "key/a.jpg", "LOCAL", "image/jpeg", 512L, true,  0));
-        recipe.hydrateMedia(new RecipeMedia(idB, recipe.getId(), "key/b.jpg", "LOCAL", "image/jpeg", 512L, false, 1));
+        Recipe recipe = createRecipeWithId().withMediaItems(List.of(
+                new RecipeMedia(idA, new RecipeId(1), "key/a.jpg", "LOCAL", "image/jpeg", 512L, true,  0),
+                new RecipeMedia(idB, new RecipeId(1), "key/b.jpg", "LOCAL", "image/jpeg", 512L, false, 1)
+        ));
 
-        recipe.setMainMedia(idB);
+        Recipe afterSwap = recipe.setMainMedia(idB);
 
-        assertFalse(recipe.getMediaItems().stream().filter(m -> idA.equals(m.id())).findFirst().orElseThrow().isMain(),
-                "El antiguo main debe perder el flag");
-        assertTrue(recipe.getMediaItems().stream().filter(m -> idB.equals(m.id())).findFirst().orElseThrow().isMain(),
-                "El nuevo main debe tener el flag");
+        assertFalse(afterSwap.getMediaItems().stream().filter(m -> idA.equals(m.id())).findFirst().orElseThrow().isMain(),
+                "Previous main should lose the flag");
+        assertTrue(afterSwap.getMediaItems().stream().filter(m -> idB.equals(m.id())).findFirst().orElseThrow().isMain(),
+                "New main should have the flag");
     }
 
     @Test
-    @DisplayName("setMainMedia con ID inexistente debe lanzar RecipeValidationException")
+    @DisplayName("setMainMedia should throw RecipeValidationException when ID not found")
     void setMainMedia_ShouldThrow_WhenIdNotFound() {
-        Recipe recipe = createBaseRecipe();
-        recipe.setId(new RecipeId(1));
+        Recipe recipe = createRecipeWithId();
         assertThrows(Recipe.RecipeValidationException.class,
                 () -> recipe.setMainMedia(new RecipeMediaId(999)));
     }
 
     @Test
-    @DisplayName("removeMedia debe eliminar el elemento indicado de la colección")
+    @DisplayName("removeMedia should remove the correct element from the collection")
     void removeMedia_ShouldRemoveCorrectElement() {
-        Recipe recipe = createBaseRecipe();
-        recipe.setId(new RecipeId(1));
         RecipeMediaId idA = new RecipeMediaId(10);
         RecipeMediaId idB = new RecipeMediaId(20);
-        recipe.hydrateMedia(new RecipeMedia(idA, recipe.getId(), "key/a.jpg", "LOCAL", "image/jpeg", 512L, true,  0));
-        recipe.hydrateMedia(new RecipeMedia(idB, recipe.getId(), "key/b.jpg", "LOCAL", "image/jpeg", 512L, false, 1));
+        Recipe recipe = createRecipeWithId().withMediaItems(List.of(
+                new RecipeMedia(idA, new RecipeId(1), "key/a.jpg", "LOCAL", "image/jpeg", 512L, true,  0),
+                new RecipeMedia(idB, new RecipeId(1), "key/b.jpg", "LOCAL", "image/jpeg", 512L, false, 1)
+        ));
 
-        recipe.removeMedia(idA);
+        Recipe afterRemove = recipe.removeMedia(idA);
 
-        assertEquals(1, recipe.getMediaItems().size());
-        assertEquals(idB, recipe.getMediaItems().get(0).id());
+        assertEquals(1, afterRemove.getMediaItems().size());
+        assertEquals(idB, afterRemove.getMediaItems().get(0).id());
     }
 }

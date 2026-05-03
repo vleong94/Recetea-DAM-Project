@@ -1,0 +1,46 @@
+---
+config:
+  layout: dagre
+---
+flowchart TB
+%% Start of the journey
+    U["👨‍🍳 <b>THE COOK</b>"] --> ACTION{"<b>What would you like to do?</b>"}
+
+    subgraph ORIGEN ["📝 <b>CREATION FLOW (Data Origin)</b>"]
+        direction TB
+        NEW["📄 <b>Base Information</b><br>(Title, servings, and times)"]
+        MEDIA["🖼️ <b>Visual Content</b><br>(Image gallery)"]
+        ING["🥕 <b>Technical Detail</b><br>(Ingredients and precise quantities)"]
+        ST["📜 <b>Operational Guide</b><br>(Steps and instructions)"]
+        TAG["🏷️ <b>Classification</b><br>(Categories and social tags)"]
+
+        NEW --> MEDIA --> ING --> ST --> TAG
+    end
+
+%% Consolidation Point
+    CATALOG["🌐 <b>COMMUNITY CATALOG</b><br>(Central Information Repository)"]
+
+    subgraph DESTINO ["👁️ <b>CONSUMPTION FLOW (Data Usage)</b>"]
+        direction TB
+        SEARCH["🔍 <b>Filters and Search</b><br>(Access by relevance and popularity)"]
+        VIEW["🍲 <b>Recipe Card</b><br>(Integration of all information)"]
+
+        SEARCH --> VIEW
+    end
+
+%% Journey Relationships
+    ACTION == "Contribute Content" ==> NEW
+    TAG -- "Consolidates into" --> CATALOG
+    CATALOG -- "Feeds the" --> SEARCH
+
+%% Feedback (Data returns to origin)
+    VIEW -- "Persistence" --> FAV["⭐ <b>Favorites</b><br>(Personal collection)"]
+    VIEW -- "Enrichment" --> VAL["💬 <b>Feedback</b><br>(Ratings and comments)"]
+
+    VAL -. "Updates popularity" .-> CATALOG
+    ACTION == "Browse Catalog" ==> SEARCH
+
+%% Visual Styles
+    style U fill:#fffafc,stroke:#8e24aa,stroke-width:2px
+    style CATALOG fill:#e1f5fe,stroke:#01579b,stroke-width:2px,font-weight:bold
+    style VAL fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px

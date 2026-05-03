@@ -14,6 +14,7 @@ import com.recetea.core.recipe.domain.vo.DifficultyId;
 import com.recetea.core.recipe.domain.vo.IngredientId;
 import com.recetea.core.recipe.domain.vo.RecipeId;
 import com.recetea.core.recipe.domain.vo.UnitId;
+import com.recetea.core.shared.application.ConcurrencyGuard;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
 import com.recetea.core.user.domain.UserId;
@@ -47,14 +48,15 @@ class CreateRecipeUseCaseTest {
     private CreateRecipeUseCase useCase;
 
     private static final UserId   AUTHOR     = new UserId(1);
-    private static final Category CATEGORY   = new Category(new CategoryId(1), "Postres");
-    private static final Difficulty DIFFICULTY = new Difficulty(new DifficultyId(1), "Fácil");
+    private static final Category CATEGORY   = new Category(new CategoryId(1), "Desserts");
+    private static final Difficulty DIFFICULTY = new Difficulty(new DifficultyId(1), "Easy");
 
     @BeforeEach
     void setUp() {
         useCase = new CreateRecipeUseCase(
                 recipeRepository, categoryRepository, difficultyRepository,
-                transactionManager, sessionService);
+                transactionManager, sessionService,
+                new ConcurrencyGuard(Integer.MAX_VALUE));
     }
 
     // -------------------------------------------------------------------------
@@ -64,11 +66,11 @@ class CreateRecipeUseCaseTest {
     private SaveRecipeRequest validRequest() {
         return new SaveRecipeRequest(
                 new CategoryId(1), new DifficultyId(1),
-                "Tarta de Manzana", "Deliciosa tarta casera",
+                "Apple Pie", "Delicious homemade pie",
                 45, 6,
                 List.of(new SaveRecipeRequest.IngredientRequest(
-                        new IngredientId(1), new UnitId(1), BigDecimal.ONE, "Manzana", "ud")),
-                List.of(new SaveRecipeRequest.StepRequest(1, "Pelar y trocear las manzanas.")));
+                        new IngredientId(1), new UnitId(1), BigDecimal.ONE, "Apple", "u")),
+                List.of(new SaveRecipeRequest.StepRequest(1, "Peel and chop the apples.")));
     }
 
     private void stubHappyPath() {
@@ -77,8 +79,7 @@ class CreateRecipeUseCaseTest {
         when(difficultyRepository.findById(new DifficultyId(1))).thenReturn(Optional.of(DIFFICULTY));
         when(transactionManager.execute(any(Supplier.class)))
                 .thenAnswer(inv -> inv.getArgument(0, Supplier.class).get());
-        doAnswer(inv -> { ((Recipe) inv.getArgument(0)).setId(new RecipeId(99)); return null; })
-                .when(recipeRepository).save(any(Recipe.class));
+        when(recipeRepository.save(any(Recipe.class))).thenReturn(new RecipeId(99));
     }
 
     // -------------------------------------------------------------------------
@@ -97,7 +98,7 @@ class CreateRecipeUseCaseTest {
         verify(recipeRepository).save(captor.capture());
         Recipe saved = captor.getValue();
         assertEquals(AUTHOR, saved.getAuthorId());
-        assertEquals("Tarta de Manzana", saved.getTitle());
+        assertEquals("Apple Pie", saved.getTitle());
         assertEquals(1, saved.getIngredients().size());
         assertEquals(1, saved.getSteps().size());
     }
@@ -107,16 +108,16 @@ class CreateRecipeUseCaseTest {
     void execute_ShouldThrow_WhenTitleIsBlank() {
         SaveRecipeRequest request = new SaveRecipeRequest(
                 new CategoryId(1), new DifficultyId(1),
-                "  ", "Descripción válida", 30, 4,
+                "  ", "Valid description", 30, 4,
                 List.of(new SaveRecipeRequest.IngredientRequest(
-                        new IngredientId(1), new UnitId(1), BigDecimal.ONE, "Sal", "g")),
-                List.of(new SaveRecipeRequest.StepRequest(1, "Paso único")));
+                        new IngredientId(1), new UnitId(1), BigDecimal.ONE, "Salt", "g")),
+                List.of(new SaveRecipeRequest.StepRequest(1, "Single step")));
 
         InvalidRecipeDataException ex = assertThrows(InvalidRecipeDataException.class,
                 () -> useCase.execute(request));
 
         assertFalse(ex.getErrors().isEmpty(), "Expected at least one validation error");
-        assertTrue(ex.getErrors().stream().anyMatch(e -> e.contains("título")),
+        assertTrue(ex.getErrors().stream().anyMatch(e -> e.contains("Title")),
                 "Error message must mention the title field");
     }
 
@@ -159,15 +160,15 @@ class CreateRecipeUseCaseTest {
     void execute_ShouldThrow_WhenIngredientQuantityIsZero() {
         SaveRecipeRequest request = new SaveRecipeRequest(
                 new CategoryId(1), new DifficultyId(1),
-                "Título válido", "Descripción válida", 30, 4,
+                "Valid title", "Valid description", 30, 4,
                 List.of(new SaveRecipeRequest.IngredientRequest(
-                        new IngredientId(1), new UnitId(1), BigDecimal.ZERO, "Sal", "g")),
-                List.of(new SaveRecipeRequest.StepRequest(1, "Paso único")));
+                        new IngredientId(1), new UnitId(1), BigDecimal.ZERO, "Salt", "g")),
+                List.of(new SaveRecipeRequest.StepRequest(1, "Single step")));
 
         InvalidRecipeDataException ex = assertThrows(InvalidRecipeDataException.class,
                 () -> useCase.execute(request));
 
-        assertTrue(ex.getErrors().stream().anyMatch(e -> e.contains("cantidad")),
+        assertTrue(ex.getErrors().stream().anyMatch(e -> e.contains("quantity")),
                 "Error message must mention the ingredient quantity");
     }
 }

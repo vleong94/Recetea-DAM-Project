@@ -6,6 +6,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import com.recetea.infrastructure.ui.javafx.shared.i18n.I18n;
+import com.recetea.infrastructure.ui.javafx.shared.media.MediaUriResolver;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Label;
@@ -18,9 +19,44 @@ import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 
+/**
+ * Recipe-detail sub-component that renders the media gallery — one
+ * featured main image plus a horizontal thumbnail strip. Read-only:
+ * the upload counterpart lives in {@link MediaUploadComponent}.
+ *
+ * <p><b>Storage-key resolution.</b> Each {@link RecipeDetailResponse
+ * .RecipeMediaResponse} carries an opaque {@code storageKey}; the
+ * component routes it through {@link MediaUriResolver} to obtain a
+ * viewable URI (filesystem path or Supabase public URL depending on
+ * the resolver shape).
+ *
+ * <p><b>Skeleton placeholder.</b> {@code mainSkeleton} is rendered
+ * while the {@link Image} loads asynchronously, then replaced with the
+ * decoded image via a fade-in {@link Timeline}. Empty media lists
+ * collapse to {@code noMediaLabel} — the gallery never renders a blank
+ * box.
+ *
+ * <p><b>ES — </b>Sub-componente del detalle de receta que renderiza
+ * la galería multimedia — una imagen principal destacada más una
+ * tira horizontal de miniaturas. Sólo lectura: el contraparte de
+ * subida vive en {@link MediaUploadComponent}.
+ *
+ * <p><b>Resolución de storage-key.</b> Cada
+ * {@link RecipeDetailResponse.RecipeMediaResponse} lleva una
+ * {@code storageKey} opaca; el componente la enruta a través de
+ * {@link MediaUriResolver} para obtener una URI visualizable (ruta
+ * del sistema de archivos o URL pública de Supabase según la
+ * forma del resolver).
+ *
+ * <p><b>Placeholder de esqueleto.</b> {@code mainSkeleton} se
+ * renderiza mientras la {@link Image} carga de forma asíncrona, y
+ * luego se reemplaza con la imagen decodificada vía un
+ * {@link Timeline} de fade-in. Las listas de multimedia vacías
+ * colapsan a {@code noMediaLabel} — la galería nunca renderiza
+ * una caja en blanco.
+ */
 public class MediaGalleryComponent extends VBox {
 
     @FXML private StackPane mainContainer;
@@ -44,11 +80,11 @@ public class MediaGalleryComponent extends VBox {
         try {
             loader.load();
         } catch (IOException e) {
-            throw new RuntimeException("Infrastructure Failure: Imposible instanciar MediaGalleryComponent.", e);
+            throw new RuntimeException("Infrastructure failure: could not instantiate MediaGalleryComponent.", e);
         }
     }
 
-    public void setMedia(List<RecipeDetailResponse.RecipeMediaResponse> mediaItems, Path basePath) {
+    public void setMedia(List<RecipeDetailResponse.RecipeMediaResponse> mediaItems, String basePath) {
         stopSkeletonPulse();
         thumbnailStrip.getChildren().clear();
 
@@ -65,10 +101,10 @@ public class MediaGalleryComponent extends VBox {
                 .findFirst()
                 .orElse(mediaItems.get(0));
 
-        loadMain(basePath.resolve(initialMain.storageKey()).toUri().toString());
+        loadMain(MediaUriResolver.resolve(basePath, initialMain.storageKey()));
 
         for (RecipeDetailResponse.RecipeMediaResponse m : mediaItems) {
-            String fileUrl = basePath.resolve(m.storageKey()).toUri().toString();
+            String fileUrl = MediaUriResolver.resolve(basePath, m.storageKey());
 
             Region thumbSkeleton = new Region();
             thumbSkeleton.getStyleClass().add("skeleton-pulse");
@@ -86,6 +122,13 @@ public class MediaGalleryComponent extends VBox {
 
             thumbnailStrip.getChildren().add(tile);
 
+            if (fileUrl == null) {
+                applyThumbFallback(tile);
+                continue;
+            }
+
+            // backgroundLoading=true so cloud-hosted thumbs don't block the FX thread
+            // while the HTTP request is in flight.
             Image thumbImg = new Image(fileUrl, THUMB_SIZE, THUMB_SIZE, true, true, true);
             if (thumbImg.getProgress() >= 1.0 && !thumbImg.isError()) {
                 replaceSkeletonWithThumb(tile, thumbImg);
@@ -93,6 +136,9 @@ public class MediaGalleryComponent extends VBox {
                 thumbImg.progressProperty().addListener((obs, prev, p) -> {
                     if (p.doubleValue() >= 1.0 && !thumbImg.isError())
                         replaceSkeletonWithThumb(tile, thumbImg);
+                });
+                thumbImg.errorProperty().addListener((obs, prev, error) -> {
+                    if (error) applyThumbFallback(tile);
                 });
             }
         }
@@ -106,11 +152,23 @@ public class MediaGalleryComponent extends VBox {
         tile.getChildren().setAll(iv);
     }
 
+    private void applyThumbFallback(StackPane tile) {
+        Image fallback = MediaUriResolver.placeholder();
+        if (fallback != null) {
+            replaceSkeletonWithThumb(tile, fallback);
+        }
+    }
+
     private void loadMain(String fileUrl) {
         mainImageView.setImage(null);
         mainImageView.setVisible(false);
         mainSkeleton.setVisible(true);
         startSkeletonPulse();
+
+        if (fileUrl == null) {
+            applyMainFallback();
+            return;
+        }
 
         Image img = new Image(fileUrl, MAIN_W, MAIN_H, true, true, true);
 
@@ -123,10 +181,7 @@ public class MediaGalleryComponent extends VBox {
             if (progress.doubleValue() >= 1.0 && !img.isError()) applyMainImage(img);
         });
         img.errorProperty().addListener((obs, prev, error) -> {
-            if (error) {
-                mainSkeleton.setVisible(false);
-                stopSkeletonPulse();
-            }
+            if (error) applyMainFallback();
         });
     }
 
@@ -135,6 +190,19 @@ public class MediaGalleryComponent extends VBox {
         stopSkeletonPulse();
         mainImageView.setImage(img);
         mainImageView.setVisible(true);
+    }
+
+    private void applyMainFallback() {
+        mainSkeleton.setVisible(false);
+        stopSkeletonPulse();
+        Image fallback = MediaUriResolver.placeholder();
+        if (fallback != null) {
+            mainImageView.setImage(fallback);
+            mainImageView.setVisible(true);
+        } else {
+            mainImageView.setImage(null);
+            mainImageView.setVisible(false);
+        }
     }
 
     private void selectThumbnail(StackPane selected) {

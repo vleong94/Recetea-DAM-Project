@@ -9,6 +9,7 @@ import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.UnauthorizedRecipeAccessException;
 import com.recetea.core.recipe.domain.vo.*;
+import com.recetea.core.shared.application.ConcurrencyGuard;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
 import com.recetea.core.user.domain.UserId;
@@ -28,7 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AttachMediaUseCase — Almacenamiento, integridad transaccional y seguridad")
+@DisplayName("AttachMediaUseCase — File storage, transactional integrity, and security")
 class AttachMediaUseCaseTest {
 
     @Mock private IRecipeRepository recipeRepository;
@@ -45,25 +46,25 @@ class AttachMediaUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new AttachMediaUseCase(recipeRepository, storageService, transactionManager, sessionService);
+        useCase = new AttachMediaUseCase(recipeRepository, storageService, transactionManager, sessionService,
+                new ConcurrencyGuard(Integer.MAX_VALUE));
 
         lenient().when(transactionManager.execute(any(Supplier.class)))
                 .thenAnswer(inv -> inv.getArgument(0, Supplier.class).get());
     }
 
     private Recipe buildRecipe() {
-        Recipe recipe = new Recipe(
-                AUTHOR_ID,
-                new Category(new CategoryId(1), "Postres"),
-                new Difficulty(new DifficultyId(1), "Fácil"),
-                "Receta de prueba", "Descripción",
-                new PreparationTime(20), new Servings(2));
-        recipe.setId(RECIPE_ID);
-        return recipe;
+        return new Recipe(
+                RECIPE_ID, AUTHOR_ID,
+                new Category(new CategoryId(1), "Desserts"),
+                new Difficulty(new DifficultyId(1), "Easy"),
+                "Test recipe", "Description",
+                new PreparationTime(20), new Servings(2),
+                java.math.BigDecimal.ZERO, 0);
     }
 
     @Test
-    @DisplayName("execute: almacena el archivo, añade media al agregado y persiste dentro de transacción")
+    @DisplayName("execute: stores the file, adds media to the aggregate and persists within a transaction")
     void execute_ShouldStoreAndPersistMedia_OnHappyPath() {
         when(storageService.store(any(), any())).thenReturn(STORED);
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(buildRecipe()));
@@ -77,7 +78,7 @@ class AttachMediaUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: el primer media adjunto es promovido a isMain=true por el agregado")
+    @DisplayName("execute: the first attached media is promoted to isMain=true by the aggregate")
     void execute_ShouldPromoteFirstMediaToMain() {
         when(storageService.store(any(), any())).thenReturn(STORED);
         Recipe recipe = buildRecipe();
@@ -86,11 +87,15 @@ class AttachMediaUseCaseTest {
 
         useCase.execute(RECIPE_ID, new ByteArrayInputStream(new byte[]{1}), "primera.jpg");
 
-        assertTrue(recipe.getMediaItems().get(0).isMain(), "El primer media debe ser promovido a isMain=true");
+        // Capture the post-addMedia aggregate (Recipe is immutable; addMedia returns a new instance).
+        org.mockito.ArgumentCaptor<Recipe> captor = org.mockito.ArgumentCaptor.forClass(Recipe.class);
+        verify(recipeRepository).update(captor.capture());
+        assertTrue(captor.getValue().getMediaItems().get(0).isMain(),
+                "The first media item must be promoted to isMain=true");
     }
 
     @Test
-    @DisplayName("execute: si el DB falla, compensa eliminando el archivo ya almacenado")
+    @DisplayName("execute: compensates by deleting the already-stored file when the transaction fails")
     void execute_ShouldCompensateByDeletingFile_WhenTransactionFails() {
         when(storageService.store(any(), any())).thenReturn(STORED);
         when(transactionManager.execute(any(Supplier.class)))
@@ -102,9 +107,9 @@ class AttachMediaUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: si el storage falla, el repositorio no es invocado")
+    @DisplayName("execute: does not touch the DB when storage fails")
     void execute_ShouldNotTouchDB_WhenStorageFails() {
-        when(storageService.store(any(), any())).thenThrow(new RuntimeException("disco lleno"));
+        when(storageService.store(any(), any())).thenThrow(new RuntimeException("disk full"));
 
         assertThrows(RuntimeException.class, () -> useCase.execute(RECIPE_ID, new ByteArrayInputStream(new byte[]{1}), "foto.jpg"));
 
@@ -113,7 +118,7 @@ class AttachMediaUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: lanza AuthenticationRequiredException si no hay sesión activa")
+    @DisplayName("execute: throws AuthenticationRequiredException when there is no active session")
     void execute_ShouldThrow_WhenNoSession() {
         when(storageService.store(any(), any())).thenReturn(STORED);
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(buildRecipe()));
@@ -127,7 +132,7 @@ class AttachMediaUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: lanza UnauthorizedRecipeAccessException si el usuario no es el autor")
+    @DisplayName("execute: throws UnauthorizedRecipeAccessException when the user is not the author")
     void execute_ShouldThrow_WhenNotOwner() {
         when(storageService.store(any(), any())).thenReturn(STORED);
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(buildRecipe()));
@@ -141,15 +146,29 @@ class AttachMediaUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: lanza IllegalArgumentException si la receta no existe")
+    @DisplayName("execute: throws InvalidRecipeDataException when the recipe does not exist")
     void execute_ShouldThrow_WhenRecipeNotFound() {
         when(storageService.store(any(), any())).thenReturn(STORED);
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(com.recetea.core.recipe.domain.InvalidRecipeDataException.class,
                 () -> useCase.execute(RECIPE_ID, new ByteArrayInputStream(new byte[]{1}), "foto.jpg"));
 
         verify(recipeRepository, never()).update(any());
         verify(storageService).delete(STORED.storageKey());
+    }
+
+    @Test
+    @DisplayName("execute: throws InvalidRecipeDataException carrying every validation failure when inputs are missing")
+    void execute_ShouldAccumulateValidationErrors_WhenInputsAreNull() {
+        com.recetea.core.recipe.domain.InvalidRecipeDataException ex = assertThrows(
+                com.recetea.core.recipe.domain.InvalidRecipeDataException.class,
+                () -> useCase.execute(null, null, " "));
+
+        // ValidationResult is non-short-circuit: all three input failures are reported.
+        java.util.List<String> errors = ex.errors();
+        assertEquals(3, errors.size(), "All three input validations should accumulate; got: " + errors);
+        verify(storageService, never()).store(any(), any());
+        verify(recipeRepository, never()).update(any());
     }
 }

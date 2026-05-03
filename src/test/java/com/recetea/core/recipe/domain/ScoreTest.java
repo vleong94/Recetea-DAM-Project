@@ -8,11 +8,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@DisplayName("Score — Value object: range validation and value preservation")
 class ScoreTest {
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2, 3, 4, 5})
-    @DisplayName("Debe aceptar valores en rango [1-5]")
+    @DisplayName("Should accept values in range [1-5]")
     void shouldAcceptValidRange(int value) {
         assertDoesNotThrow(() -> new Score(value));
         assertEquals(value, new Score(value).value());
@@ -20,13 +21,13 @@ class ScoreTest {
 
     @ParameterizedTest
     @ValueSource(ints = {0, -1, 6, 100})
-    @DisplayName("Debe rechazar valores fuera de rango [1-5]")
+    @DisplayName("Should reject values outside range [1-5]")
     void shouldRejectOutOfRange(int value) {
         assertThrows(IllegalArgumentException.class, () -> new Score(value));
     }
 
     @Test
-    @DisplayName("Debe preservar el valor exacto")
+    @DisplayName("Should preserve the exact value")
     void shouldPreserveValue() {
         assertEquals(3, new Score(3).value());
     }

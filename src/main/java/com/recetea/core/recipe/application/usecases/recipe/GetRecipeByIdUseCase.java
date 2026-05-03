@@ -6,30 +6,58 @@ import com.recetea.core.recipe.application.ports.out.recipe.IRecipeRepository;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.vo.RecipeId;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
+import com.recetea.core.user.application.ports.out.IUserRepository;
 import com.recetea.core.user.domain.UserId;
 
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
+/**
+ * Reads the full recipe aggregate for the detail view — single
+ * LATERAL-JSONB query at the JDBC layer + author-username + the
+ * "already rated by current user" predicate.
+ *
+ * <p>The {@code alreadyRatedByCurrentUser} flag is computed by probing
+ * {@code IRecipeRepository.hasUserRatedRecipe(uid, recipeId)} inside the
+ * same call — the controller uses it to disable
+ * {@code RatingComponent}. Anonymous sessions short-circuit to
+ * {@code false} (no probe).
+ *
+ * <p>Author username is resolved via {@code IUserRepository.findById(...)}
+ * — null when the account has been deleted, in which case the adapter
+ * downstream renders a localised "Desconocido" fallback. The Recipe
+ * domain stays free of UI display strings.
+ *
+ * <p><b>ES — </b>Lee el agregado completo de receta para la vista de
+ * detalle — una única consulta LATERAL-JSONB en la capa JDBC + el
+ * username del autor + el predicado "ya valorado por el usuario
+ * actual".
+ *
+ * <p>El flag {@code alreadyRatedByCurrentUser} lo calcula sondeando
+ * {@code IRecipeRepository.hasUserRatedRecipe(uid, recipeId)} dentro
+ * de la misma llamada — el controlador lo usa para deshabilitar
+ * {@code RatingComponent}. Las sesiones anónimas corto-circuitan a
+ * {@code false} (sin sondeo).
+ *
+ * <p>El username del autor se resuelve vía
+ * {@code IUserRepository.findById(...)} — null cuando la cuenta ha
+ * sido eliminada, en cuyo caso el adaptador aguas abajo renderiza
+ * un fallback localizado "Desconocido". El dominio Recipe se
+ * mantiene libre de cadenas de presentación de UI.
+ */
 public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
 
-    private final IRecipeRepository repository;
+    private final IRecipeRepository  repository;
+    private final IUserRepository    userRepository;
     private final IUserSessionService sessionService;
-    // Virtual-thread executor — the blocking JDBC call parks the VT without occupying a carrier.
-    private final Executor executor;
 
-    public GetRecipeByIdUseCase(IRecipeRepository repository, IUserSessionService sessionService,
-                                Executor executor) {
+    public GetRecipeByIdUseCase(IRecipeRepository repository,
+                                IUserRepository userRepository,
+                                IUserSessionService sessionService) {
         this.repository     = repository;
+        this.userRepository = userRepository;
         this.sessionService = sessionService;
-        this.executor       = executor;
     }
 
-    /**
-     * Synchronous entry point kept for callers that already run on a background / virtual thread
-     * (e.g. inside a JavaFX {@code Task}).
-     */
     @Override
     public Optional<RecipeDetailResponse> execute(RecipeId recipeId) {
         Optional<UserId> currentUser = sessionService.getCurrentUserId();
@@ -37,26 +65,25 @@ public class GetRecipeByIdUseCase implements IGetRecipeByIdUseCase {
                 .map(recipe -> mapToResponse(recipe, currentUser));
     }
 
-    /**
-     * Async entry point — submits the blocking repository call to the virtual-thread executor
-     * so the caller (e.g. the FX thread) is never blocked.
-     */
-    public CompletableFuture<Optional<RecipeDetailResponse>> executeAsync(RecipeId recipeId) {
-        return CompletableFuture.supplyAsync(() -> execute(recipeId), executor);
-    }
-
     private RecipeDetailResponse mapToResponse(Recipe recipe, Optional<UserId> currentUser) {
         boolean alreadyRated = currentUser
                 .map(uid -> repository.hasUserRatedRecipe(uid, recipe.getId()))
                 .orElse(false);
 
+        // Author username comes from the User aggregate; null if the account was deleted.
+        // The UI surface shows a localised "Desconocido" fallback for that case.
+        String authorUsername = userRepository.findById(recipe.getAuthorId())
+                .map(u -> u.username().value())
+                .orElse(null);
+
         return new RecipeDetailResponse(
                 recipe.getId(),
                 recipe.getAuthorId(),
-                recipe.getCategory().getId(),
-                recipe.getCategory().getName(),
-                recipe.getDifficulty().getId(),
-                recipe.getDifficulty().getName(),
+                authorUsername,
+                recipe.getCategory().id(),
+                recipe.getCategory().name(),
+                recipe.getDifficulty().id(),
+                recipe.getDifficulty().name(),
                 recipe.getTitle(),
                 recipe.getDescription(),
                 recipe.getPreparationTimeMinutes().value(),

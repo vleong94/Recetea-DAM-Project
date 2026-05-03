@@ -14,17 +14,9 @@
                   wrapText="true"/>
 
         <HBox spacing="10.0" alignment="CENTER_LEFT">
-            <Button text="%step.button.add"
-                    onAction="#onAddStepClick"
-                    styleClass="button-add"/>
-
-            <Button text="%button.update"
-                    onAction="#onUpdateStepClick"
-                    styleClass="button-update"/>
-
-            <Button text="%button.delete"
-                    onAction="#onDeleteStepClick"
-                    styleClass="danger-button"/>
+            <Button fx:id="btnAddStep"    text="%step.button.add" onAction="#onAddStepClick"    styleClass="button-add"/>
+            <Button fx:id="btnUpdateStep" text="%button.update"   onAction="#onUpdateStepClick" styleClass="button-update"/>
+            <Button fx:id="btnDeleteStep" text="%button.delete"   onAction="#onDeleteStepClick" styleClass="danger-button"/>
         </HBox>
     </VBox>
 

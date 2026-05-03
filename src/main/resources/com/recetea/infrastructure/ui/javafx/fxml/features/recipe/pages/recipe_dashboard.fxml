@@ -2,110 +2,175 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.SVGPath?>
 
-<VBox spacing="16.0" maxWidth="Infinity" maxHeight="Infinity"
-      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeDashboardController">
+<AnchorPane maxWidth="Infinity" maxHeight="Infinity"
+            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeDashboardController">
 
-    <padding>
-        <Insets bottom="20.0" left="24.0" right="24.0" top="20.0" />
-    </padding>
+    <!-- ── Page content fills the AnchorPane above the bottom action bar ─── -->
+    <VBox spacing="16.0"
+          AnchorPane.topAnchor="0.0" AnchorPane.leftAnchor="0.0"
+          AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="80.0">
+        <padding>
+            <Insets bottom="20.0" left="24.0" right="24.0" top="20.0" />
+        </padding>
 
-    <!-- ── Header ──────────────────────────────────────────────────────── -->
-    <HBox alignment="CENTER_LEFT" spacing="10.0">
-        <Label text="%dashboard.title" styleClass="header-label" HBox.hgrow="ALWAYS" />
-        <Button text="%nav.profile" styleClass="secondary-button" onAction="#onProfileButtonClick" />
-        <Button text="%nav.logout" styleClass="secondary-button" onAction="#onLogoutButtonClick" />
-    </HBox>
-
-    <!-- ── Search bar + filter drawer ─────────────────────────────────── -->
-    <VBox styleClass="glass-card" spacing="12.0">
-
-        <HBox spacing="10.0" alignment="CENTER_LEFT">
-            <TextField fx:id="searchField"
-                       promptText="%dashboard.search.prompt"
-                       HBox.hgrow="ALWAYS" />
-            <Button text="%dashboard.button.clearFilters" styleClass="secondary-button"
-                    onAction="#onClearSearch" />
+        <!-- ── Header (title only; hamburger lives in the floating fx:include below) -->
+        <HBox alignment="CENTER_LEFT" spacing="10.0">
+            <padding>
+                <Insets right="80.0" />
+            </padding>
+            <Label text="%dashboard.title" styleClass="header-label" HBox.hgrow="ALWAYS" />
         </HBox>
 
-        <TitledPane fx:id="filterPane" text="%dashboard.filters.title" expanded="false"
-                    styleClass="filter-drawer">
-            <GridPane hgap="16.0" vgap="10.0">
+        <!-- ── Unified search pill: TextField + clear ✕ + Filtros toggle ──────── -->
+        <VBox spacing="12.0">
+
+            <HBox spacing="6.0" alignment="CENTER_LEFT">
+                <TextField fx:id="searchField"
+                           promptText="%dashboard.search.prompt"
+                           HBox.hgrow="ALWAYS" />
+                <Button fx:id="clearSearchButton" text="✕"
+                        styleClass="flat"
+                        onAction="#onClearSearchText"
+                        visible="false" managed="false" />
+                <ToggleButton fx:id="filterToggle" text="%dashboard.filters.title"
+                              styleClass="ghost-toggle" />
+            </HBox>
+
+            <!-- Active ingredient chips. visible/managed when non-empty (controller). -->
+            <FlowPane fx:id="ingredientChipsContainer" hgap="8.0" vgap="8.0">
                 <padding>
-                    <Insets top="10.0" bottom="4.0" />
+                    <Insets top="10.0" right="0.0" bottom="10.0" left="0.0" />
                 </padding>
-                <columnConstraints>
-                    <ColumnConstraints minWidth="80.0" />
-                    <ColumnConstraints hgrow="ALWAYS" minWidth="110.0" />
-                    <ColumnConstraints minWidth="80.0" />
-                    <ColumnConstraints hgrow="ALWAYS" minWidth="110.0" />
-                </columnConstraints>
+            </FlowPane>
 
-                <Label text="%field.label.category" styleClass="field-label"
-                       GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                <TextField fx:id="categoryFilter" promptText="%dashboard.filter.category.prompt"
-                           GridPane.columnIndex="1" GridPane.rowIndex="0"
-                           GridPane.hgrow="ALWAYS" />
+            <!-- Advanced filter panel: visible/managed slaved to filterToggle.selected. -->
+            <VBox fx:id="filterPanel" spacing="12.0" styleClass="filter-drawer"
+                  visible="false" managed="false">
+                <padding>
+                    <Insets top="10.0" bottom="10.0" left="10.0" right="10.0" />
+                </padding>
 
-                <Label text="%field.label.difficulty" styleClass="field-label"
-                       GridPane.columnIndex="2" GridPane.rowIndex="0" />
-                <TextField fx:id="difficultyFilter" promptText="%dashboard.filter.difficulty.prompt"
-                           GridPane.columnIndex="3" GridPane.rowIndex="0"
-                           GridPane.hgrow="ALWAYS" />
+                <GridPane hgap="16.0" vgap="10.0">
+                    <columnConstraints>
+                        <ColumnConstraints minWidth="80.0" />
+                        <ColumnConstraints hgrow="ALWAYS" minWidth="110.0" />
+                        <ColumnConstraints minWidth="80.0" />
+                        <ColumnConstraints hgrow="ALWAYS" minWidth="110.0" />
+                    </columnConstraints>
 
-                <Label text="%field.label.ingredient" styleClass="field-label"
-                       GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                <TextField fx:id="ingredientFilter" promptText="%dashboard.filter.ingredient.prompt"
-                           GridPane.columnIndex="1" GridPane.rowIndex="1"
-                           GridPane.hgrow="ALWAYS" />
+                    <Label text="%field.label.category" styleClass="field-label"
+                           GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                    <ComboBox fx:id="categoryFilter" promptText="%dashboard.filter.category.prompt"
+                              maxWidth="Infinity"
+                              GridPane.columnIndex="1" GridPane.rowIndex="0"
+                              GridPane.hgrow="ALWAYS" />
 
-                <Label text="%field.label.author" styleClass="field-label"
-                       GridPane.columnIndex="2" GridPane.rowIndex="1" />
-                <TextField fx:id="authorFilter" promptText="%dashboard.filter.author.prompt"
-                           GridPane.columnIndex="3" GridPane.rowIndex="1"
-                           GridPane.hgrow="ALWAYS" />
-            </GridPane>
-        </TitledPane>
+                    <Label text="%field.label.difficulty" styleClass="field-label"
+                           GridPane.columnIndex="2" GridPane.rowIndex="0" />
+                    <ComboBox fx:id="difficultyFilter"
+                              maxWidth="Infinity"
+                              GridPane.columnIndex="3" GridPane.rowIndex="0"
+                              GridPane.hgrow="ALWAYS" />
+
+                    <Label text="%field.label.ingredient" styleClass="field-label"
+                           GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                    <ComboBox fx:id="ingredientFilter" promptText="%dashboard.filter.ingredients.prompt"
+                              maxWidth="Infinity"
+                              GridPane.columnIndex="1" GridPane.rowIndex="1"
+                              GridPane.hgrow="ALWAYS" />
+
+                    <Label text="%field.label.author" styleClass="field-label"
+                           GridPane.columnIndex="2" GridPane.rowIndex="1" />
+                    <ComboBox fx:id="authorFilter" promptText="%dashboard.filter.author.prompt"
+                              maxWidth="Infinity"
+                              GridPane.columnIndex="3" GridPane.rowIndex="1"
+                              GridPane.hgrow="ALWAYS" />
+
+                    <Label text="%field.label.score" styleClass="field-label"
+                           GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                    <HBox fx:id="ratingStarContainer" alignment="CENTER_LEFT" spacing="4.0"
+                          GridPane.columnIndex="1" GridPane.rowIndex="2"
+                          GridPane.hgrow="ALWAYS" />
+                </GridPane>
+
+                <!-- Clear-all button only — Search button removed; filtering is live. -->
+                <HBox alignment="CENTER_RIGHT" spacing="10.0">
+                    <Button text="%dashboard.button.clearFilters" styleClass="button-outlined"
+                            onAction="#onClearSearch" />
+                </HBox>
+            </VBox>
+
+        </VBox>
+
+        <!-- ── Recipe card gallery + Empty State (StackPane sibling layer) ─── -->
+        <StackPane VBox.vgrow="ALWAYS">
+            <ScrollPane fx:id="galleryScroll" fitToWidth="true">
+                <FlowPane fx:id="recipeContainer" hgap="20.0" vgap="20.0">
+                    <padding>
+                        <Insets bottom="8.0" left="4.0" right="4.0" top="8.0" />
+                    </padding>
+                </FlowPane>
+            </ScrollPane>
+
+            <!-- Empty state: visibility bound to Bindings.isEmpty(filteredRecipes). -->
+            <VBox fx:id="emptyStateView" alignment="CENTER" spacing="14.0"
+                  styleClass="glass-card"
+                  visible="false" managed="false">
+                <padding>
+                    <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+                </padding>
+                <SVGPath styleClass="empty-state-icon"
+                         content="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                <Label text="%dashboard.empty.title" styleClass="section-header" />
+                <Label text="%dashboard.empty.message" styleClass="text-caption" wrapText="true" />
+                <Button text="%dashboard.button.clearFilters"
+                        styleClass="state-danger"
+                        onAction="#onClearSearch" />
+            </VBox>
+        </StackPane>
 
     </VBox>
 
-    <!-- ── Empty-state placeholder ─────────────────────────────────────── -->
-    <VBox fx:id="emptyPlaceholder" alignment="CENTER" spacing="8.0"
-          visible="false" managed="false" VBox.vgrow="ALWAYS"
-          styleClass="glass-card">
-        <Label text="⊘" styleClass="empty-state-icon" />
-        <Label text="%dashboard.empty.title" styleClass="section-header" />
-        <Label text="%dashboard.empty.message" styleClass="text-caption" />
-    </VBox>
+    <!-- ── Shared top-right hamburger menu ──────────────────────────────── -->
+    <fx:include fx:id="userHeader"
+                source="../../../shared/components/user_header.fxml"
+                AnchorPane.topAnchor="15.0" AnchorPane.rightAnchor="15.0" />
 
-    <!-- ── Recipe card gallery ────────────────────────────────────────── -->
-    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
-        <FlowPane fx:id="recipeContainer" hgap="20.0" vgap="20.0">
-            <padding>
-                <Insets bottom="8.0" left="4.0" right="4.0" top="8.0" />
-            </padding>
-        </FlowPane>
-    </ScrollPane>
+    <!-- ── Unified bottom action bar (no Volver — dashboard is the home page). -->
+    <HBox fx:id="bottomActionBar" alignment="CENTER_LEFT" spacing="15.0"
+          styleClass="detail-action-bar"
+          AnchorPane.bottomAnchor="0.0"
+          AnchorPane.leftAnchor="0.0"
+          AnchorPane.rightAnchor="0.0">
+        <padding>
+            <Insets top="20.0" right="20.0" bottom="20.0" left="20.0" />
+        </padding>
 
-    <!-- ── Action bar ───────────────────────────────────────────────────── -->
-    <HBox alignment="CENTER_RIGHT" spacing="10.0">
-        <Button fx:id="globalReportButton" text="%dashboard.button.exportFavorites"
-                styleClass="secondary-button" disable="true"
-                onAction="#onGlobalReportButtonClick" />
-        <Button text="%dashboard.button.importRecipe" styleClass="secondary-button"
-                onAction="#onImportButtonClick" />
-        <Button text="%dashboard.button.newRecipe" styleClass="primary-button"
-                onAction="#onCreateButtonClick" />
+        <Region HBox.hgrow="ALWAYS" />
+
+        <Button fx:id="btnNewRecipe" text="%dashboard.button.newRecipe"
+                styleClass="primary-button" prefHeight="36.0"
+                onAction="#onCreateButtonClick">
+            <graphic>
+                <SVGPath content="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
+                         style="-fx-fill: white;" />
+            </graphic>
+        </Button>
     </HBox>
-
-</VBox>
+</AnchorPane>

@@ -1,0 +1,89 @@
+@startchen
+' ENTITIES (Rectangles)
+entity users {
+  user_id <<key>>
+  username
+  email
+  password_hash
+  created_at
+}
+
+entity recipes {
+  recipe_id <<key>>
+  title
+  description
+  prep_time_min
+  servings
+  average_score
+  total_ratings
+}
+
+entity ingredients {
+  ingredient_id <<key>>
+  name
+}
+
+entity categories {
+  category_id <<key>>
+  name
+}
+
+entity difficulties {
+  difficulty_id <<key>>
+  difficulty_level
+}
+
+entity steps {
+  step_id <<key>>
+  step_order
+  instruction
+}
+
+entity recipe_media {
+  media_id <<key>>
+  storage_key
+  storage_provider
+  mime_type
+  size_bytes
+}
+
+' RELATIONSHIPS (Diamonds)
+relationship publishes {
+}
+
+relationship classifies {
+}
+
+relationship defines_level {
+}
+
+relationship contains {
+}
+
+relationship has_media {
+}
+
+relationship recipe_ingredients {
+  quantity
+}
+
+' CONNECTIONS
+users -1- publishes
+publishes -N- recipes
+
+categories -1- classifies
+classifies -N- recipes
+
+difficulties -1- defines_level
+defines_level -N- recipes
+
+recipes -1- contains
+contains -N- steps
+
+recipes -1- has_media
+has_media -N- recipe_media
+
+recipes -N- recipe_ingredients
+recipe_ingredients -N- ingredients
+
+@endchen

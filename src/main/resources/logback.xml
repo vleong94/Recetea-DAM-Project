@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
+    <!-- Global sensitive-data scrubber: strips BCrypt hashes and JWT-shaped tokens
+         (e.g. Supabase service-role keys) from every formatted message before it
+         reaches an appender. Last-line-of-defence for cases where a developer
+         forgets to wrap a value in MaskingUtils at the call site, or where a
+         pre-formatted string from a third-party library carries the secret. -->
+    <conversionRule conversionWord="mask"
+                    class="com.recetea.infrastructure.logging.SensitiveDataMaskingConverter"/>
+
     <property name="LOG_DIR"     value="logs"/>
-    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n"/>
+    <!-- TraceID + User: both keys populated by ExecutionContext.withFreshContext.
+         Defaults: NONE (no scope active) and 'anonymous' (logged-out / pre-login flow).
+         %n is folded INSIDE the %mask(...) composite: Logback 1.5.32's pattern compiler
+         occasionally fails to re-enter the converter chain after a CompositeConverter, so
+         %n placed outside the composite was being emitted as the literal two characters
+         '%' and 'n'. Folding it inside lets the composite's child chain render the newline
+         and the masking transform leaves the trailing line break untouched. -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} [TraceID: %X{correlationId:-NONE}] [User: %X{userId:-anonymous}] - %mask(%msg%n)"/>
 
     <!-- Console: coloured, concise — used in development and Docker stdout -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">

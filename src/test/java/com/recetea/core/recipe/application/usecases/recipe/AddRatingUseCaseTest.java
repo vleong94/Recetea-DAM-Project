@@ -8,6 +8,7 @@ import com.recetea.core.recipe.domain.Category;
 import com.recetea.core.recipe.domain.Difficulty;
 import com.recetea.core.recipe.domain.Recipe;
 import com.recetea.core.recipe.domain.vo.*;
+import com.recetea.core.shared.application.ConcurrencyGuard;
 import com.recetea.core.shared.application.ports.in.IUserSessionService;
 import com.recetea.core.shared.application.ports.out.ITransactionManager;
 import com.recetea.core.user.domain.UserId;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -26,7 +28,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AddRatingUseCase — Integridad transaccional y cumplimiento de invariantes")
+@DisplayName("AddRatingUseCase — Transactional integrity and invariant enforcement")
 class AddRatingUseCaseTest {
 
     @Mock private IRecipeRepository recipeRepository;
@@ -41,42 +43,44 @@ class AddRatingUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new AddRatingUseCase(recipeRepository, transactionManager, sessionService);
+        useCase = new AddRatingUseCase(recipeRepository, transactionManager, sessionService,
+                new ConcurrencyGuard(Integer.MAX_VALUE));
 
         when(transactionManager.execute(any(Supplier.class)))
                 .thenAnswer(inv -> inv.getArgument(0, Supplier.class).get());
     }
 
     private Recipe buildRecipe() {
-        Recipe recipe = new Recipe(
-                AUTHOR_ID,
-                new Category(new CategoryId(1), "Postres"),
-                new Difficulty(new DifficultyId(1), "Fácil"),
-                "Receta de Prueba", "Descripción",
-                new PreparationTime(20),
-                new Servings(2));
-        recipe.setId(RECIPE_ID);
-        return recipe;
+        return new Recipe(
+                RECIPE_ID, AUTHOR_ID,
+                new Category(new CategoryId(1), "Desserts"),
+                new Difficulty(new DifficultyId(1), "Easy"),
+                "Test Recipe", "Description",
+                new PreparationTime(20), new Servings(2),
+                java.math.BigDecimal.ZERO, 0);
     }
 
     @Test
-    @DisplayName("execute: camino feliz — delega en el agregado y persiste dentro de transacción")
+    @DisplayName("execute: happy path — delegates to the aggregate and persists within a transaction")
     void execute_ShouldSucceed_WhenValidDataProvided() {
         Recipe recipe = buildRecipe();
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(recipe));
         when(sessionService.getCurrentUserId()).thenReturn(Optional.of(VOTER_ID));
 
-        AddRatingRequest request = new AddRatingRequest(RECIPE_ID, new Score(5), "Excelente receta");
+        AddRatingRequest request = new AddRatingRequest(RECIPE_ID, new Score(5), "Excellent recipe");
 
         useCase.execute(request);
 
-        // Domain invariant: rating was added to the aggregate
-        assertEquals(1, recipe.getRatings().size(), "El agregado debe contener la valoración añadida");
-        assertEquals(VOTER_ID, recipe.getRatings().get(0).getUserId());
-        assertEquals(5, recipe.getRatings().get(0).getScore().value());
+        // Recipe is an immutable record: addRating returns a new aggregate carrying the
+        // rating. The original `recipe` mock-stub return is unchanged. Capture the
+        // instance handed to update() to inspect post-rating state.
+        ArgumentCaptor<Recipe> captor = ArgumentCaptor.forClass(Recipe.class);
+        verify(recipeRepository, times(1)).update(captor.capture());
+        Recipe persisted = captor.getValue();
+        assertEquals(1, persisted.getRatings().size(), "The persisted aggregate must contain the added rating");
+        assertEquals(VOTER_ID, persisted.getRatings().get(0).userId());
+        assertEquals(5, persisted.getRatings().get(0).score().value());
 
-        // Repository must delegate the full update (which handles metrics via dirty flag)
-        verify(recipeRepository, times(1)).update(eq(recipe));
         verify(recipeRepository, never()).updateSocialMetrics(any(), any(), anyInt());
 
         // Transaction boundary must have been entered
@@ -84,29 +88,29 @@ class AddRatingUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: lanza excepción y no persiste si la receta no existe")
+    @DisplayName("execute: throws RecipeNotFoundException and does not persist when the recipe does not exist")
     void execute_ShouldThrowException_WhenRecipeDoesNotExist() {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.empty());
 
-        AddRatingRequest request = new AddRatingRequest(RECIPE_ID, new Score(4), "Comentario");
+        AddRatingRequest request = new AddRatingRequest(RECIPE_ID, new Score(4), "Comment");
 
         assertThrows(RecipeNotFoundException.class, () -> useCase.execute(request),
-                "Debe lanzar RecipeNotFoundException cuando la receta no existe");
+                "Must throw RecipeNotFoundException when the recipe does not exist");
 
         verify(recipeRepository, never()).update(any());
         verify(recipeRepository, never()).updateSocialMetrics(any(), any(), anyInt());
     }
 
     @Test
-    @DisplayName("execute: lanza AuthenticationRequiredException si no hay usuario en sesión")
+    @DisplayName("execute: throws AuthenticationRequiredException when no user is in session")
     void execute_ShouldThrowAuthenticationRequiredException_WhenSessionIsEmpty() {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(buildRecipe()));
         when(sessionService.getCurrentUserId()).thenReturn(Optional.empty());
 
-        AddRatingRequest request = new AddRatingRequest(RECIPE_ID, new Score(5), "Comentario");
+        AddRatingRequest request = new AddRatingRequest(RECIPE_ID, new Score(5), "Comment");
 
         assertThrows(AuthenticationRequiredException.class, () -> useCase.execute(request),
-                "Debe lanzar AuthenticationRequiredException cuando la sesión está vacía");
+                "Must throw AuthenticationRequiredException when the session is empty");
 
         verify(recipeRepository, never()).update(any());
         verify(recipeRepository, never()).updateSocialMetrics(any(), any(), anyInt());

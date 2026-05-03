@@ -4,32 +4,57 @@
 <?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
+<!-- Same structure as login.fxml — outer StackPane is the scene root and carries
+     the .root gradient; transparent ScrollPane nested inside provides scroll. -->
 <StackPane alignment="CENTER" maxWidth="Infinity" maxHeight="Infinity"
            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="com.recetea.infrastructure.ui.javafx.features.identity.controllers.RegisterController">
 
-    <VBox styleClass="auth-card" alignment="CENTER" maxWidth="360.0">
+    <ScrollPane fitToWidth="true" fitToHeight="true"
+                hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
+                styleClass="edge-to-edge">
 
-        <Label text="%register.title" styleClass="header-label" />
+        <StackPane alignment="CENTER">
 
-        <TextField fx:id="usernameField" promptText="%register.field.username.prompt" maxWidth="Infinity" />
+            <!-- spacing=12 overrides the .auth-card CSS-derived 16 to keep the
+                 form compact. The error label below sits between the last input
+                 and the submit button so vertical jumps are visually contained. -->
+            <VBox styleClass="auth-card" alignment="CENTER" maxWidth="360.0" spacing="12.0">
 
-        <TextField fx:id="emailField" promptText="%register.field.email.prompt" maxWidth="Infinity" />
+                <Label text="%register.title" styleClass="header-label" />
 
-        <PasswordField fx:id="passwordField" promptText="%login.field.password.prompt" maxWidth="Infinity" />
+                <TextField fx:id="usernameField" promptText="%register.field.username.prompt" maxWidth="Infinity" />
 
-        <PasswordField fx:id="confirmPasswordField" promptText="%register.field.confirmPassword.prompt" maxWidth="Infinity" />
+                <TextField fx:id="emailField" promptText="%register.field.email.prompt" maxWidth="Infinity" />
 
-        <Label fx:id="errorLabel" text="" styleClass="error-label" maxWidth="Infinity" wrapText="true" />
+                <PasswordField fx:id="passwordField" promptText="%login.field.password.prompt" maxWidth="Infinity" />
 
-        <Button text="%register.button.submit" styleClass="primary-button" maxWidth="Infinity" onAction="#onRegisterButtonClick" />
+                <PasswordField fx:id="confirmPasswordField" promptText="%register.field.confirmPassword.prompt" maxWidth="Infinity" />
 
-        <Hyperlink text="%register.link.login" onAction="#onBackToLoginLinkClick" />
+                <!-- Single global error label, sits directly above the submit
+                     button. visible/managed=false by default so it occupies ZERO
+                     vertical space when empty (no layout jump on initial render).
+                     Controller flips both flags when an error needs to surface. -->
+                <Label fx:id="lblGlobalError" text="" styleClass="error-label"
+                       maxWidth="Infinity" wrapText="true"
+                       visible="false" managed="false" />
 
-    </VBox>
+                <!-- defaultButton="true" → pressing Enter from any field in this scene
+                     fires the same handler as a click. Mirrors login.fxml's submit button. -->
+                <Button text="%register.button.submit" styleClass="primary-button" maxWidth="Infinity"
+                        defaultButton="true" onAction="#onRegisterButtonClick" />
+
+                <Hyperlink text="%register.link.login" onAction="#onBackToLoginLinkClick" />
+
+            </VBox>
+
+        </StackPane>
+
+    </ScrollPane>
 
 </StackPane>

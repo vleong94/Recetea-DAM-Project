@@ -12,9 +12,9 @@
         <ComboBox fx:id="unitComboBox" promptText="%ingredient.field.unit.prompt" prefWidth="100.0"/>
         <TextField fx:id="quantityField" promptText="%ingredient.field.quantity.prompt" prefWidth="80.0"/>
 
-        <Button text="%button.add"    onAction="#onAddClick"    styleClass="button-add"/>
-        <Button text="%button.update" onAction="#onUpdateClick" styleClass="button-update"/>
-        <Button text="%button.delete" onAction="#onDeleteClick"  styleClass="danger-button"/>
+        <Button fx:id="btnAdd"    text="%button.add"    onAction="#onAddClick"    styleClass="button-add"/>
+        <Button fx:id="btnUpdate" text="%button.update" onAction="#onUpdateClick" styleClass="button-update"/>
+        <Button fx:id="btnDelete" text="%button.delete" onAction="#onDeleteClick" styleClass="danger-button"/>
     </HBox>
 
     <TableView fx:id="ingredientsTable" onMouseClicked="#onTableClick" VBox.vgrow="ALWAYS" prefHeight="200.0">
@@ -23,5 +23,12 @@
             <TableColumn fx:id="colUnit" text="%column.unit" prefWidth="100.0"/>
             <TableColumn fx:id="colQuantity" text="%column.quantity" prefWidth="100.0"/>
         </columns>
+
+        <!-- Empty-state copy (mirrors the step_table.fxml placeholder pattern). Without
+             this declaration JavaFX renders its built-in English "No content in table"
+             string when the recipe has zero ingredients. -->
+        <placeholder>
+            <Label text="%ingredient.table.placeholder"/>
+        </placeholder>
     </TableView>
 </fx:root>

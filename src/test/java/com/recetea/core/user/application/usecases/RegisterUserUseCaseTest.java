@@ -6,6 +6,7 @@ import com.recetea.core.user.application.ports.in.dto.UserResponse;
 import com.recetea.core.user.application.ports.out.IPasswordEncoder;
 import com.recetea.core.user.application.ports.out.IUserRepository;
 import com.recetea.core.user.domain.DuplicateIdentityException;
+import com.recetea.core.user.domain.InvalidUserDataException;
 import com.recetea.core.user.domain.User;
 import com.recetea.core.user.domain.UserId;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +25,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("RegisterUserUseCase — Registro de cuentas e integridad de identidad")
+@DisplayName("RegisterUserUseCase — Account registration and identity integrity")
 class RegisterUserUseCaseTest {
 
     @Mock private IUserRepository userRepository;
@@ -38,73 +39,146 @@ class RegisterUserUseCaseTest {
     @BeforeEach
     void setUp() {
         useCase = new RegisterUserUseCase(userRepository, passwordEncoder, transactionManager);
-
-        when(transactionManager.execute(any(Supplier.class)))
-                .thenAnswer(inv -> inv.getArgument(0, Supplier.class).get());
     }
 
+    // ── Happy path ────────────────────────────────────────────────────────────
+
     @Test
-    @DisplayName("execute: camino feliz — codifica la contraseña y persiste el usuario")
+    @DisplayName("execute: happy path — encodes the password and persists the user")
     void execute_ShouldEncodePasswordAndSaveUser() {
+        when(transactionManager.execute(any(Supplier.class)))
+                .thenAnswer(inv -> inv.getArgument(0, Supplier.class).get());
         when(userRepository.findByUsername("victor")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("victor@example.com")).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("secret")).thenReturn(VALID_HASH);
-        doAnswer(inv -> { ((User) inv.getArgument(0)).setId(new UserId(1)); return null; })
-                .when(userRepository).save(any(User.class));
+        when(passwordEncoder.encode("secret12")).thenReturn(VALID_HASH);
+        when(userRepository.save(any(User.class))).thenReturn(new UserId(1));
 
-        RegisterUserRequest request = new RegisterUserRequest("victor", "victor@example.com", "secret");
+        RegisterUserRequest request = new RegisterUserRequest("victor", "victor@example.com", "secret12");
         UserResponse response = useCase.execute(request);
 
-        // Encoder must have been called with the plain password
-        verify(passwordEncoder, times(1)).encode("secret");
+        verify(passwordEncoder, times(1)).encode("secret12");
 
-        // Repository must receive a user whose hash is the encoded value
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
-        assertEquals(VALID_HASH, captor.getValue().getPasswordHash());
+        assertEquals(VALID_HASH, captor.getValue().passwordHash().value());
 
-        // Response must not expose the hash
         assertEquals(1, response.id().value());
         assertEquals("victor", response.username());
         assertEquals("victor@example.com", response.email());
     }
 
     @Test
-    @DisplayName("execute: lanza DuplicateIdentityException si el username ya existe")
-    void execute_ShouldThrow_WhenUsernameIsTaken() {
-        when(userRepository.findByUsername("victor")).thenReturn(Optional.of(mock(User.class)));
-
-        RegisterUserRequest request = new RegisterUserRequest("victor", "new@example.com", "secret");
-
-        assertThrows(DuplicateIdentityException.class, () -> useCase.execute(request));
-        verify(userRepository, never()).save(any());
-        verify(passwordEncoder, never()).encode(any());
-    }
-
-    @Test
-    @DisplayName("execute: lanza DuplicateIdentityException si el email ya existe")
-    void execute_ShouldThrow_WhenEmailIsTaken() {
-        when(userRepository.findByUsername("newuser")).thenReturn(Optional.empty());
-        when(userRepository.findByEmail("taken@example.com")).thenReturn(Optional.of(mock(User.class)));
-
-        RegisterUserRequest request = new RegisterUserRequest("newuser", "taken@example.com", "secret");
-
-        assertThrows(DuplicateIdentityException.class, () -> useCase.execute(request));
-        verify(userRepository, never()).save(any());
-        verify(passwordEncoder, never()).encode(any());
-    }
-
-    @Test
-    @DisplayName("execute: la transacción debe enmarcar toda la operación")
+    @DisplayName("execute: the transaction must wrap the entire operation")
     void execute_ShouldRunInsideTransaction() {
+        when(transactionManager.execute(any(Supplier.class)))
+                .thenAnswer(inv -> inv.getArgument(0, Supplier.class).get());
         when(userRepository.findByUsername(any())).thenReturn(Optional.empty());
         when(userRepository.findByEmail(any())).thenReturn(Optional.empty());
         when(passwordEncoder.encode(any())).thenReturn(VALID_HASH);
-        doAnswer(inv -> { ((User) inv.getArgument(0)).setId(new UserId(2)); return null; })
-                .when(userRepository).save(any(User.class));
+        when(userRepository.save(any(User.class))).thenReturn(new UserId(2));
 
-        useCase.execute(new RegisterUserRequest("ana", "ana@example.com", "pass"));
+        useCase.execute(new RegisterUserRequest("ana", "ana@example.com", "password"));
 
         verify(transactionManager, times(1)).execute(any(Supplier.class));
+    }
+
+    // ── Duplicate identity ────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("execute: throws DuplicateIdentityException when the username is already taken")
+    void execute_ShouldThrow_WhenUsernameIsTaken() {
+        when(transactionManager.execute(any(Supplier.class)))
+                .thenAnswer(inv -> inv.getArgument(0, Supplier.class).get());
+        when(userRepository.findByUsername("victor")).thenReturn(Optional.of(mock(User.class)));
+
+        RegisterUserRequest request = new RegisterUserRequest("victor", "new@example.com", "password");
+
+        assertThrows(DuplicateIdentityException.class, () -> useCase.execute(request));
+        verify(userRepository, never()).save(any());
+        verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    @DisplayName("execute: throws DuplicateIdentityException when the email is already taken")
+    void execute_ShouldThrow_WhenEmailIsTaken() {
+        when(transactionManager.execute(any(Supplier.class)))
+                .thenAnswer(inv -> inv.getArgument(0, Supplier.class).get());
+        when(userRepository.findByUsername("newuser")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("taken@example.com")).thenReturn(Optional.of(mock(User.class)));
+
+        RegisterUserRequest request = new RegisterUserRequest("newuser", "taken@example.com", "password");
+
+        assertThrows(DuplicateIdentityException.class, () -> useCase.execute(request));
+        verify(userRepository, never()).save(any());
+        verify(passwordEncoder, never()).encode(any());
+    }
+
+    // ── Input validation ──────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("execute: throws InvalidUserDataException when the username is too short")
+    void execute_ShouldThrow_WhenUsernameIsTooShort() {
+        RegisterUserRequest request = new RegisterUserRequest("ab", "valid@example.com", "password");
+
+        InvalidUserDataException ex = assertThrows(InvalidUserDataException.class,
+                () -> useCase.execute(request));
+
+        assertEquals(1, ex.getErrors().size());
+        assertTrue(ex.getErrors().get(0).toLowerCase().contains("username"));
+        verifyNoInteractions(transactionManager, userRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("execute: throws InvalidUserDataException when the email format is invalid")
+    void execute_ShouldThrow_WhenEmailFormatIsInvalid() {
+        RegisterUserRequest request = new RegisterUserRequest("victor", "not-an-email", "password");
+
+        InvalidUserDataException ex = assertThrows(InvalidUserDataException.class,
+                () -> useCase.execute(request));
+
+        assertEquals(1, ex.getErrors().size());
+        assertTrue(ex.getErrors().get(0).toLowerCase().contains("email"));
+        verifyNoInteractions(transactionManager, userRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("execute: accumulates all errors when multiple fields are invalid")
+    void execute_ShouldAccumulateErrors_WhenMultipleFieldsInvalid() {
+        RegisterUserRequest request = new RegisterUserRequest("ab", "not-an-email", "password");
+
+        InvalidUserDataException ex = assertThrows(InvalidUserDataException.class,
+                () -> useCase.execute(request));
+
+        assertEquals(2, ex.getErrors().size());
+        verifyNoInteractions(transactionManager, userRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("execute: throws InvalidUserDataException when the password is blank")
+    void execute_ShouldThrow_WhenPasswordIsBlank() {
+        RegisterUserRequest request = new RegisterUserRequest("victor", "victor@example.com", "");
+
+        InvalidUserDataException ex = assertThrows(InvalidUserDataException.class,
+                () -> useCase.execute(request));
+
+        // Blank → required AND minLength both fire (blank fails both predicates).
+        assertTrue(ex.getErrors().stream().allMatch(k -> k.toLowerCase().contains("password")),
+                "Every error must mention the password field");
+        assertTrue(ex.getErrors().contains("register.error.password.required"),
+                "Required-field key must be emitted on blank input");
+        verifyNoInteractions(transactionManager, userRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("execute: throws InvalidUserDataException when the password is shorter than the minimum length")
+    void execute_ShouldThrow_WhenPasswordIsTooShort() {
+        RegisterUserRequest request = new RegisterUserRequest("victor", "victor@example.com", "1234567");
+
+        InvalidUserDataException ex = assertThrows(InvalidUserDataException.class,
+                () -> useCase.execute(request));
+
+        assertEquals(1, ex.getErrors().size());
+        assertEquals("register.error.password.minLength", ex.getErrors().get(0));
+        verifyNoInteractions(transactionManager, userRepository, passwordEncoder);
     }
 }

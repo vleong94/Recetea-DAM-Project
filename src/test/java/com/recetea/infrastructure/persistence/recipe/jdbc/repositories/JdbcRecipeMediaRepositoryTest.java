@@ -17,7 +17,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DisplayName("JdbcRecipeMediaRepository — Persistencia de recursos multimedia")
+@DisplayName("JdbcRecipeMediaRepository — Media resource persistence")
 class JdbcRecipeMediaRepositoryTest extends BaseRepositoryTest {
 
     private JdbcRecipeMediaRepository repository;
@@ -28,16 +28,16 @@ class JdbcRecipeMediaRepositoryTest extends BaseRepositoryTest {
     @BeforeEach
     void setUp() throws SQLException {
         transactionManager = new JdbcTransactionManager(dataSource);
-        repository = new JdbcRecipeMediaRepository(transactionManager);
+        repository = new JdbcRecipeMediaRepository(transactionManager, metricsPort);
         seedReferenceData();
     }
 
     private void seedReferenceData() throws SQLException {
         try (Connection conn = dataSource.getConnection(); Statement st = conn.createStatement()) {
-            st.execute("INSERT INTO users (id_user, username, email, password_hash) OVERRIDING SYSTEM VALUE VALUES (1, 'author', 'author@test.com', 'hash')");
-            st.execute("INSERT INTO categories (id_category, name) OVERRIDING SYSTEM VALUE VALUES (1, 'TestCat')");
-            st.execute("INSERT INTO difficulties (id_difficulty, level_name) OVERRIDING SYSTEM VALUE VALUES (1, 'Easy')");
-            st.execute("INSERT INTO recipes (id_recipe, user_id, category_id, difficulty_id, title, prep_time_min, servings) OVERRIDING SYSTEM VALUE VALUES (1, 1, 1, 1, 'Receta Test', 30, 2)");
+            st.execute("INSERT INTO users (user_id, username, email, password_hash) OVERRIDING SYSTEM VALUE VALUES (1, 'author', 'author@test.com', 'hash')");
+            st.execute("INSERT INTO categories (category_id, name) OVERRIDING SYSTEM VALUE VALUES (1, 'TestCat')");
+            st.execute("INSERT INTO difficulties (difficulty_id, difficulty_level) OVERRIDING SYSTEM VALUE VALUES (1, 'Easy')");
+            st.execute("INSERT INTO recipes (recipe_id, user_id, category_id, difficulty_id, title, prep_time_min, servings) OVERRIDING SYSTEM VALUE VALUES (1, 1, 1, 1, 'Receta Test', 30, 2)");
         }
     }
 
@@ -58,11 +58,11 @@ class JdbcRecipeMediaRepositoryTest extends BaseRepositoryTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("save debe persistir el recurso multimedia y retornar la entidad con ID generado")
+    @DisplayName("save: Should persist media and return the entity with a generated ID")
     void save_ShouldPersistAndReturnEntityWithGeneratedId() {
         RecipeMedia saved = transactionManager.execute(() -> repository.save(buildMedia(true, 0)));
 
-        assertNotNull(saved.id(), "El ID debe haber sido asignado por la base de datos");
+        assertNotNull(saved.id(), "The ID must have been assigned by the database");
         assertTrue(saved.id().value() > 0);
         assertEquals(RECIPE_ID, saved.recipeId());
         assertEquals("media/2024/abc123.jpg", saved.storageKey());
@@ -74,16 +74,16 @@ class JdbcRecipeMediaRepositoryTest extends BaseRepositoryTest {
     }
 
     @Test
-    @DisplayName("save debe persistir todos los campos de metadatos en la base de datos")
+    @DisplayName("save: Should persist all metadata columns to the database")
     void save_ShouldPersistAllMetadataColumns() throws SQLException {
         RecipeMedia saved = transactionManager.execute(() -> repository.save(buildMedia(false, 2)));
 
         String sql = "SELECT storage_key, storage_provider, mime_type, size_bytes, is_main, sort_order " +
-                     "FROM recipe_media WHERE id_media = " + saved.id().value();
+                     "FROM recipe_media WHERE media_id = " + saved.id().value();
         try (Connection conn = dataSource.getConnection();
              Statement st = conn.createStatement();
              ResultSet rs = st.executeQuery(sql)) {
-            assertTrue(rs.next(), "Debe existir la fila en DB");
+            assertTrue(rs.next(), "Row must exist in the DB");
             assertEquals("media/2024/abc123.jpg", rs.getString("storage_key"));
             assertEquals("LOCAL", rs.getString("storage_provider"));
             assertEquals("image/jpeg", rs.getString("mime_type"));
@@ -98,13 +98,13 @@ class JdbcRecipeMediaRepositoryTest extends BaseRepositoryTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("findById debe reconstruir correctamente la entidad desde la base de datos")
+    @DisplayName("findById: Should correctly reconstruct the entity from the database")
     void findById_ShouldReconstructEntityWithAllFields() {
         RecipeMedia saved = transactionManager.execute(() -> repository.save(buildMedia(true, 0)));
 
         Optional<RecipeMedia> found = repository.findById(saved.id());
 
-        assertTrue(found.isPresent(), "La entidad debe ser encontrada por ID");
+        assertTrue(found.isPresent(), "The entity must be found by ID");
         RecipeMedia media = found.get();
         assertEquals(saved.id(), media.id());
         assertEquals(RECIPE_ID, media.recipeId());
@@ -117,11 +117,11 @@ class JdbcRecipeMediaRepositoryTest extends BaseRepositoryTest {
     }
 
     @Test
-    @DisplayName("findById debe retornar Optional vacío cuando el ID no existe")
+    @DisplayName("findById: Should return an empty Optional when the ID does not exist")
     void findById_ShouldReturnEmpty_WhenNotFound() {
         Optional<RecipeMedia> result = repository.findById(new RecipeMediaId(9999));
 
-        assertTrue(result.isEmpty(), "Optional debe estar vacío para un ID inexistente");
+        assertTrue(result.isEmpty(), "Optional must be empty for a non-existent ID");
     }
 
     // -------------------------------------------------------------------------
@@ -129,7 +129,7 @@ class JdbcRecipeMediaRepositoryTest extends BaseRepositoryTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("findByRecipeId debe retornar todos los recursos ordenados por sort_order")
+    @DisplayName("findByRecipeId: Should return all media ordered by sort_order")
     void findByRecipeId_ShouldReturnAllMediaOrderedBySortOrder() {
         transactionManager.execute(() -> {
             repository.save(new RecipeMedia(null, RECIPE_ID, "key/c.jpg", "LOCAL", "image/jpeg", 100L, false, 2));
@@ -140,18 +140,18 @@ class JdbcRecipeMediaRepositoryTest extends BaseRepositoryTest {
 
         List<RecipeMedia> results = repository.findByRecipeId(RECIPE_ID);
 
-        assertEquals(3, results.size(), "Debe retornar los 3 recursos de la receta");
-        assertEquals(0, results.get(0).sortOrder(), "Primer elemento debe tener sort_order 0");
-        assertEquals(1, results.get(1).sortOrder(), "Segundo elemento debe tener sort_order 1");
-        assertEquals(2, results.get(2).sortOrder(), "Tercer elemento debe tener sort_order 2");
+        assertEquals(3, results.size(), "Must return the 3 media items for the recipe");
+        assertEquals(0, results.get(0).sortOrder(), "First element must have sort_order 0");
+        assertEquals(1, results.get(1).sortOrder(), "Second element must have sort_order 1");
+        assertEquals(2, results.get(2).sortOrder(), "Third element must have sort_order 2");
     }
 
     @Test
-    @DisplayName("findByRecipeId debe retornar lista vacía si la receta no tiene recursos")
+    @DisplayName("findByRecipeId: Should return an empty list when the recipe has no media")
     void findByRecipeId_ShouldReturnEmptyList_WhenNoMedia() {
         List<RecipeMedia> results = repository.findByRecipeId(RECIPE_ID);
 
-        assertTrue(results.isEmpty(), "La lista debe estar vacía si no hay recursos multimedia");
+        assertTrue(results.isEmpty(), "The list must be empty when there is no media");
     }
 
     // -------------------------------------------------------------------------
@@ -159,18 +159,18 @@ class JdbcRecipeMediaRepositoryTest extends BaseRepositoryTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("delete debe eliminar el recurso de la base de datos")
+    @DisplayName("delete: Should remove the media from the database")
     void delete_ShouldRemoveEntityFromDatabase() {
         RecipeMedia saved = transactionManager.execute(() -> repository.save(buildMedia(false, 0)));
         RecipeMediaId mediaId = saved.id();
 
         transactionManager.execute(() -> { repository.delete(mediaId); return null; });
 
-        assertTrue(repository.findById(mediaId).isEmpty(), "La entidad debe haber sido eliminada");
+        assertTrue(repository.findById(mediaId).isEmpty(), "The entity must have been deleted");
     }
 
     @Test
-    @DisplayName("delete con ID inexistente no debe lanzar excepción")
+    @DisplayName("delete: Should not throw when the ID does not exist")
     void delete_ShouldNotThrow_WhenIdDoesNotExist() {
         assertDoesNotThrow(() ->
                 transactionManager.execute(() -> { repository.delete(new RecipeMediaId(9999)); return null; }));

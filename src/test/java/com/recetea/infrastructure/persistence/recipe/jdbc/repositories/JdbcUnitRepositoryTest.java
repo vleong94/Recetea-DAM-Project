@@ -20,13 +20,13 @@ class JdbcUnitRepositoryTest extends BaseRepositoryTest {
     @BeforeEach
     void setUp() {
         transactionManager = new JdbcTransactionManager(dataSource);
-        repository = new JdbcUnitRepository(transactionManager);
+        repository = new JdbcUnitRepository(transactionManager, metricsPort);
         seedDatabase();
     }
 
     private void seedDatabase() {
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "INSERT INTO unit_measures (name, abbreviation) VALUES ('Kilogramos', 'kg'), ('Litros', 'l')";
+            String sql = "INSERT INTO unit_measures (name, abbreviation) VALUES ('Kilogram', 'kg'), ('Liter', 'l')";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.executeUpdate();
             }
@@ -40,6 +40,6 @@ class JdbcUnitRepositoryTest extends BaseRepositoryTest {
         List<Unit> units = repository.findAll();
 
         assertEquals(2, units.size());
-        assertTrue(units.stream().anyMatch(u -> u.getAbbreviation().equals("kg")));
+        assertTrue(units.stream().anyMatch(u -> u.abbreviation().equals("kg")));
     }
 }

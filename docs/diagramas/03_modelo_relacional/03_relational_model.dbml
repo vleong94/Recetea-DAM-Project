@@ -1,0 +1,169 @@
+Project Recetea {
+  database_type: 'PostgreSQL'
+  Note: '''
+    Hibrid model for recipe management.
+    Uses denormalized social metrics (average_score, total_ratings) for O(1) read performance.
+  '''
+}
+
+// ----------------------------------------------------------
+// 1. MASTER ENTITIES (LOOKUP TABLES)
+// ----------------------------------------------------------
+
+Table users {
+  user_id integer [primary key, increment]
+  username varchar(50) [unique, not null, note: 'Community-facing display name']
+  email varchar(255) [unique, not null]
+  password_hash varchar(255) [not null, note: 'BCrypt password hash']
+  created_at timestamp [default: `now()`]
+}
+
+Table categories {
+  category_id integer [primary key, increment]
+  name varchar(100) [unique, not null, note: 'E.g.: Desserts, Salads']
+}
+
+Table difficulties {
+  difficulty_id integer [primary key, increment]
+  difficulty_level varchar(50) [unique, not null, note: 'Easy, Medium, Hard']
+}
+
+Table ingredient_categories {
+  ingredient_category_id integer [primary key, increment]
+  name varchar(100) [unique, not null, note: 'Dairy, Meat, Vegetables...']
+}
+
+Table unit_measures {
+  unit_id integer [primary key, increment]
+  name varchar(50) [unique, not null, note: 'Grams, Litres, Units']
+  abbreviation varchar(10) [unique, not null, note: 'g, l, ud']
+}
+
+// ----------------------------------------------------------
+// 2. CORE ENTITIES (THE DOMAIN)
+// ----------------------------------------------------------
+
+Table recipes {
+  recipe_id integer [primary key, increment]
+  user_id integer [not null, note: 'Recipe author']
+  category_id integer [not null]
+  difficulty_id integer [not null]
+  title varchar(200) [not null]
+  description text
+  prep_time_min integer [note: 'Constraint: > 0']
+  servings integer [note: 'Constraint: > 0']
+  average_score decimal(3,2) [default: 0.00, note: 'Denormalized for Dashboard performance']
+  total_ratings integer [default: 0, note: 'Denormalized for Search performance']
+  created_at timestamp [default: `now()`]
+}
+
+Table steps {
+  step_id integer [primary key, increment]
+  recipe_id integer [not null]
+  step_order integer [not null, note: 'Sequential order. Constraint: > 0']
+  instruction text [not null]
+
+  Indexes {
+    (recipe_id, step_order) [unique, note: 'Business Integrity: Unique order per recipe']
+  }
+}
+
+Table recipe_media {
+  media_id integer [primary key, increment]
+  recipe_id integer [not null]
+  storage_key varchar(2048) [not null, note: 'Internal file path or S3 key']
+  storage_provider varchar(50) [not null, note: 'LOCAL, S3, etc.']
+  mime_type varchar(100) [not null, note: 'image/jpeg, image/png, etc.']
+  size_bytes bigint [not null, note: 'Constraint: >= 0']
+  is_main boolean [default: false, note: 'Enforced via Partial Index in SQL']
+  sort_order integer [default: 0]
+
+  Indexes {
+    recipe_id [name: "idx_recipe_media_recipe_id"]
+  }
+}
+
+Table ingredients {
+  ingredient_id integer [primary key, increment]
+  ingredient_category_id integer [not null]
+  name varchar(100) [unique, not null]
+}
+
+// ----------------------------------------------------------
+// 3. RELATIONSHIPS AND SOCIAL FEEDBACK
+// ----------------------------------------------------------
+
+Table recipe_ingredients {
+  recipe_id integer [not null]
+  ingredient_id integer [not null]
+  unit_id integer [not null]
+  quantity decimal(10,2) [not null, note: 'BigDecimal precision']
+
+  Indexes {
+    (recipe_id, ingredient_id) [pk]
+  }
+}
+
+Table tags {
+  tag_id integer [primary key, increment]
+  name varchar(50) [unique, not null, note: '#Vegan, #Quick']
+}
+
+Table recipe_tags {
+  recipe_id integer [not null]
+  tag_id integer [not null]
+  
+  Indexes {
+    (recipe_id, tag_id) [pk]
+  }
+}
+
+Table favorites {
+  user_id integer [not null]
+  recipe_id integer [not null]
+  created_at timestamp [default: `now()`]
+
+  Indexes {
+    (user_id, recipe_id) [pk]
+  }
+}
+
+Table ratings {
+  rating_id integer [primary key, increment]
+  user_id integer [not null]
+  recipe_id integer [not null]
+  score integer [not null, note: 'Range: 1-5']
+  comment text
+  created_at timestamp [default: `now()`]
+
+  Indexes {
+    (user_id, recipe_id) [unique, note: 'One rating per user/recipe pair']
+  }
+}
+
+// ----------------------------------------------------------
+// 4. REFERENTIAL INTEGRITY (REFS)
+// ----------------------------------------------------------
+
+// Master Data Refs
+Ref: users.user_id < recipes.user_id [delete: cascade]
+Ref: categories.category_id < recipes.category_id [delete: restrict]
+Ref: difficulties.difficulty_id < recipes.difficulty_id [delete: restrict]
+Ref: ingredient_categories.ingredient_category_id < ingredients.ingredient_category_id [delete: restrict]
+
+// Core Logic Refs
+Ref: recipes.recipe_id < steps.recipe_id [delete: cascade]
+Ref: recipes.recipe_id < recipe_media.recipe_id [delete: cascade]
+Ref: recipes.recipe_id < ratings.recipe_id [delete: cascade]
+Ref: recipes.recipe_id < recipe_ingredients.recipe_id [delete: cascade]
+Ref: recipes.recipe_id < recipe_tags.recipe_id [delete: cascade]
+Ref: recipes.recipe_id < favorites.recipe_id [delete: cascade]
+
+// Social/Auth Refs
+Ref: users.user_id < ratings.user_id [delete: cascade]
+Ref: users.user_id < favorites.user_id [delete: cascade]
+
+// Ingredient composition
+Ref: ingredients.ingredient_id < recipe_ingredients.ingredient_id [delete: restrict]
+Ref: unit_measures.unit_id < recipe_ingredients.unit_id [delete: restrict]
+Ref: tags.tag_id < recipe_tags.tag_id [delete: cascade]

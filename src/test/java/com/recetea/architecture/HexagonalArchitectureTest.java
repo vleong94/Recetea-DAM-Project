@@ -51,7 +51,7 @@ class HexagonalArchitectureTest {
 
     // ── Rule 3: UI through Inbound Ports Only ─────────────────────────────────
     // Controllers may depend on domain VOs/exceptions (cross-cutting concerns) and
-    // other infrastructure classes (StorageConfig, XmlInteropAdapter exception, etc.),
+    // other infrastructure classes (MediaUriResolver, XmlInteropAdapter exception, etc.),
     // but must never reference:
     //   • Use case implementations — always program to the IXxxUseCase interface.
     //   • Outbound ports (ports.out) — those are contracts for infrastructure adapters,

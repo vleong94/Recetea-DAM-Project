@@ -6,35 +6,36 @@
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.SVGPath?>
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.MediaGalleryComponent?>
 <?import com.recetea.infrastructure.ui.javafx.features.recipe.components.RatingComponent?>
 
-<VBox spacing="20.0" maxWidth="Infinity" maxHeight="Infinity"
-      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeDetailController">
-    <padding>
-        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-    </padding>
+<AnchorPane maxWidth="Infinity" maxHeight="Infinity"
+            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.RecipeDetailController">
 
-    <!-- ── Header (sticky top) ───────────────────────────────────────────── -->
-    <HBox alignment="CENTER_LEFT" spacing="10.0">
-        <Label fx:id="titleLabel" text="%recipe.detail.loading" styleClass="header-label"
-               HBox.hgrow="ALWAYS" />
-        <Button text="%nav.back.toCatalog" styleClass="secondary-button"
-                onAction="#onBackButtonClick" />
-    </HBox>
-
-    <!-- ── Single main scroll area ──────────────────────────────────────── -->
-    <ScrollPane fx:id="mainContentScroll" fitToWidth="true" VBox.vgrow="ALWAYS">
+    <!-- ── Single main scroll area (Title + Ingredients + Steps + reviews) ──── -->
+    <ScrollPane fx:id="mainContentScroll" fitToWidth="true"
+                AnchorPane.topAnchor="20.0"
+                AnchorPane.leftAnchor="20.0"
+                AnchorPane.rightAnchor="20.0"
+                AnchorPane.bottomAnchor="80.0">
         <VBox fx:id="scrollContainer" spacing="20.0">
             <padding>
                 <Insets bottom="10.0" top="4.0" />
             </padding>
+
+            <Label fx:id="titleLabel" text="%recipe.detail.loading"
+                   styleClass="header-label" wrapText="true" />
+
+
 
             <MediaGalleryComponent fx:id="mediaGallery" />
 
@@ -44,23 +45,33 @@
                     <ColumnConstraints hgrow="ALWAYS" />
                 </columnConstraints>
 
-                <Label text="%recipe.detail.meta.prepTime" GridPane.rowIndex="0" GridPane.columnIndex="0" styleClass="field-label" />
-                <Label fx:id="prepTimeLabel" text="-" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+                <Label text="%recipe.detail.meta.author" GridPane.rowIndex="0" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="authorLabel" text="-" GridPane.rowIndex="0" GridPane.columnIndex="1" />
 
-                <Label text="%recipe.detail.meta.servings" GridPane.rowIndex="1" GridPane.columnIndex="0" styleClass="field-label" />
-                <Label fx:id="servingsLabel" text="-" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+                <!-- "Esta receta es tuya" — visibility bound to authorship in the controller.
+                     When hidden, the row collapses (managed=false) and prepTime moves up. -->
+                <Label fx:id="ownershipMessage" text="%recipe.detail.author.youOwn"
+                       style="-fx-font-style: italic; -fx-text-fill: -color-success-emphasis;"
+                       visible="false" managed="false"
+                       GridPane.rowIndex="1" GridPane.columnIndex="1" />
 
-                <Label text="%recipe.detail.meta.description" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="field-label" />
-                <Label fx:id="descriptionLabel" text="-" wrapText="true" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+                <Label text="%recipe.detail.meta.prepTime" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="prepTimeLabel" text="-" GridPane.rowIndex="2" GridPane.columnIndex="1" />
 
-                <Label text="%recipe.detail.meta.category" GridPane.rowIndex="3" GridPane.columnIndex="0" styleClass="field-label" />
-                <Label fx:id="categoryLabel" text="-" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+                <Label text="%recipe.detail.meta.servings" GridPane.rowIndex="3" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="servingsLabel" text="-" GridPane.rowIndex="3" GridPane.columnIndex="1" />
 
-                <Label text="%recipe.detail.meta.difficulty" GridPane.rowIndex="4" GridPane.columnIndex="0" styleClass="field-label" />
-                <Label fx:id="difficultyLabel" text="-" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+                <Label text="%recipe.detail.meta.description" GridPane.rowIndex="4" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="descriptionLabel" text="-" wrapText="true" GridPane.rowIndex="4" GridPane.columnIndex="1" />
 
-                <Label text="%recipe.detail.meta.avgScore" GridPane.rowIndex="5" GridPane.columnIndex="0" styleClass="field-label" />
-                <Label fx:id="scoreLabel" text="-" GridPane.rowIndex="5" GridPane.columnIndex="1" />
+                <Label text="%recipe.detail.meta.category" GridPane.rowIndex="5" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="categoryLabel" text="-" GridPane.rowIndex="5" GridPane.columnIndex="1" />
+
+                <Label text="%recipe.detail.meta.difficulty" GridPane.rowIndex="6" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="difficultyLabel" text="-" GridPane.rowIndex="6" GridPane.columnIndex="1" />
+
+                <Label text="%recipe.detail.meta.avgScore" GridPane.rowIndex="7" GridPane.columnIndex="0" styleClass="field-label" />
+                <Label fx:id="scoreLabel" text="-" GridPane.rowIndex="7" GridPane.columnIndex="1" />
             </GridPane>
 
             <Separator />
@@ -85,13 +96,23 @@
                 </padding>
             </VBox>
 
-            <Separator styleClass="section-spacer" />
+            <Separator fx:id="ratingSectionSpacer" styleClass="section-spacer" />
 
             <RatingComponent fx:id="ratingComponent" />
 
             <Separator />
 
             <Label text="%recipe.detail.section.reviews" styleClass="section-header" />
+
+            <!-- Empty-state — visible only when ratings list is empty (managed mirrors visibility). -->
+            <Label fx:id="noReviewsMessage" text="%recipe.detail.reviews.empty"
+                   styleClass="text-muted, text-italic"
+                   maxWidth="Infinity" alignment="CENTER"
+                   visible="false" managed="false">
+                <padding>
+                    <Insets bottom="20.0" top="20.0" />
+                </padding>
+            </Label>
 
             <VBox fx:id="reviewsList" spacing="15.0">
                 <padding>
@@ -101,10 +122,38 @@
         </VBox>
     </ScrollPane>
 
-    <!-- ── Action buttons (sticky bottom) ───────────────────────────────── -->
-    <HBox alignment="CENTER_RIGHT" spacing="10.0" styleClass="detail-action-bar">
-        <ToggleButton fx:id="favoriteButton" text="%recipe.detail.button.addFavorite" styleClass="secondary-button" />
-        <Button text="%recipe.detail.button.exportXml" styleClass="secondary-button" onAction="#onExportButtonClick" />
-        <Button text="%recipe.detail.button.generatePdf" styleClass="secondary-button" onAction="#onGeneratePdfClick" />
+    <!-- ── Unified bottom action bar: Back left, actions right, single line ── -->
+    <HBox alignment="CENTER_LEFT" spacing="15.0"
+          styleClass="detail-action-bar"
+          AnchorPane.bottomAnchor="0.0"
+          AnchorPane.leftAnchor="0.0"
+          AnchorPane.rightAnchor="0.0">
+        <padding>
+            <Insets top="20.0" right="20.0" bottom="20.0" left="20.0" />
+        </padding>
+
+        <Button fx:id="btnBack" text="%nav.back.toCatalog"
+                styleClass="secondary-button" prefHeight="36.0"
+                onAction="#onBackButtonClick" />
+
+        <Region HBox.hgrow="ALWAYS" />
+
+        <ToggleButton fx:id="favoriteButton" text="%recipe.detail.button.addFavorite"
+                      styleClass="secondary-button" prefHeight="36.0">
+            <graphic>
+                <SVGPath fx:id="favoriteStar"
+                         content="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.81 8.63 2 9.24l5.46 4.73L5.82 21z" />
+            </graphic>
+        </ToggleButton>
+        <Button text="%recipe.detail.button.exportXml"
+                styleClass="secondary-button" prefHeight="36.0"
+                onAction="#onExportButtonClick" />
+        <Button text="%recipe.detail.button.generatePdf"
+                styleClass="secondary-button" prefHeight="36.0"
+                onAction="#onGeneratePdfClick" />
+        <Button fx:id="btnEdit" text="%recipe.detail.button.edit"
+                styleClass="primary-button" prefHeight="36.0"
+                onAction="#onEditClick"
+                visible="false" managed="false" />
     </HBox>
-</VBox>
+</AnchorPane>

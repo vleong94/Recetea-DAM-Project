@@ -6,83 +6,136 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
+<?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.SVGPath?>
 
-<VBox spacing="16.0" maxWidth="Infinity" maxHeight="Infinity"
-      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.UserProfileController">
-    <padding>
-        <Insets bottom="20.0" left="24.0" right="24.0" top="20.0" />
-    </padding>
+<AnchorPane maxWidth="Infinity" maxHeight="Infinity"
+            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.recetea.infrastructure.ui.javafx.features.recipe.controllers.UserProfileController">
 
-    <!-- ── Header ──────────────────────────────────────────────────────── -->
-    <HBox alignment="CENTER_LEFT" spacing="10.0">
-        <Label text="%profile.title" styleClass="header-label" HBox.hgrow="ALWAYS" />
-        <Button text="%nav.back.toCatalog" styleClass="secondary-button" onAction="#onBackButtonClick" />
+    <!-- ── Main content fills above the bottom action bar ──────────────────── -->
+    <VBox spacing="16.0"
+          AnchorPane.topAnchor="0.0"
+          AnchorPane.leftAnchor="0.0"
+          AnchorPane.rightAnchor="0.0"
+          AnchorPane.bottomAnchor="80.0">
+        <padding>
+            <Insets bottom="0.0" left="24.0" right="24.0" top="20.0" />
+        </padding>
+
+        <!-- Header (title only; menu lives in the floating fx:include below) -->
+        <HBox alignment="CENTER_LEFT" spacing="10.0">
+            <padding>
+                <Insets right="80.0" />
+            </padding>
+            <Label text="%profile.title" styleClass="header-label" HBox.hgrow="ALWAYS" />
+        </HBox>
+
+        <!-- Tab Pane -->
+        <TabPane fx:id="workspaceTabs" VBox.vgrow="ALWAYS">
+
+            <!-- Tab 1: Mis Creaciones (index 0) -->
+            <Tab text="%profile.tab.myRecipes" closable="false">
+                <content>
+                    <VBox spacing="12.0">
+                        <padding>
+                            <Insets top="12.0" />
+                        </padding>
+
+                        <!-- Empty state -->
+                        <VBox fx:id="creationsEmpty" alignment="CENTER" spacing="8.0"
+                              visible="false" managed="false" VBox.vgrow="ALWAYS"
+                              styleClass="glass-card">
+                            <Label text="✎" styleClass="empty-state-icon" />
+                            <Label text="%profile.creations.empty.title" styleClass="section-header" />
+                            <Label text="%profile.creations.empty.message" styleClass="text-caption" />
+                        </VBox>
+
+                        <!-- Card gallery -->
+                        <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
+                            <FlowPane fx:id="creationsContainer" hgap="20.0" vgap="20.0">
+                                <padding>
+                                    <Insets bottom="8.0" left="4.0" right="4.0" top="8.0" />
+                                </padding>
+                            </FlowPane>
+                        </ScrollPane>
+                    </VBox>
+                </content>
+            </Tab>
+
+            <!-- Tab 2: Mis Favoritos (index 1) -->
+            <Tab text="%profile.tab.myFavorites" closable="false">
+                <content>
+                    <VBox spacing="12.0">
+                        <padding>
+                            <Insets top="12.0" />
+                        </padding>
+
+                        <!-- Empty state -->
+                        <VBox fx:id="favoritesEmpty" alignment="CENTER" spacing="8.0"
+                              visible="false" managed="false" VBox.vgrow="ALWAYS"
+                              styleClass="glass-card">
+                            <Label text="☆" styleClass="empty-state-icon" />
+                            <Label text="%profile.favorites.empty.title" styleClass="section-header" />
+                            <Label text="%profile.favorites.empty.message" styleClass="text-caption" />
+                        </VBox>
+
+                        <!-- Card gallery -->
+                        <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
+                            <FlowPane fx:id="favoritesContainer" hgap="20.0" vgap="20.0">
+                                <padding>
+                                    <Insets bottom="8.0" left="4.0" right="4.0" top="8.0" />
+                                </padding>
+                            </FlowPane>
+                        </ScrollPane>
+                    </VBox>
+                </content>
+            </Tab>
+
+        </TabPane>
+    </VBox>
+
+    <!-- ── Shared top-right hamburger menu ──────────────────────────────── -->
+    <fx:include fx:id="userHeader"
+                source="../../../shared/components/user_header.fxml"
+                AnchorPane.topAnchor="15.0" AnchorPane.rightAnchor="15.0" />
+
+    <!-- ── Unified bottom action bar: Back left, contextual actions right ──── -->
+    <HBox alignment="CENTER_LEFT" spacing="15.0"
+          styleClass="detail-action-bar"
+          AnchorPane.bottomAnchor="0.0"
+          AnchorPane.leftAnchor="0.0"
+          AnchorPane.rightAnchor="0.0">
+        <padding>
+            <Insets top="20.0" right="20.0" bottom="20.0" left="20.0" />
+        </padding>
+
+        <Button fx:id="btnBack" text="%nav.back.toCatalog"
+                styleClass="secondary-button" prefHeight="36.0"
+                onAction="#onBackButtonClick" />
+
+        <Region HBox.hgrow="ALWAYS" />
+
+        <Button fx:id="btnImportXml" text="%dashboard.button.importRecipe"
+                styleClass="secondary-button" prefHeight="36.0"
+                onAction="#onImportButtonClick" />
+        <!-- Favorites-tab clone: identical visual surface, same handler. The two buttons
+             swap via tab-bound visibility so the import slot stays static across tab
+             switches (one collapses, the other expands into the same layout position). -->
+        <Button fx:id="btnImportXmlFav" text="%dashboard.button.importRecipe"
+                styleClass="secondary-button" prefHeight="36.0"
+                onAction="#onImportButtonClick" />
+        <Button fx:id="btnNewRecipe" text="%dashboard.button.newRecipe"
+                styleClass="primary-button" prefHeight="36.0"
+                onAction="#onCreateRecipeClick">
+            <graphic>
+                <SVGPath content="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
+                         style="-fx-fill: white;" />
+            </graphic>
+        </Button>
     </HBox>
-
-    <!-- ── Tab Pane ─────────────────────────────────────────────────────── -->
-    <TabPane VBox.vgrow="ALWAYS">
-
-        <!-- Tab 1: Mis Creaciones -->
-        <Tab text="%profile.tab.myRecipes" closable="false">
-            <content>
-                <VBox spacing="12.0">
-                    <padding>
-                        <Insets top="12.0" />
-                    </padding>
-
-                    <!-- Empty state -->
-                    <VBox fx:id="creationsEmpty" alignment="CENTER" spacing="8.0"
-                          visible="false" managed="false" VBox.vgrow="ALWAYS"
-                          styleClass="glass-card">
-                        <Label text="✎" styleClass="empty-state-icon" />
-                        <Label text="%profile.creations.empty.title" styleClass="section-header" />
-                        <Label text="%profile.creations.empty.message" styleClass="text-caption" />
-                    </VBox>
-
-                    <!-- Card gallery -->
-                    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
-                        <FlowPane fx:id="creationsContainer" hgap="20.0" vgap="20.0">
-                            <padding>
-                                <Insets bottom="8.0" left="4.0" right="4.0" top="8.0" />
-                            </padding>
-                        </FlowPane>
-                    </ScrollPane>
-                </VBox>
-            </content>
-        </Tab>
-
-        <!-- Tab 2: Mis Favoritos -->
-        <Tab text="%profile.tab.myFavorites" closable="false">
-            <content>
-                <VBox spacing="12.0">
-                    <padding>
-                        <Insets top="12.0" />
-                    </padding>
-
-                    <!-- Empty state -->
-                    <VBox fx:id="favoritesEmpty" alignment="CENTER" spacing="8.0"
-                          visible="false" managed="false" VBox.vgrow="ALWAYS"
-                          styleClass="glass-card">
-                        <Label text="☆" styleClass="empty-state-icon" />
-                        <Label text="%profile.favorites.empty.title" styleClass="section-header" />
-                        <Label text="%profile.favorites.empty.message" styleClass="text-caption" />
-                    </VBox>
-
-                    <!-- Card gallery -->
-                    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
-                        <FlowPane fx:id="favoritesContainer" hgap="20.0" vgap="20.0">
-                            <padding>
-                                <Insets bottom="8.0" left="4.0" right="4.0" top="8.0" />
-                            </padding>
-                        </FlowPane>
-                    </ScrollPane>
-                </VBox>
-            </content>
-        </Tab>
-
-    </TabPane>
-</VBox>
+</AnchorPane>

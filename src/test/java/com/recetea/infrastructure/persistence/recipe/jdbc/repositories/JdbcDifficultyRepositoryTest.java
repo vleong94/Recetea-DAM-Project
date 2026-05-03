@@ -21,13 +21,13 @@ class JdbcDifficultyRepositoryTest extends BaseRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        repository = new JdbcDifficultyRepository(new JdbcTransactionManager(dataSource));
+        repository = new JdbcDifficultyRepository(new JdbcTransactionManager(dataSource), metricsPort);
         seedDatabase();
     }
 
     private void seedDatabase() {
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "INSERT INTO difficulties (level_name) VALUES ('Fácil'), ('Difícil')";
+            String sql = "INSERT INTO difficulties (difficulty_level) VALUES ('Easy'), ('Hard')";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.executeUpdate();
             }
@@ -39,7 +39,7 @@ class JdbcDifficultyRepositoryTest extends BaseRepositoryTest {
     private int firstDifficultyId() {
         try (Connection conn = dataSource.getConnection()) {
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT id_difficulty FROM difficulties ORDER BY id_difficulty LIMIT 1");
+                    "SELECT difficulty_id FROM difficulties ORDER BY difficulty_id LIMIT 1");
                  ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return rs.getInt(1);
             }
@@ -54,8 +54,8 @@ class JdbcDifficultyRepositoryTest extends BaseRepositoryTest {
         List<Difficulty> difficulties = repository.findAll();
 
         assertEquals(2, difficulties.size());
-        assertTrue(difficulties.stream().anyMatch(d -> d.getName().equals("Fácil")));
-        assertTrue(difficulties.stream().anyMatch(d -> d.getName().equals("Difícil")));
+        assertTrue(difficulties.stream().anyMatch(d -> d.name().equals("Easy")));
+        assertTrue(difficulties.stream().anyMatch(d -> d.name().equals("Hard")));
     }
 
     @Test
@@ -72,7 +72,7 @@ class JdbcDifficultyRepositoryTest extends BaseRepositoryTest {
         Optional<Difficulty> result = repository.findById(new DifficultyId(id));
 
         assertTrue(result.isPresent());
-        assertEquals(id, result.get().getId().value());
+        assertEquals(id, result.get().id().value());
     }
 
     @Test

@@ -27,7 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("RemoveMediaUseCase — Eliminación coordinada de DB y almacenamiento físico")
+@DisplayName("RemoveMediaUseCase — Coordinated removal from the DB and physical storage")
 class RemoveMediaUseCaseTest {
 
     @Mock private IRecipeRepository recipeRepository;
@@ -52,21 +52,20 @@ class RemoveMediaUseCaseTest {
     }
 
     private Recipe buildRecipeWithMedia() {
-        Recipe recipe = new Recipe(
-                AUTHOR_ID,
-                new Category(new CategoryId(1), "Postres"),
-                new Difficulty(new DifficultyId(1), "Fácil"),
-                "Receta de prueba", "Descripción",
-                new PreparationTime(20), new Servings(2));
-        recipe.setId(RECIPE_ID);
         RecipeMedia media = new RecipeMedia(MEDIA_ID, RECIPE_ID, STORAGE_KEY,
                 "LOCAL", "image/jpeg", 2048L, true, 0);
-        recipe.hydrateMedia(media);
-        return recipe;
+        return new Recipe(
+                RECIPE_ID, AUTHOR_ID,
+                new Category(new CategoryId(1), "Desserts"),
+                new Difficulty(new DifficultyId(1), "Easy"),
+                "Test recipe", "Description",
+                new PreparationTime(20), new Servings(2),
+                java.math.BigDecimal.ZERO, 0)
+                .withMediaItems(java.util.List.of(media));
     }
 
     @Test
-    @DisplayName("execute: elimina del agregado, persiste en DB y después borra el archivo físico")
+    @DisplayName("execute: removes from the aggregate, persists in DB, and then deletes the physical file")
     void execute_ShouldRemoveFromAggregateAndDeleteFile_OnHappyPath() {
         Recipe recipe = buildRecipeWithMedia();
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(recipe));
@@ -83,7 +82,7 @@ class RemoveMediaUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: si el DB falla, el archivo físico no es eliminado")
+    @DisplayName("execute: does not delete the physical file when the DB transaction fails")
     void execute_ShouldNotDeleteFile_WhenTransactionFails() {
         when(transactionManager.execute(any(Supplier.class)))
                 .thenThrow(new RuntimeException("DB error"));
@@ -94,7 +93,7 @@ class RemoveMediaUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: lanza AuthenticationRequiredException si no hay sesión activa")
+    @DisplayName("execute: throws AuthenticationRequiredException when there is no active session")
     void execute_ShouldThrow_WhenNoSession() {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(buildRecipeWithMedia()));
         when(sessionService.getCurrentUserId()).thenReturn(Optional.empty());
@@ -107,7 +106,7 @@ class RemoveMediaUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: lanza UnauthorizedRecipeAccessException si el usuario no es el autor")
+    @DisplayName("execute: throws UnauthorizedRecipeAccessException when the user is not the author")
     void execute_ShouldThrow_WhenNotOwner() {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(buildRecipeWithMedia()));
         when(sessionService.getCurrentUserId()).thenReturn(Optional.of(OTHER_ID));
@@ -120,7 +119,7 @@ class RemoveMediaUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: lanza IllegalArgumentException si la receta no existe")
+    @DisplayName("execute: throws IllegalArgumentException when the recipe does not exist")
     void execute_ShouldThrow_WhenRecipeNotFound() {
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.empty());
 
@@ -132,7 +131,7 @@ class RemoveMediaUseCaseTest {
     }
 
     @Test
-    @DisplayName("execute: lanza IllegalArgumentException si el mediaId no existe en el agregado")
+    @DisplayName("execute: throws IllegalArgumentException when the mediaId does not exist in the aggregate")
     void execute_ShouldThrow_WhenMediaIdNotFound() {
         Recipe recipe = buildRecipeWithMedia();
         when(recipeRepository.findById(RECIPE_ID)).thenReturn(Optional.of(recipe));

@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Logback config for tests: suppress verbose third-party output. -->
+<!-- Logback config for tests: suppress verbose third-party output. Same masking
+     converter as production so the test pattern can be exercised end-to-end. -->
 <configuration>
+
+    <conversionRule conversionWord="mask"
+                    class="com.recetea.infrastructure.logging.SensitiveDataMaskingConverter"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} [TraceID: %X{correlationId:-NONE}] [User: %X{userId:-anonymous}] - %mask(%msg%n)</pattern>
         </encoder>
     </appender>
 

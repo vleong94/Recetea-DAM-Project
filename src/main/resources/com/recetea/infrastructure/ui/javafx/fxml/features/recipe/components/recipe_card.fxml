@@ -1,19 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.*?>
 
 <fx:root type="VBox" styleClass="recipe-card" prefWidth="240.0" spacing="0.0"
          xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
 
-    <!-- Image area: skeleton pulse while loading, then swapped for the ImageView -->
+    <!-- Image area: skeleton pulse while loading, then swapped for the ImageView. The
+         favorite toggle floats over the top-right corner via StackPane alignment. -->
     <StackPane fx:id="imagePane" styleClass="recipe-card-image-pane"
                prefHeight="160.0" minHeight="160.0" maxHeight="160.0">
         <Region fx:id="imageSkeleton" styleClass="skeleton-pulse"
                 minWidth="240.0" minHeight="160.0"/>
         <ImageView fx:id="imageView" fitWidth="240.0" fitHeight="160.0"
                    preserveRatio="true" visible="false"/>
+
+        <ToggleButton fx:id="btnFavorite" styleClass="ghost-toggle"
+                      StackPane.alignment="TOP_RIGHT">
+            <padding><Insets top="4.0" right="4.0" bottom="4.0" left="4.0"/></padding>
+            <StackPane.margin><Insets top="8.0" right="8.0"/></StackPane.margin>
+            <graphic>
+                <SVGPath fx:id="favoriteStar"
+                         content="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.81 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+            </graphic>
+        </ToggleButton>
     </StackPane>
 
     <!-- Text body -->

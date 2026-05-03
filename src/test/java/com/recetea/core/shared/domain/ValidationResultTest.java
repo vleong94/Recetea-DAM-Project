@@ -9,7 +9,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DisplayName("ValidationResult — utilidad de validación acumulativa")
+@DisplayName("ValidationResult — Non-short-circuit accumulative validation utility")
 class ValidationResultTest {
 
     // --- Factories ---
@@ -47,15 +47,15 @@ class ValidationResultTest {
 
     @Test
     void of_returnsValid_whenConditionTrue() {
-        var r = ValidationResult.of("abc", s -> !s.isBlank(), "no puede estar vacío");
+        var r = ValidationResult.of("abc", s -> !s.isBlank(), "must not be blank");
         assertTrue(r.isValid());
     }
 
     @Test
     void of_returnsInvalid_whenConditionFalse() {
-        var r = ValidationResult.of("", s -> !s.isBlank(), "no puede estar vacío");
+        var r = ValidationResult.of("", s -> !s.isBlank(), "must not be blank");
         assertFalse(r.isValid());
-        assertEquals("no puede estar vacío", r.errors().getFirst());
+        assertEquals("must not be blank", r.errors().getFirst());
     }
 
     @Test
@@ -65,15 +65,15 @@ class ValidationResultTest {
 
     @Test
     void check_returnsInvalid_onFalse() {
-        var r = ValidationResult.check(false, "falló");
+        var r = ValidationResult.check(false, "failed");
         assertFalse(r.isValid());
-        assertEquals("falló", r.errors().getFirst());
+        assertEquals("failed", r.errors().getFirst());
     }
 
     // --- and() ---
 
     @Nested
-    @DisplayName("and() — concatenación sin cortocircuito")
+    @DisplayName("and() — Non-short-circuit concatenation")
     class AndTests {
 
         @Test
@@ -132,7 +132,7 @@ class ValidationResultTest {
     // --- combine() ---
 
     @Nested
-    @DisplayName("combine() — agregación sin cortocircuito")
+    @DisplayName("combine() — Non-short-circuit aggregation")
     class CombineTests {
 
         @Test
@@ -194,10 +194,10 @@ class ValidationResultTest {
 
     @Test
     void map_onInvalid_passesThrough() {
-        ValidationResult<Integer> result = ValidationResult.invalid("fallo");
+        ValidationResult<Integer> result = ValidationResult.invalid("failure");
         var mapped = result.map(n -> n * 2);
         assertFalse(mapped.isValid());
-        assertEquals(List.of("fallo"), mapped.errors());
+        assertEquals(List.of("failure"), mapped.errors());
     }
 
     // --- InvalidRecipeDataException.from() integration ---
@@ -205,12 +205,12 @@ class ValidationResultTest {
     @Test
     void invalidRecipeDataException_from_wrapsErrors() {
         var validation = ValidationResult.combine(
-                ValidationResult.invalid("El título es obligatorio"),
-                ValidationResult.invalid("Se requiere al menos un paso")
+                ValidationResult.invalid("Title is required"),
+                ValidationResult.invalid("At least one step is required")
         );
         var ex = InvalidRecipeDataException.from(validation);
-        assertEquals(List.of("El título es obligatorio", "Se requiere al menos un paso"), ex.getErrors());
-        assertTrue(ex.getMessage().contains("2 error(es)"));
+        assertEquals(List.of("Title is required", "At least one step is required"), ex.getErrors());
+        assertTrue(ex.getMessage().contains("2 validation error(s)"));
     }
 
     @Test

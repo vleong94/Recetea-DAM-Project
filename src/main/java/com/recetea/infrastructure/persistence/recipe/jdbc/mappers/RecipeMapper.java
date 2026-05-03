@@ -19,32 +19,74 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Hydrates the recipe aggregate from JDBC + JSONB. Pairs with
+ * {@code RecipeSqlRegistry.SELECT_FULL_AGGREGATE} — every column alias
+ * and JSONB key here is part of the contract with that SQL.
+ *
+ * <p><b>Why JSONB instead of result-set walking.</b> The detail view
+ * needs four child collections (ingredients, steps, ratings, media) +
+ * the parent row in one round-trip. PostgreSQL's
+ * {@code JSONB_AGG(JSONB_BUILD_OBJECT(...))} per LATERAL block emits
+ * each collection as a single column the JDBC driver returns as text;
+ * {@code org.json} parses each into a {@code JSONArray} that the four
+ * {@code mapXxxJson} methods walk into domain records.
+ *
+ * <p>{@code mapRow(...)} requires every child collection up front —
+ * {@code Recipe} is an immutable record with a 14-arg canonical
+ * constructor, so partial hydration isn't possible. Caller responsibility:
+ * read the four JSON columns, parse each, then call {@code mapRow} once.
+ *
+ * <p><b>ES — </b>Hidrata el agregado de receta desde JDBC + JSONB. Va
+ * de la mano con {@code RecipeSqlRegistry.SELECT_FULL_AGGREGATE} —
+ * cada alias de columna y clave JSONB aquí son parte del contrato
+ * con esa SQL.
+ *
+ * <p><b>Por qué JSONB en lugar de recorrer el ResultSet.</b> La vista
+ * de detalle necesita cuatro colecciones hijas (ingredientes, pasos,
+ * valoraciones, multimedia) + la fila padre en un único round-trip.
+ * El {@code JSONB_AGG(JSONB_BUILD_OBJECT(...))} de PostgreSQL por
+ * cada bloque LATERAL emite cada colección como una única columna
+ * que el driver JDBC devuelve como texto; {@code org.json} parsea
+ * cada una en un {@code JSONArray} que los cuatro métodos
+ * {@code mapXxxJson} recorren para construir los records del
+ * dominio.
+ *
+ * <p>{@code mapRow(...)} requiere cada colección hija de antemano —
+ * {@code Recipe} es un record inmutable con un constructor canónico
+ * de 14 argumentos, así que no es posible una hidratación parcial.
+ * Responsabilidad del llamador: leer las cuatro columnas JSON,
+ * parsear cada una y llamar una sola vez a {@code mapRow}.
+ */
 public class RecipeMapper {
 
     private RecipeMapper() {}
 
-    public static Recipe mapRow(ResultSet rs) throws SQLException {
-        Category category = new Category(
-                new CategoryId(rs.getInt("category_id")),
-                rs.getString("category_name"));
-        Difficulty difficulty = new Difficulty(
-                new DifficultyId(rs.getInt("difficulty_id")),
-                rs.getString("difficulty_level"));
-        Recipe recipe = new Recipe(
+    /**
+     * Builds a fully hydrated {@link Recipe} record from one row + the four pre-mapped
+     * child collections. The single call-site in {@code JdbcRecipeRepository.findById}
+     * reads the LATERAL-aggregated JSON columns first, then hands them to this method
+     * so the record's compact constructor sees every component at once (immutable: no
+     * post-construction hydration is possible).
+     */
+    public static Recipe mapRow(ResultSet rs,
+                                List<RecipeIngredient> ingredients,
+                                List<RecipeStep> steps,
+                                List<Rating> ratings,
+                                List<RecipeMedia> mediaItems) throws SQLException {
+        BigDecimal avgScore = rs.getBigDecimal("average_score");
+        return new Recipe(
+                new RecipeId(rs.getInt("recipe_id")),
                 new UserId(rs.getInt("user_id")),
-                category,
-                difficulty,
+                new Category(new CategoryId(rs.getInt("category_id")), rs.getString("category_name")),
+                new Difficulty(new DifficultyId(rs.getInt("difficulty_id")), rs.getString("difficulty_level")),
                 rs.getString("title"),
                 rs.getString("description"),
                 new PreparationTime(rs.getInt("prep_time_min")),
-                new Servings(rs.getInt("servings"))
-        );
-        recipe.setId(new RecipeId(rs.getInt("id_recipe")));
-        BigDecimal avgScore = rs.getBigDecimal("average_score");
-        recipe.setSocialMetrics(
+                new Servings(rs.getInt("servings")),
                 avgScore != null ? avgScore : BigDecimal.ZERO,
-                rs.getInt("total_ratings"));
-        return recipe;
+                rs.getInt("total_ratings"),
+                ingredients, steps, ratings, mediaItems);
     }
 
     public static List<RecipeIngredient> mapIngredientsJson(String json) {
@@ -101,7 +143,7 @@ public class RecipeMapper {
         for (int i = 0; i < arr.length(); i++) {
             JSONObject obj = arr.getJSONObject(i);
             result.add(new RecipeMedia(
-                    new RecipeMediaId(obj.getInt("id_media")),
+                    new RecipeMediaId(obj.getInt("media_id")),
                     recipeId,
                     obj.getString("storage_key"),
                     obj.getString("storage_provider"),

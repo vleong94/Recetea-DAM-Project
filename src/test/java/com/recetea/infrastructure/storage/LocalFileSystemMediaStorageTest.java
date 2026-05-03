@@ -13,7 +13,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DisplayName("LocalFileSystemMediaStorage — Almacenamiento y eliminación de archivos")
+@DisplayName("LocalFileSystemMediaStorage — File storage and deletion")
 class LocalFileSystemMediaStorageTest {
 
     @TempDir
@@ -27,32 +27,32 @@ class LocalFileSystemMediaStorageTest {
     }
 
     @Test
-    @DisplayName("store debe escribir los bytes en el sistema de ficheros y retornar StorageResult con ruta no vacía")
+    @DisplayName("store: Should write bytes to the filesystem and return StorageResult with non-empty key")
     void store_ShouldWriteFileAndReturnStorageResult() throws IOException {
         byte[] expectedBytes = "contenido de prueba".getBytes();
 
         StorageResult result = storage.store(new ByteArrayInputStream(expectedBytes), "imagen.jpg");
 
-        assertNotNull(result.storageKey(), "storageKey no debe ser nulo");
-        assertFalse(result.storageKey().isBlank(), "storageKey no debe estar vacío");
+        assertNotNull(result.storageKey(), "storageKey must not be null");
+        assertFalse(result.storageKey().isBlank(), "storageKey must not be blank");
         Path file = tempDir.resolve(result.storageKey());
-        assertTrue(Files.exists(file), "El archivo debe existir en el directorio base");
+        assertTrue(Files.exists(file), "File must exist in the base directory");
         assertArrayEquals(expectedBytes, Files.readAllBytes(file),
-                "El contenido del archivo debe coincidir con los bytes originales");
+                "File content must match the original bytes");
     }
 
     @Test
-    @DisplayName("store debe retornar el tamaño correcto en sizeBytes")
+    @DisplayName("store: Should return the correct size in sizeBytes")
     void store_ShouldReturnCorrectSizeBytes() {
         byte[] data = new byte[]{1, 2, 3, 4, 5};
 
         StorageResult result = storage.store(new ByteArrayInputStream(data), "archivo.bin");
 
-        assertEquals(data.length, result.sizeBytes(), "sizeBytes debe coincidir con la longitud de los datos");
+        assertEquals(data.length, result.sizeBytes(), "sizeBytes must match the data length");
     }
 
     @Test
-    @DisplayName("store debe detectar image/jpeg para archivos .jpg")
+    @DisplayName("store: Should detect image/jpeg for .jpg files")
     void store_ShouldDetectJpegMimeType() {
         byte[] data = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}; // JPEG magic bytes
 
@@ -60,13 +60,13 @@ class LocalFileSystemMediaStorageTest {
 
         assertTrue(
             result.mimeType().equals("image/jpeg") || result.mimeType().equals("application/octet-stream"),
-            "mimeType debe ser image/jpeg o el fallback application/octet-stream"
+            "mimeType must be image/jpeg or the fallback application/octet-stream"
         );
         assertNotNull(result.mimeType());
     }
 
     @Test
-    @DisplayName("store debe detectar image/png para archivos .png")
+    @DisplayName("store: Should detect image/png for .png files")
     void store_ShouldDetectPngMimeType() {
         byte[] data = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47}; // PNG magic bytes
 
@@ -74,13 +74,13 @@ class LocalFileSystemMediaStorageTest {
 
         assertTrue(
             result.mimeType().equals("image/png") || result.mimeType().equals("application/octet-stream"),
-            "mimeType debe ser image/png o el fallback application/octet-stream"
+            "mimeType must be image/png or the fallback application/octet-stream"
         );
         assertNotNull(result.mimeType());
     }
 
     @Test
-    @DisplayName("store debe usar application/octet-stream cuando el tipo MIME no se puede detectar")
+    @DisplayName("store: Should fall back to application/octet-stream when MIME type cannot be detected")
     void store_ShouldFallbackToOctetStream_WhenMimeTypeUnknown() {
         StorageResult result = storage.store(new ByteArrayInputStream(new byte[]{42}), "archivo_sin_extension");
 
@@ -89,53 +89,53 @@ class LocalFileSystemMediaStorageTest {
     }
 
     @Test
-    @DisplayName("store debe preservar la extensión del nombre original")
+    @DisplayName("store: Should preserve the original file extension")
     void store_ShouldPreserveOriginalExtension() {
         StorageResult result = storage.store(new ByteArrayInputStream(new byte[]{1, 2, 3}), "foto.png");
 
         assertTrue(result.storageKey().endsWith(".png"),
-                "La extensión .png debe estar presente en el nombre generado");
+                "The .png extension must be present in the generated name");
     }
 
     @Test
-    @DisplayName("store debe generar storageKeys únicos para llamadas sucesivas con el mismo nombre")
+    @DisplayName("store: Should generate unique storageKeys for successive calls with the same name")
     void store_ShouldGenerateUniqueStorageKeys() {
         StorageResult r1 = storage.store(new ByteArrayInputStream(new byte[]{1}), "a.jpg");
         StorageResult r2 = storage.store(new ByteArrayInputStream(new byte[]{2}), "a.jpg");
 
         assertNotEquals(r1.storageKey(), r2.storageKey(),
-                "Cada llamada a store debe producir un storageKey distinto");
+                "Each call to store must produce a different storageKey");
     }
 
     @Test
-    @DisplayName("store debe funcionar sin extensión si el nombre original no la tiene")
+    @DisplayName("store: Should work without extension when the original name has none")
     void store_ShouldWorkWithoutExtension() {
         assertDoesNotThrow(() ->
                 storage.store(new ByteArrayInputStream(new byte[]{42}), "archivo_sin_extension"));
     }
 
     @Test
-    @DisplayName("delete debe eliminar el archivo del sistema de ficheros")
+    @DisplayName("delete: Should remove the file from the filesystem")
     void delete_ShouldRemoveFile() throws IOException {
         StorageResult result = storage.store(new ByteArrayInputStream("datos".getBytes()), "doc.pdf");
         assertTrue(Files.exists(tempDir.resolve(result.storageKey())),
-                "Precondición: el archivo debe existir antes de borrar");
+                "Precondition: file must exist before deletion");
 
         storage.delete(result.storageKey());
 
         assertFalse(Files.exists(tempDir.resolve(result.storageKey())),
-                "El archivo debe haber sido eliminado");
+                "The file must have been deleted");
     }
 
     @Test
-    @DisplayName("delete no debe lanzar excepción cuando el archivo no existe")
+    @DisplayName("delete: Should not throw when the file does not exist")
     void delete_ShouldNotThrow_WhenFileDoesNotExist() {
         assertDoesNotThrow(() -> storage.delete("archivo_inexistente.jpg"),
-                "deleteIfExists no debe lanzar excepción para archivos que no existen");
+                "deleteIfExists must not throw for non-existent files");
     }
 
     @Test
-    @DisplayName("store con nombre nulo debe generar un StorageResult válido sin extensión")
+    @DisplayName("store: Should generate a valid StorageResult without extension when original name is null")
     void store_ShouldHandleNullOriginalName() {
         StorageResult result = storage.store(new ByteArrayInputStream(new byte[]{9}), null);
 
